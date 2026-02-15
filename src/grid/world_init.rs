@@ -388,8 +388,8 @@ pub(crate) fn populate_fields(
     // Heat: sample per-cell values into the write buffer, then swap.
     {
         let heat_write = grid.write_heat();
-        for i in 0..cell_count {
-            heat_write[i] = rng.random_range(config.min_initial_heat..=config.max_initial_heat);
+        for val in heat_write.iter_mut().take(cell_count) {
+            *val = rng.random_range(config.min_initial_heat..=config.max_initial_heat);
         }
     }
     grid.swap_heat();
@@ -401,8 +401,8 @@ pub(crate) fn populate_fields(
         let chem_write = grid
             .write_chemical(species)
             .expect("species index derived from grid; always valid");
-        for i in 0..cell_count {
-            chem_write[i] = rng.random_range(
+        for val in chem_write.iter_mut().take(cell_count) {
+            *val = rng.random_range(
                 config.min_initial_concentration..=config.max_initial_concentration,
             );
         }

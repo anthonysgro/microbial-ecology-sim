@@ -39,15 +39,15 @@ Extract all source-generation parameters from `WorldInitConfig` into a reusable 
     - Pass the appropriate `SourceFieldConfig` to `sample_reservoir_params`
     - _Requirements: 3.1, 3.2, 3.3_
 
-- [ ] 3. Update call sites
-  - [ ] 3.1 Update `main.rs` to use new `WorldInitConfig` layout
+- [x] 3. Update call sites
+  - [x] 3.1 Update `main.rs` to use new `WorldInitConfig` layout
     - Construct `WorldInitConfig` with `heat_source_config` and `chemical_source_config` fields
     - _Requirements: 5.1_
-  - [ ] 3.2 Ensure `SourceFieldConfig` is exported from the module's public API
+  - [x] 3.2 Ensure `SourceFieldConfig` is exported from the module's public API
     - Add `pub use` or ensure visibility so `main.rs` and external consumers can access it
     - _Requirements: 5.3_
 
-- [ ] 4. Checkpoint
+- [x] 4. Checkpoint
   - Ensure the codebase compiles without errors or warnings. Run `cargo clippy`. Ask the user if questions arise.
 
 - [ ]* 5. Property tests
@@ -73,7 +73,7 @@ Extract all source-generation parameters from `WorldInitConfig` into a reusable 
     - Test that a fully valid default config passes validation
     - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8_
 
-- [ ] 7. Final checkpoint
+- [x] 7. Final checkpoint
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Notes
