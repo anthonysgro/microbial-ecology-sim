@@ -15,6 +15,9 @@ pub struct ActorConfig {
     pub base_energy_decay: f32,
     /// Energy assigned to newly spawned Actors.
     pub initial_energy: f32,
+    /// Maximum energy an Actor can hold. Energy is clamped to this
+    /// ceiling after each metabolic tick. Must be > 0.0 and >= initial_energy.
+    pub max_energy: f32,
     /// Pre-allocated slot capacity for the ActorRegistry.
     pub initial_actor_capacity: usize,
     /// Energy subtracted from an Actor when it successfully moves to an adjacent cell.
@@ -30,6 +33,7 @@ impl Default for ActorConfig {
             energy_conversion_factor: 2.0,
             base_energy_decay: 0.05,
             initial_energy: 10.0,
+            max_energy: 50.0,
             initial_actor_capacity: 64,
             movement_cost: 0.5,
             removal_threshold: -5.0,

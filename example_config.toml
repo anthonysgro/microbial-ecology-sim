@@ -1,64 +1,88 @@
-# Example world configuration for emergent-sovereignty.
-# All values shown are the compiled defaults — tweak as needed.
-# Omit any field or section to use its default.
+# ─── Emergent Sovereignty — Tuned World Configuration ───────────────
+#
+# Goals of this config:
+#   • Visible chemical gradients that form and shift over time
+#   • Actors that survive long enough to exhibit movement and clustering
+#   • Heat dynamics that create spatial heterogeneity
+#   • Sources that create resource competition (mix of renewable + finite)
+#   • Stable numerics: diffusion_rate * tick_duration * 8 < 1.0
+#
+# Grid: 60×60 = 3,600 cells. Large enough for spatial structure,
+# small enough for fast iteration and clear visualization.
 
-seed = 42
+seed = 7
 
 [grid]
-width = 100
-height = 100
-num_chemicals = 1
-diffusion_rate = 0.05
-thermal_conductivity = 0.05
-ambient_heat = 0.0
+width  = 60
+height = 60
+num_chemicals = 1                    # Actors sense and consume species 0 only
+diffusion_rate = 0.08                # Moderate spread — gradients persist 10–20 ticks
+thermal_conductivity = 0.04          # Heat spreads slower than chemicals
+ambient_heat = 0.2                   # Mild ambient — edges don't become dead zones
 tick_duration = 1.0
 num_threads = 4
-chemical_decay_rates = [0.05]
+chemical_decay_rates = [0.02]        # Slow decay — sources must outpace it to build gradients
+
+# ─── World Initialization ───────────────────────────────────────────
 
 [world_init]
-min_initial_heat = 0.0
-max_initial_heat = 1.0
+min_initial_heat = 0.1
+max_initial_heat = 0.6               # Warm baseline — not uniform, creates early gradients
 min_initial_concentration = 0.0
-max_initial_concentration = 0.5
-min_actors = 5
-max_actors = 10
+max_initial_concentration = 0.3      # Light chemical dusting — sources dominate quickly
 
+min_actors = 15
+max_actors = 25                      # Enough actors for competition without grid saturation
+
+# Heat sources: a few strong emitters create thermal "hotspots"
 [world_init.heat_source_config]
-min_sources = 1
-max_sources = 5
-min_emission_rate = 0.1
-max_emission_rate = 5.0
-renewable_fraction = 0.3
-min_reservoir_capacity = 50.0
-max_reservoir_capacity = 200.0
-min_deceleration_threshold = 0.1
-max_deceleration_threshold = 0.5
+min_sources = 2
+max_sources = 6
+min_emission_rate = 0.5
+max_emission_rate = 3.0              # Strong enough to create visible thermal zones
+renewable_fraction = 0.5             # Half are permanent, half deplete over time
+min_reservoir_capacity = 100.0
+max_reservoir_capacity = 500.0       # Finite sources last 30–500 ticks depending on rate
+min_deceleration_threshold = 0.2
+max_deceleration_threshold = 0.4     # Gradual tapering as sources deplete
 
+# Chemical sources: more numerous, moderate strength — creates a nutrient landscape
 [world_init.chemical_source_config]
-min_sources = 1
-max_sources = 3
-min_emission_rate = 0.1
-max_emission_rate = 5.0
-renewable_fraction = 0.3
-min_reservoir_capacity = 50.0
-max_reservoir_capacity = 200.0
-min_deceleration_threshold = 0.1
-max_deceleration_threshold = 0.5
+min_sources = 3
+max_sources = 8
+min_emission_rate = 0.3
+max_emission_rate = 2.0              # Enough to sustain actors but not flood the grid
+renewable_fraction = 0.4             # Finite sources create resource scarcity over time
+min_reservoir_capacity = 150.0
+max_reservoir_capacity = 600.0
+min_deceleration_threshold = 0.15
+max_deceleration_threshold = 0.35
+
+# ─── Actor Configuration ────────────────────────────────────────────
+#
+# Tuning rationale:
+#   • consumption_rate (1.0) < typical source emission — actors must move to find food
+#   • energy_conversion_factor (1.8) — consuming 1.0 chemical yields 1.8 energy
+#   • base_energy_decay (0.03) — slow drain, actors survive ~260 ticks idle at full energy
+#   • movement_cost (0.3) — moving is cheap relative to starvation, encourages exploration
+#   • initial_energy (8.0) — enough runway to find food, not enough to idle forever
+#   • removal_threshold (-3.0) — inert actors linger briefly before cleanup
 
 [actor]
-consumption_rate = 1.5
-energy_conversion_factor = 2.0
-base_energy_decay = 0.05
-initial_energy = 10.0
+consumption_rate = 1.0
+energy_conversion_factor = 1.8
+base_energy_decay = 0.03
+initial_energy = 8.0
 initial_actor_capacity = 64
-movement_cost = 0.5
-removal_threshold = -5.0
+movement_cost = 0.3
+removal_threshold = -3.0
 
-# Bevy visualization settings.
+# ─── Bevy Visualization ────────────────────────────────────────────
+
 [bevy]
-tick_hz = 10.0
+tick_hz = 8.0          # Slightly slower than real-time — easier to observe dynamics
 zoom_min = 0.1
 zoom_max = 10.0
-zoom_speed = 0.1
-pan_speed = 1.0
-color_scale_max = 10.0
+zoom_speed = 0.15
+pan_speed = 1.5
+color_scale_max = 8.0  # Matched to typical peak concentrations for good color range
