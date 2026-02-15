@@ -4,6 +4,7 @@ pub mod heat;
 pub mod error;
 pub mod field_buffer;
 pub mod partition;
+pub mod source;
 pub mod tick;
 
 use config::{CellDefaults, GridConfig};

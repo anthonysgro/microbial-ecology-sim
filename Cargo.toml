@@ -7,6 +7,7 @@ edition = "2024"
 anyhow = "1"
 rayon = "1.10"
 crossterm = "0.28"
+thiserror = "2"
 
 [dev-dependencies]
 proptest = "1.6"

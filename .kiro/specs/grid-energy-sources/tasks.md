@@ -68,8 +68,8 @@ Two-phase implementation: first strip all moisture infrastructure from the codeb
   - Ensure all existing tests pass (`cargo test`)
   - Ask the user if questions arise.
 
-- [ ] 5. Define source data types and error enum
-  - [ ] 5.1 Create `src/grid/source.rs` with `SourceField`, `SourceId`, `Source`, `SourceSlot`, and `SourceError` types
+- [x] 5. Define source data types and error enum
+  - [x] 5.1 Create `src/grid/source.rs` with `SourceField`, `SourceId`, `Source`, `SourceSlot`, and `SourceError` types
     - `SourceField` enum: `Heat`, `Chemical(usize)`
     - `SourceId` struct: `index: usize`, `generation: u64`
     - `Source` struct: `cell_index: usize`, `field: SourceField`, `emission_rate: f32`
@@ -78,8 +78,8 @@ Two-phase implementation: first strip all moisture infrastructure from the codeb
     - Register the module in `src/grid/mod.rs` as `pub mod source;`
     - _Requirements: 5.4_
 
-- [ ] 6. Implement SourceRegistry
-  - [ ] 6.1 Implement `SourceRegistry::new`, `add`, `remove`, `len`, `is_empty`, and `iter`
+- [-] 6. Implement SourceRegistry
+  - [x] 6.1 Implement `SourceRegistry::new`, `add`, `remove`, `len`, `is_empty`, and `iter`
     - `new()` creates empty registry
     - `add()` validates cell_index against cell_count, validates chemical species against num_chemicals, reuses free slots via free_list, returns `SourceId` with current generation
     - `remove()` checks index bounds and generation match, sets slot to None, pushes index to free_list, decrements active_count
