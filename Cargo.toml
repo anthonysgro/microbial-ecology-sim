@@ -5,6 +5,8 @@ edition = "2024"
 
 [dependencies]
 anyhow = "1"
+rand = "0.9"
+rand_chacha = "0.9"
 rayon = "1.10"
 crossterm = "0.28"
 thiserror = "2"

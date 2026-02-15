@@ -6,7 +6,7 @@ Implement a COLD-path procedural initialization system in `src/grid/world_init.r
 
 ## Tasks
 
-- [ ] 1. Add `rand` and `rand_chacha` dependencies
+- [x] 1. Add `rand` and `rand_chacha` dependencies
   - Add `rand = "0.8"` and `rand_chacha = "0.8"` to `[dependencies]` in `Cargo.toml`
   - These provide `SeedableRng`, `Rng` trait, and `ChaCha8Rng` for deterministic seeded generation
   - _Requirements: 1.1, 1.2_

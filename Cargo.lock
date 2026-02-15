@@ -104,6 +104,8 @@ dependencies = [
  "anyhow",
  "crossterm",
  "proptest",
+ "rand",
+ "rand_chacha",
  "rayon",
  "thiserror",
 ]
