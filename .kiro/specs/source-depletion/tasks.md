@@ -72,14 +72,14 @@ Extend the `Source` struct with reservoir, initial_capacity, and deceleration_th
 - [x] 4. Checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
-- [-] 5. Update WorldInitConfig and generate_sources for reservoir parameterization
+- [x] 5. Update WorldInitConfig and generate_sources for reservoir parameterization
   - [x] 5.1 Add `renewable_fraction`, `min_reservoir_capacity`, `max_reservoir_capacity`, `min_deceleration_threshold`, `max_deceleration_threshold` fields to `WorldInitConfig`
     - Update `Default` impl with sensible defaults (e.g., renewable_fraction = 0.3, reservoir range [50.0, 200.0], threshold range [0.1, 0.5])
     - _Requirements: 5.1, 5.2, 5.3_
   - [x] 5.2 Add validation for new fields in `validate_config`
     - renewable_fraction in [0.0, 1.0], min_reservoir > 0.0, max >= min for both ranges, thresholds in [0.0, 1.0]
     - _Requirements: 5.1, 5.2, 5.3_
-  - [-] 5.3 Modify `generate_sources` to assign renewability and reservoir parameters per source
+  - [x] 5.3 Modify `generate_sources` to assign renewability and reservoir parameters per source
     - For each source: sample `rng.random_bool(renewable_fraction)` to decide renewable vs finite
     - Renewable: set reservoir and initial_capacity to `f32::INFINITY`, deceleration_threshold to 0.0
     - Finite: sample reservoir from [min, max], set initial_capacity = reservoir, sample threshold from [min, max]
@@ -97,7 +97,7 @@ Extend the `Source` struct with reservoir, initial_capacity, and deceleration_th
     - Run emission for N ticks on two identical grids with identical source configs, verify identical reservoir and field state
     - **Validates: Requirements 6.1**
 
-- [~] 7. Final checkpoint - Ensure all tests pass
+- [x] 7. Final checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Notes

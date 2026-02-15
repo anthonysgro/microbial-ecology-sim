@@ -12,21 +12,35 @@ use crate::grid::config::{CellDefaults, GridConfig};
 use crate::grid::error::GridError;
 use crate::grid::source::{Source, SourceError, SourceField};
 
+/// Per-field-type configuration for source generation.
+/// Reusable for any fundamental (heat, chemical, future types).
+/// All ranges are inclusive: [min, max].
+#[derive(Debug, Clone, PartialEq)]
+pub struct SourceFieldConfig {
+    /// Range for number of sources to place.
+    pub min_sources: u32,
+    pub max_sources: u32,
+    /// Range for source emission rates (units per tick).
+    pub min_emission_rate: f32,
+    pub max_emission_rate: f32,
+    /// Fraction of sources that are renewable. [0.0, 1.0].
+    pub renewable_fraction: f32,
+    /// Range for initial reservoir capacity of non-renewable sources.
+    pub min_reservoir_capacity: f32,
+    pub max_reservoir_capacity: f32,
+    /// Range for deceleration threshold of non-renewable sources. [0.0, 1.0].
+    pub min_deceleration_threshold: f32,
+    pub max_deceleration_threshold: f32,
+}
+
 /// Ranges and constraints for procedural world generation.
 /// All ranges are inclusive: [min, max].
 #[derive(Debug, Clone, PartialEq)]
 pub struct WorldInitConfig {
-    /// Range for number of heat sources to place.
-    pub min_heat_sources: u32,
-    pub max_heat_sources: u32,
-
-    /// Range for number of chemical sources per species.
-    pub min_chemical_sources: u32,
-    pub max_chemical_sources: u32,
-
-    /// Range for source emission rates (applies to both heat and chemical).
-    pub min_emission_rate: f32,
-    pub max_emission_rate: f32,
+    /// All heat source generation parameters.
+    pub heat_source_config: SourceFieldConfig,
+    /// All chemical source generation parameters.
+    pub chemical_source_config: SourceFieldConfig,
 
     /// Range for initial per-cell heat values.
     pub min_initial_heat: f32,
@@ -40,41 +54,39 @@ pub struct WorldInitConfig {
     /// Set both to 0 to skip actor seeding.
     pub min_actors: u32,
     pub max_actors: u32,
-
-    /// Fraction of sources that are renewable (infinite reservoir).
-    /// 0.0 = all finite, 1.0 = all renewable.
-    pub renewable_fraction: f32,
-
-    /// Range for initial reservoir capacity of non-renewable sources.
-    pub min_reservoir_capacity: f32,
-    pub max_reservoir_capacity: f32,
-
-    /// Range for deceleration threshold of non-renewable sources.
-    /// Each value in [0.0, 1.0].
-    pub min_deceleration_threshold: f32,
-    pub max_deceleration_threshold: f32,
 }
 
 impl Default for WorldInitConfig {
     fn default() -> Self {
         Self {
-            min_heat_sources: 1,
-            max_heat_sources: 5,
-            min_chemical_sources: 1,
-            max_chemical_sources: 3,
-            min_emission_rate: 0.1,
-            max_emission_rate: 5.0,
+            heat_source_config: SourceFieldConfig {
+                min_sources: 1,
+                max_sources: 5,
+                min_emission_rate: 0.1,
+                max_emission_rate: 5.0,
+                renewable_fraction: 0.3,
+                min_reservoir_capacity: 50.0,
+                max_reservoir_capacity: 200.0,
+                min_deceleration_threshold: 0.1,
+                max_deceleration_threshold: 0.5,
+            },
+            chemical_source_config: SourceFieldConfig {
+                min_sources: 1,
+                max_sources: 3,
+                min_emission_rate: 0.1,
+                max_emission_rate: 5.0,
+                renewable_fraction: 0.3,
+                min_reservoir_capacity: 50.0,
+                max_reservoir_capacity: 200.0,
+                min_deceleration_threshold: 0.1,
+                max_deceleration_threshold: 0.5,
+            },
             min_initial_heat: 0.0,
             max_initial_heat: 1.0,
             min_initial_concentration: 0.0,
             max_initial_concentration: 0.5,
             min_actors: 0,
             max_actors: 0,
-            renewable_fraction: 0.3,
-            min_reservoir_capacity: 50.0,
-            max_reservoir_capacity: 200.0,
-            min_deceleration_threshold: 0.1,
-            max_deceleration_threshold: 0.5,
         }
     }
 }
@@ -104,25 +116,32 @@ pub enum WorldInitError {
 
 /// Validate all `WorldInitConfig` ranges. Returns first error found.
 pub(crate) fn validate_config(config: &WorldInitConfig) -> Result<(), WorldInitError> {
-    if config.min_heat_sources > config.max_heat_sources {
+    if config.heat_source_config.min_sources > config.heat_source_config.max_sources {
         return Err(WorldInitError::InvalidRange {
             field: "heat_sources",
-            min: f64::from(config.min_heat_sources),
-            max: f64::from(config.max_heat_sources),
+            min: f64::from(config.heat_source_config.min_sources),
+            max: f64::from(config.heat_source_config.max_sources),
         });
     }
-    if config.min_chemical_sources > config.max_chemical_sources {
+    if config.chemical_source_config.min_sources > config.chemical_source_config.max_sources {
         return Err(WorldInitError::InvalidRange {
             field: "chemical_sources",
-            min: f64::from(config.min_chemical_sources),
-            max: f64::from(config.max_chemical_sources),
+            min: f64::from(config.chemical_source_config.min_sources),
+            max: f64::from(config.chemical_source_config.max_sources),
         });
     }
-    if config.min_emission_rate > config.max_emission_rate {
+    if config.heat_source_config.min_emission_rate > config.heat_source_config.max_emission_rate {
         return Err(WorldInitError::InvalidRange {
-            field: "emission_rate",
-            min: f64::from(config.min_emission_rate),
-            max: f64::from(config.max_emission_rate),
+            field: "heat_emission_rate",
+            min: f64::from(config.heat_source_config.min_emission_rate),
+            max: f64::from(config.heat_source_config.max_emission_rate),
+        });
+    }
+    if config.chemical_source_config.min_emission_rate > config.chemical_source_config.max_emission_rate {
+        return Err(WorldInitError::InvalidRange {
+            field: "chemical_emission_rate",
+            min: f64::from(config.chemical_source_config.min_emission_rate),
+            max: f64::from(config.chemical_source_config.max_emission_rate),
         });
     }
     if config.min_initial_heat > config.max_initial_heat {
@@ -147,39 +166,75 @@ pub(crate) fn validate_config(config: &WorldInitConfig) -> Result<(), WorldInitE
         });
     }
 
-    // Reservoir parameterization validation
-    if !(0.0..=1.0).contains(&config.renewable_fraction) {
+    // Reservoir parameterization validation — heat
+    if !(0.0..=1.0).contains(&config.heat_source_config.renewable_fraction) {
         return Err(WorldInitError::InvalidConfig {
-            reason: "renewable_fraction must be in [0.0, 1.0]",
+            reason: "heat renewable_fraction must be in [0.0, 1.0]",
         });
     }
-    if config.min_reservoir_capacity <= 0.0 {
+    if config.heat_source_config.min_reservoir_capacity <= 0.0 {
         return Err(WorldInitError::InvalidConfig {
-            reason: "min_reservoir_capacity must be > 0.0",
+            reason: "heat min_reservoir_capacity must be > 0.0",
         });
     }
-    if config.max_reservoir_capacity < config.min_reservoir_capacity {
+    if config.heat_source_config.max_reservoir_capacity < config.heat_source_config.min_reservoir_capacity {
         return Err(WorldInitError::InvalidRange {
-            field: "reservoir_capacity",
-            min: f64::from(config.min_reservoir_capacity),
-            max: f64::from(config.max_reservoir_capacity),
+            field: "heat_reservoir_capacity",
+            min: f64::from(config.heat_source_config.min_reservoir_capacity),
+            max: f64::from(config.heat_source_config.max_reservoir_capacity),
         });
     }
-    if !(0.0..=1.0).contains(&config.min_deceleration_threshold) {
+    if !(0.0..=1.0).contains(&config.heat_source_config.min_deceleration_threshold) {
         return Err(WorldInitError::InvalidConfig {
-            reason: "min_deceleration_threshold must be in [0.0, 1.0]",
+            reason: "heat min_deceleration_threshold must be in [0.0, 1.0]",
         });
     }
-    if !(0.0..=1.0).contains(&config.max_deceleration_threshold) {
+    if !(0.0..=1.0).contains(&config.heat_source_config.max_deceleration_threshold) {
         return Err(WorldInitError::InvalidConfig {
-            reason: "max_deceleration_threshold must be in [0.0, 1.0]",
+            reason: "heat max_deceleration_threshold must be in [0.0, 1.0]",
         });
     }
-    if config.max_deceleration_threshold < config.min_deceleration_threshold {
+    if config.heat_source_config.max_deceleration_threshold < config.heat_source_config.min_deceleration_threshold {
         return Err(WorldInitError::InvalidRange {
-            field: "deceleration_threshold",
-            min: f64::from(config.min_deceleration_threshold),
-            max: f64::from(config.max_deceleration_threshold),
+            field: "heat_deceleration_threshold",
+            min: f64::from(config.heat_source_config.min_deceleration_threshold),
+            max: f64::from(config.heat_source_config.max_deceleration_threshold),
+        });
+    }
+
+    // Reservoir parameterization validation — chemical
+    if !(0.0..=1.0).contains(&config.chemical_source_config.renewable_fraction) {
+        return Err(WorldInitError::InvalidConfig {
+            reason: "chemical renewable_fraction must be in [0.0, 1.0]",
+        });
+    }
+    if config.chemical_source_config.min_reservoir_capacity <= 0.0 {
+        return Err(WorldInitError::InvalidConfig {
+            reason: "chemical min_reservoir_capacity must be > 0.0",
+        });
+    }
+    if config.chemical_source_config.max_reservoir_capacity < config.chemical_source_config.min_reservoir_capacity {
+        return Err(WorldInitError::InvalidRange {
+            field: "chemical_reservoir_capacity",
+            min: f64::from(config.chemical_source_config.min_reservoir_capacity),
+            max: f64::from(config.chemical_source_config.max_reservoir_capacity),
+        });
+    }
+    if !(0.0..=1.0).contains(&config.chemical_source_config.min_deceleration_threshold) {
+        return Err(WorldInitError::InvalidConfig {
+            reason: "chemical min_deceleration_threshold must be in [0.0, 1.0]",
+        });
+    }
+    if !(0.0..=1.0).contains(&config.chemical_source_config.max_deceleration_threshold) {
+        return Err(WorldInitError::InvalidConfig {
+            reason: "chemical max_deceleration_threshold must be in [0.0, 1.0]",
+        });
+    }
+    if config.chemical_source_config.max_deceleration_threshold < config.chemical_source_config.min_deceleration_threshold {
+        return Err(WorldInitError::InvalidRange {
+            field: "chemical_deceleration_threshold",
+            min: f64::from(config.chemical_source_config.min_deceleration_threshold),
+            max: f64::from(config.chemical_source_config.max_deceleration_threshold),
         });
     }
 
@@ -201,15 +256,16 @@ pub(crate) fn generate_sources(
     num_chemicals: usize,
 ) -> Result<(), WorldInitError> {
     let cell_count = grid.cell_count();
-    let renewable_prob = f64::from(config.renewable_fraction);
 
     // Heat sources
-    let heat_count = rng.random_range(config.min_heat_sources..=config.max_heat_sources);
+    let heat_cfg = &config.heat_source_config;
+    let heat_renewable_prob = f64::from(heat_cfg.renewable_fraction);
+    let heat_count = rng.random_range(heat_cfg.min_sources..=heat_cfg.max_sources);
     for _ in 0..heat_count {
         let cell_index = rng.random_range(0..cell_count);
-        let emission_rate = rng.random_range(config.min_emission_rate..=config.max_emission_rate);
+        let emission_rate = rng.random_range(heat_cfg.min_emission_rate..=heat_cfg.max_emission_rate);
         let (reservoir, initial_capacity, deceleration_threshold) =
-            sample_reservoir_params(rng, config, renewable_prob);
+            sample_reservoir_params(rng, heat_cfg, heat_renewable_prob);
         grid.add_source(Source {
             cell_index,
             field: SourceField::Heat,
@@ -221,13 +277,15 @@ pub(crate) fn generate_sources(
     }
 
     // Chemical sources: one batch per species
+    let chem_cfg = &config.chemical_source_config;
+    let chem_renewable_prob = f64::from(chem_cfg.renewable_fraction);
     for species in 0..num_chemicals {
-        let chem_count = rng.random_range(config.min_chemical_sources..=config.max_chemical_sources);
+        let chem_count = rng.random_range(chem_cfg.min_sources..=chem_cfg.max_sources);
         for _ in 0..chem_count {
             let cell_index = rng.random_range(0..cell_count);
-            let emission_rate = rng.random_range(config.min_emission_rate..=config.max_emission_rate);
+            let emission_rate = rng.random_range(chem_cfg.min_emission_rate..=chem_cfg.max_emission_rate);
             let (reservoir, initial_capacity, deceleration_threshold) =
-                sample_reservoir_params(rng, config, renewable_prob);
+                sample_reservoir_params(rng, chem_cfg, chem_renewable_prob);
             grid.add_source(Source {
                 cell_index,
                 field: SourceField::Chemical(species),
@@ -249,7 +307,7 @@ pub(crate) fn generate_sources(
 /// Finite sources sample capacity and threshold from the configured ranges.
 fn sample_reservoir_params(
     rng: &mut impl Rng,
-    config: &WorldInitConfig,
+    config: &SourceFieldConfig,
     renewable_prob: f64,
 ) -> (f32, f32, f32) {
     if rng.random_bool(renewable_prob) {
