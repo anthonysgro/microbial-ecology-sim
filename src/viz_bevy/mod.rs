@@ -37,6 +37,17 @@ impl Plugin for BevyVizPlugin {
         let timestep = Duration::from_secs_f64(1.0 / tick_hz);
         app.insert_resource(Time::<Fixed>::from_duration(timestep));
 
+        // Cap the virtual clock's max delta to prevent FixedUpdate death spirals.
+        // At high tick rates (512+ Hz), a single slow frame can accumulate enough
+        // time debt to trigger dozens of catch-up ticks, which makes the next frame
+        // even slower — a positive feedback loop. Capping max_delta to ~4 frames
+        // worth of wall time (66ms ≈ 15fps floor) means Bevy will drop sim ticks
+        // rather than spiral. The simulation slows down gracefully instead of
+        // locking up.
+        app.world_mut()
+            .resource_mut::<Time<Virtual>>()
+            .set_max_delta(Duration::from_millis(66));
+
         // Startup: initialize simulation, spawn entities.
         app.add_systems(Startup, setup::setup);
 

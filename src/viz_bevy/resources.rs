@@ -118,6 +118,9 @@ pub struct BevyVizConfig {
     /// instead of the dynamic max, so the color scale stays stable.
     /// Values above this render as full intensity.
     pub color_scale_max: f32,
+    /// Number of simulation ticks between stats recomputations.
+    /// 0 or 1 means every tick (no throttling). Default: 10.
+    pub stats_update_interval: u64,
 }
 
 // ── Marker Components ──────────────────────────────────────────────
@@ -228,3 +231,15 @@ pub struct StatsPanel;
 /// Marker for the actor inspector panel text entity.
 #[derive(Component)]
 pub struct ActorInspector;
+
+// ── Stats Throttle Resource ────────────────────────────────────────
+
+/// Tick counter for throttling `compute_trait_stats` recomputation.
+///
+/// Inserted at startup. Mutated only by `compute_trait_stats`.
+/// When `interval <= 1`, stats recompute every tick (no throttling).
+#[derive(Resource)]
+pub struct StatsTickCounter {
+    pub ticks_since_update: u64,
+    pub interval: u64,
+}

@@ -139,3 +139,5 @@ zoom_max = 10.0
 zoom_speed = 0.15
 pan_speed = 1.5
 color_scale_max = 2.0  # Matched to typical peak concentrations for good color range
+stats_update_interval = 10  # Ticks between trait stats recomputations. 0 or 1 = every tick (no throttling).
+                            # Higher values reduce CPU cost of the stats panel. Default: 10.

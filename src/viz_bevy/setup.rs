@@ -15,7 +15,7 @@ use super::resources::{
     ActiveOverlay, ActorInspector, BevyVizConfig, GridSprite, HoverTooltip, InfoPanel,
     InfoPanelVisible, MainCamera, OverlayLabel, RateLabel, RenderState, ScaleBar, ScaleMaxLabel,
     ScaleMinLabel, SelectedActor, SimRateController, SimulationState, StatsPanel,
-    StatsPanelVisible, TraitStats,
+    StatsPanelVisible, StatsTickCounter, TraitStats,
 };
 
 /// Format the overlay name for the UI label.
@@ -119,6 +119,7 @@ pub(super) fn format_config_info(
     grid_config: &GridConfig,
     init_config: &WorldInitConfig,
     actor_config: Option<&ActorConfig>,
+    stats_update_interval: u64,
 ) -> String {
     use std::fmt::Write;
 
@@ -210,6 +211,10 @@ pub(super) fn format_config_info(
             writeln!(out, "Actors: disabled").ok();
         }
     }
+
+    // ── Bevy ───────────────────────────────────────────────────────
+    writeln!(out, "\n--- Bevy ---").ok();
+    writeln!(out, "stats_update_interval: {stats_update_interval}").ok();
 
     out
 }
@@ -446,6 +451,7 @@ pub fn setup(
         &config.grid_config,
         &config.init_config,
         config.actor_config.as_ref(),
+        config.stats_update_interval,
     );
 
     commands.spawn((
@@ -474,6 +480,12 @@ pub fn setup(
         actor_count: 0,
         tick: 0,
         traits: None,
+    });
+
+    // ── Insert stats throttle counter ──────────────────────────────
+    commands.insert_resource(StatsTickCounter {
+        ticks_since_update: 0,
+        interval: config.stats_update_interval,
     });
 
     // ── Spawn stats panel (hidden by default, Req 2.1, 2.5, 2.6) ──

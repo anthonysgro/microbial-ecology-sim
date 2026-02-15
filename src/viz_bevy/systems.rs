@@ -13,7 +13,7 @@ use super::resources::{
     ActiveOverlay, ActorInspector, BevyVizConfig, GridSprite, HoverTooltip, InfoPanel,
     InfoPanelVisible, MainCamera, OverlayLabel, RateLabel, RenderState, ScaleBar, ScaleMaxLabel,
     SelectedActor, SimRateController, SimulationState, SingleTraitStats, StatsPanel,
-    StatsPanelVisible, TraitStats,
+    StatsPanelVisible, StatsTickCounter, TraitStats,
 };
 use super::setup::{build_scale_image, format_actor_info, format_trait_stats, overlay_label_text};
 
@@ -305,7 +305,9 @@ pub fn update_rate_label(
 
     let label = format_rate_label(rate.tick_hz, rate.paused, sim.running);
     for mut text in &mut query {
-        **text = label.clone();
+        if **text != label {
+            **text = label.clone();
+        }
     }
 }
 
@@ -440,7 +442,9 @@ pub fn update_hover_tooltip(
 
     let Some(cell_index) = cell_index else {
         for mut text in &mut tooltip_q {
-            **text = String::new();
+            if !text.is_empty() {
+                **text = String::new();
+            }
         }
         return;
     };
@@ -478,7 +482,9 @@ pub fn update_hover_tooltip(
     };
 
     for mut text in &mut tooltip_q {
-        **text = label.clone();
+        if **text != label {
+            **text = label.clone();
+        }
     }
 }
 
@@ -662,8 +668,12 @@ pub fn update_stats_panel(
     let content = format_trait_stats(&stats);
 
     for (mut text, mut vis) in &mut query {
-        **text = content.clone();
-        *vis = target_vis;
+        if **text != content {
+            **text = content.clone();
+        }
+        if *vis != target_vis {
+            *vis = target_vis;
+        }
     }
 }
 
@@ -686,8 +696,12 @@ pub fn update_actor_inspector(
 
     let Some(slot_index) = selected.0 else {
         for (mut text, mut vis) in &mut query {
-            **text = String::new();
-            *vis = Visibility::Hidden;
+            if !text.is_empty() {
+                **text = String::new();
+            }
+            if *vis != Visibility::Hidden {
+                *vis = Visibility::Hidden;
+            }
         }
         return;
     };
@@ -702,8 +716,12 @@ pub fn update_actor_inspector(
 
     let Some(actor) = actor else {
         for (mut text, mut vis) in &mut query {
-            **text = String::new();
-            *vis = Visibility::Hidden;
+            if !text.is_empty() {
+                **text = String::new();
+            }
+            if *vis != Visibility::Hidden {
+                *vis = Visibility::Hidden;
+            }
         }
         return;
     };
@@ -711,8 +729,12 @@ pub fn update_actor_inspector(
     let content = format_actor_info(actor, slot_index, sim.grid.width());
 
     for (mut text, mut vis) in &mut query {
-        **text = content.clone();
-        *vis = Visibility::Visible;
+        if **text != content {
+            **text = content.clone();
+        }
+        if *vis != Visibility::Visible {
+            *vis = Visibility::Visible;
+        }
     }
 }
 
@@ -737,15 +759,25 @@ pub fn compute_trait_stats_from_actors<'a>(
     actors: impl Iterator<Item = &'a Actor>,
     tick: u64,
 ) -> TraitStats {
-    let mut consumption = Vec::new();
-    let mut decay = Vec::new();
-    let mut levy = Vec::new();
-    let mut repro = Vec::new();
-    let mut tumble = Vec::new();
-    let mut repro_cost = Vec::new();
-    let mut offspring = Vec::new();
-    let mut mutation_rate = Vec::new();
+    // Use iterator size hint to pre-allocate all 8 trait buffers, avoiding
+    // incremental reallocation during collection. The lower bound is a
+    // conservative estimate; the upper bound (if available) would be tighter,
+    // but lower_bound alone eliminates most reallocations in practice.
+    let (lower_bound, _) = actors.size_hint();
+    let capacity = lower_bound;
 
+    let mut consumption = Vec::with_capacity(capacity);
+    let mut decay = Vec::with_capacity(capacity);
+    let mut levy = Vec::with_capacity(capacity);
+    let mut repro = Vec::with_capacity(capacity);
+    let mut tumble = Vec::with_capacity(capacity);
+    let mut repro_cost = Vec::with_capacity(capacity);
+    let mut offspring = Vec::with_capacity(capacity);
+    let mut mutation_rate = Vec::with_capacity(capacity);
+
+    // Single-pass collection: iterate actors once, push all 8 trait values
+    // per non-inert actor. This is explicit rather than relying on the
+    // optimizer to fuse separate collection passes.
     for actor in actors {
         if actor.inert {
             continue;
@@ -795,19 +827,61 @@ pub fn compute_trait_stats_from_actors<'a>(
 ///
 /// Precondition: `values` is non-empty.
 fn compute_single_stats(values: &mut [f32]) -> SingleTraitStats {
-    values.sort_by(f32::total_cmp);
-
     let n = values.len();
-    let sum: f32 = values.iter().sum();
+
+    // Streaming pass: min, max, sum in O(n). No sort needed.
+    let mut min = values[0];
+    let mut max = values[0];
+    let mut sum = values[0];
+    for &v in &values[1..] {
+        if v < min {
+            min = v;
+        }
+        if v > max {
+            max = v;
+        }
+        sum += v;
+    }
     let mean = sum / n as f32;
 
+    // Percentile indices — same formula as the original implementation.
+    let p50_idx = (n - 1) * 50 / 100;
+    let p25_idx = (n - 1) * 25 / 100;
+    let p75_idx = (n - 1) * 75 / 100;
+
+    // O(n) selection: compute p50 first, which partitions the slice such that
+    // values[..p50_idx] <= values[p50_idx] <= values[p50_idx+1..].
+    values.select_nth_unstable_by(p50_idx, f32::total_cmp);
+    let p50 = values[p50_idx];
+
+    // p25 on the left partition (indices 0..p50_idx). When p25_idx == p50_idx
+    // (degenerate case, n < 4), the left partition is empty and we already
+    // have the value at p50_idx.
+    let p25 = if p25_idx < p50_idx {
+        values[..p50_idx].select_nth_unstable_by(p25_idx, f32::total_cmp);
+        values[p25_idx]
+    } else {
+        values[p25_idx]
+    };
+
+    // p75 on the right partition (indices p50_idx+1..). When p75_idx == p50_idx
+    // (degenerate case), we already have the value.
+    let p75 = if p75_idx > p50_idx {
+        let right = &mut values[p50_idx + 1..];
+        let local_idx = p75_idx - (p50_idx + 1);
+        right.select_nth_unstable_by(local_idx, f32::total_cmp);
+        right[local_idx]
+    } else {
+        values[p75_idx]
+    };
+
     SingleTraitStats {
-        min: values[0],
-        max: values[n - 1],
+        min,
+        max,
         mean,
-        p25: values[(n - 1) * 25 / 100],
-        p50: values[(n - 1) * 50 / 100],
-        p75: values[(n - 1) * 75 / 100],
+        p25,
+        p50,
+        p75,
     }
 }
 
@@ -815,9 +889,25 @@ fn compute_single_stats(values: &mut [f32]) -> SingleTraitStats {
 ///
 /// COLD PATH: Runs in `FixedUpdate` after `tick_simulation`. Reads the
 /// actor registry from `SimulationState`, writes the `TraitStats` resource.
+/// Throttled by `StatsTickCounter` — skips recomputation when fewer than
+/// `interval` ticks have elapsed since the last update.
 ///
-/// Requirements: 1.1, 1.3, 1.4, 1.5
-pub fn compute_trait_stats(sim: Res<SimulationState>, mut stats: ResMut<TraitStats>) {
+/// Requirements: 1.1, 1.3, 1.4, 1.5, 2.2, 2.3, 2.6
+pub fn compute_trait_stats(
+    sim: Res<SimulationState>,
+    mut stats: ResMut<TraitStats>,
+    mut counter: ResMut<StatsTickCounter>,
+) {
+    // Throttle gate: skip recomputation when interval > 1 and not enough
+    // ticks have elapsed. interval 0 or 1 means every-tick (no throttling).
+    if counter.interval > 1 {
+        counter.ticks_since_update += 1;
+        if counter.ticks_since_update < counter.interval {
+            return;
+        }
+        counter.ticks_since_update = 0;
+    }
+
     let actors = sim.grid.actors().iter().map(|(_, actor)| actor);
     *stats = compute_trait_stats_from_actors(actors, sim.tick);
 }

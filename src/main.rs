@@ -63,6 +63,7 @@ fn load_config() -> anyhow::Result<BevyVizConfig> {
         zoom_speed: bevy_config.bevy.zoom_speed,
         pan_speed: bevy_config.bevy.pan_speed,
         color_scale_max: bevy_config.bevy.color_scale_max,
+        stats_update_interval: bevy_config.bevy.stats_update_interval,
     };
 
     Ok(viz)

@@ -137,3 +137,4 @@ Optional. Only consumed by the Bevy visualization binary.
 | `zoom_speed` | `f32` | `0.1` | Camera zoom speed per scroll event. |
 | `pan_speed` | `f32` | `1.0` | Camera pan speed. |
 | `color_scale_max` | `f32` | `10.0` | Fixed upper bound for color mapping. Values above this render as full intensity. |
+| `stats_update_interval` | `u64` | `10` | Ticks between trait stats recomputations. 0 or 1 = every tick (no throttling). Higher values reduce CPU cost of the stats panel. |
