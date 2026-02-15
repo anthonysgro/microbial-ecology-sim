@@ -6,12 +6,12 @@ Two-phase implementation: first strip all moisture infrastructure from the codeb
 
 ## Tasks
 
-- [-] 1. Remove moisture from the grid layer
-  - [ ] 1.1 Delete `src/grid/evaporation.rs` entirely
+- [x] 1. Remove moisture from the grid layer
+  - [x] 1.1 Delete `src/grid/evaporation.rs` entirely
     - Remove the entire evaporation system module
     - _Requirements: 2.1_
 
-  - [ ] 1.2 Strip moisture from `src/grid/mod.rs`
+  - [x] 1.2 Strip moisture from `src/grid/mod.rs`
     - Remove `pub mod evaporation;` declaration
     - Remove `moisture: FieldBuffer<f32>` field from `Grid` struct
     - Remove `read_moisture()`, `write_moisture()`, `swap_moisture()`, `read_write_moisture()` methods
@@ -19,12 +19,12 @@ Two-phase implementation: first strip all moisture infrastructure from the codeb
     - Remove moisture initialization from `Grid::new()`
     - _Requirements: 1.1, 1.2, 1.3, 2.2_
 
-  - [ ] 1.3 Strip moisture from `src/grid/config.rs`
+  - [x] 1.3 Strip moisture from `src/grid/config.rs`
     - Remove `evaporation_coefficient: f32` from `GridConfig`
     - Remove `moisture: f32` from `CellDefaults`
     - _Requirements: 1.4, 1.5_
 
-  - [ ] 1.4 Strip moisture from `src/grid/tick.rs`
+  - [x] 1.4 Strip moisture from `src/grid/tick.rs`
     - Remove `use crate::grid::evaporation::run_evaporation;` import
     - Remove Phase 3: `run_evaporation(grid, config)?;` call
     - Remove `validate_buffer(grid.write_moisture(), "evaporation", "moisture")?;`

@@ -12,8 +12,6 @@ pub struct GridConfig {
     pub diffusion_rate: f32,
     /// Heat radiation coefficient (thermal conductivity).
     pub thermal_conductivity: f32,
-    /// Moisture evaporation coefficient.
-    pub evaporation_coefficient: f32,
     /// Boundary condition for heat: missing neighbors use this value.
     pub ambient_heat: f32,
     /// Simulated time per tick (seconds).
@@ -28,5 +26,4 @@ pub struct CellDefaults {
     /// One concentration value per chemical species.
     pub chemical_concentrations: Vec<f32>,
     pub heat: f32,
-    pub moisture: f32,
 }

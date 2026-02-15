@@ -5,7 +5,6 @@
 use crate::grid::config::GridConfig;
 use crate::grid::diffusion::run_diffusion;
 use crate::grid::error::TickError;
-use crate::grid::evaporation::run_evaporation;
 use crate::grid::heat::run_heat;
 use crate::grid::Grid;
 
@@ -39,7 +38,6 @@ fn validate_buffer(
 ///
 /// 1. Diffusion  → validate chemical write buffers → swap chemicals
 /// 2. Heat       → validate heat write buffer      → swap heat
-/// 3. Evaporation → validate moisture write buffer  → swap moisture
 ///
 /// If validation fails, the tick halts immediately. The read buffer
 /// retains the last valid state for diagnostics.
@@ -73,11 +71,6 @@ impl TickOrchestrator {
         run_heat(grid, config)?;
         validate_buffer(grid.write_heat(), "heat", "heat")?;
         grid.swap_heat();
-
-        // Phase 3: Moisture evaporation
-        run_evaporation(grid, config)?;
-        validate_buffer(grid.write_moisture(), "evaporation", "moisture")?;
-        grid.swap_moisture();
 
         Ok(())
     }

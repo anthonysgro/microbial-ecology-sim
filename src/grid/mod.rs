@@ -1,6 +1,5 @@
 pub mod config;
 pub mod diffusion;
-pub mod evaporation;
 pub mod heat;
 pub mod error;
 pub mod field_buffer;
@@ -16,12 +15,11 @@ use partition::{compute_partitions, Partition};
 ///
 /// Owns all field buffers (SoA layout) and spatial partition metadata.
 /// Each physical field is a separate contiguous `FieldBuffer<f32>`:
-/// one per chemical species, plus one each for heat and moisture.
+/// one per chemical species, plus one for heat.
 pub struct Grid {
     config: GridConfig,
     chemicals: Vec<FieldBuffer<f32>>,
     heat: FieldBuffer<f32>,
-    moisture: FieldBuffer<f32>,
     partitions: Vec<Partition>,
 }
 
@@ -48,7 +46,6 @@ impl Grid {
             .collect();
 
         let heat = FieldBuffer::new(cell_count, defaults.heat);
-        let moisture = FieldBuffer::new(cell_count, defaults.moisture);
 
         let partitions = compute_partitions(
             config.width,
@@ -60,7 +57,6 @@ impl Grid {
             config,
             chemicals,
             heat,
-            moisture,
             partitions,
         })
     }
@@ -103,10 +99,6 @@ impl Grid {
         self.heat.read()
     }
 
-    pub fn read_moisture(&self) -> &[f32] {
-        self.moisture.read()
-    }
-
     pub fn read_chemical(&self, species: usize) -> Result<&[f32], GridError> {
         self.chemicals
             .get(species)
@@ -121,10 +113,6 @@ impl Grid {
 
     pub fn write_heat(&mut self) -> &mut [f32] {
         self.heat.write()
-    }
-
-    pub fn write_moisture(&mut self) -> &mut [f32] {
-        self.moisture.write()
     }
 
     pub fn write_chemical(&mut self, species: usize) -> Result<&mut [f32], GridError> {
@@ -144,10 +132,6 @@ impl Grid {
         self.heat.swap();
     }
 
-    pub fn swap_moisture(&mut self) {
-        self.moisture.swap();
-    }
-
     pub fn swap_chemicals(&mut self) {
         for buf in &mut self.chemicals {
             buf.swap();
@@ -159,28 +143,6 @@ impl Grid {
     /// Returns `(read_slice, write_slice)` referencing distinct allocations.
     pub fn read_write_heat(&mut self) -> (&[f32], &mut [f32]) {
         self.heat.read_write()
-    }
-
-    /// Simultaneous read and write access to the moisture field buffer.
-    ///
-    /// Returns `(read_slice, write_slice)` referencing distinct allocations.
-    pub fn read_write_moisture(&mut self) -> (&[f32], &mut [f32]) {
-        self.moisture.read_write()
-    }
-
-    /// Read access to heat and simultaneous read/write access to moisture.
-    ///
-    /// Returns `(heat_read, moisture_read, moisture_write)`. All three
-    /// slices reference distinct allocations: heat's read buffer, moisture's
-    /// read buffer, and moisture's write buffer.
-    ///
-    /// This combined accessor exists because the borrow checker cannot
-    /// prove that `read_heat()` and `read_write_moisture()` touch
-    /// disjoint fields through separate `&self` / `&mut self` borrows.
-    pub fn heat_read_moisture_rw(&mut self) -> (&[f32], &[f32], &mut [f32]) {
-        let heat_read = self.heat.read();
-        let (moisture_read, moisture_write) = self.moisture.read_write();
-        (heat_read, moisture_read, moisture_write)
     }
 
     /// Simultaneous read and write access to a chemical species buffer.
