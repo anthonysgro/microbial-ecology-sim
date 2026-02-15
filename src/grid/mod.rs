@@ -6,6 +6,7 @@ pub mod field_buffer;
 pub mod partition;
 pub mod source;
 pub mod tick;
+pub mod world_init;
 
 use config::{CellDefaults, GridConfig};
 use error::GridError;

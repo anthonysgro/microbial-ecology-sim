@@ -11,15 +11,15 @@ Implement a COLD-path procedural initialization system in `src/grid/world_init.r
   - These provide `SeedableRng`, `Rng` trait, and `ChaCha8Rng` for deterministic seeded generation
   - _Requirements: 1.1, 1.2_
 
-- [ ] 2. Implement `WorldInitConfig`, `WorldInitError`, and validation
-  - [ ] 2.1 Create `src/grid/world_init.rs` with `WorldInitConfig` struct and `WorldInitError` enum
+- [x] 2. Implement `WorldInitConfig`, `WorldInitError`, and validation
+  - [x] 2.1 Create `src/grid/world_init.rs` with `WorldInitConfig` struct and `WorldInitError` enum
     - Define `WorldInitConfig` with all range fields (heat sources, chemical sources, emission rate, initial heat, initial concentration)
     - Implement `Default` for `WorldInitConfig` with reasonable ranges
     - Define `WorldInitError` using `thiserror` with `InvalidRange`, `GridError`, and `SourceError` variants
     - Register the module in `src/grid/mod.rs`
     - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5_
 
-  - [ ] 2.2 Implement `validate_config` function
+  - [x] 2.2 Implement `validate_config` function
     - Check all five range fields: return `WorldInitError::InvalidRange` on first min > max
     - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5_
 
