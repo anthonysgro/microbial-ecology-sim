@@ -6,6 +6,7 @@ use crate::grid::actor_systems::{
     run_actor_metabolism, run_actor_movement, run_actor_sensing, run_deferred_removal,
 };
 use crate::grid::config::GridConfig;
+use crate::grid::decay::run_decay;
 use crate::grid::diffusion::run_diffusion;
 use crate::grid::error::TickError;
 use crate::grid::heat::run_heat;
@@ -303,7 +304,24 @@ impl TickOrchestrator {
         }
         grid.swap_chemicals();
 
-        // Phase 6: Heat radiation
+        // Phase 6: Chemical decay (HOT) — apply per-species decay after diffusion
+        run_decay(grid, config)?;
+        for species in 0..config.num_chemicals {
+            let write_buf = grid
+                .write_chemical(species)
+                .expect("species index validated by config.num_chemicals");
+            let field_name = match species {
+                0 => "chemical_0",
+                1 => "chemical_1",
+                2 => "chemical_2",
+                3 => "chemical_3",
+                _ => "chemical_N",
+            };
+            validate_buffer(write_buf, "decay", field_name)?;
+        }
+        grid.swap_chemicals();
+
+        // Phase 7: Heat radiation
         run_heat(grid, config)?;
         validate_buffer(grid.write_heat(), "heat", "heat")?;
         grid.swap_heat();

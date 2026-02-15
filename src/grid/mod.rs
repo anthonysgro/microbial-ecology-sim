@@ -2,6 +2,7 @@ pub mod actor;
 pub mod actor_config;
 pub mod actor_systems;
 pub mod config;
+pub mod decay;
 pub mod diffusion;
 pub mod heat;
 pub mod error;
@@ -56,6 +57,19 @@ impl Grid {
                 width: config.width,
                 height: config.height,
             });
+        }
+
+        // Validate decay rates: length must match num_chemicals, each in [0.0, 1.0].
+        if config.chemical_decay_rates.len() != config.num_chemicals {
+            return Err(GridError::DecayRateCountMismatch {
+                got: config.chemical_decay_rates.len(),
+                expected: config.num_chemicals,
+            });
+        }
+        for (species, &rate) in config.chemical_decay_rates.iter().enumerate() {
+            if !(0.0..=1.0).contains(&rate) {
+                return Err(GridError::InvalidDecayRate { species, rate });
+            }
         }
 
         let cell_count = (config.width as usize) * (config.height as usize);

@@ -28,6 +28,7 @@ fn main() {
         ambient_heat: 0.0,
         tick_duration: 1.0,
         num_threads: 4,
+        chemical_decay_rates: vec![0.05; 1],
     };
 
     let init_config = WorldInitConfig {
@@ -37,7 +38,7 @@ fn main() {
     };
 
     let actor_config = ActorConfig {
-        consumption_rate: 0.1,
+        consumption_rate: 1.5,
         energy_conversion_factor: 2.0,
         base_energy_decay: 0.05,
         initial_energy: 10.0,

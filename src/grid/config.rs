@@ -18,6 +18,9 @@ pub struct GridConfig {
     pub tick_duration: f32,
     /// Number of spatial partitions (maps to thread count for rayon).
     pub num_threads: usize,
+    /// Per-species chemical decay rate. Length must equal `num_chemicals`.
+    /// Each value in [0.0, 1.0]. Applied as `concentration *= (1.0 - rate)` per tick.
+    pub chemical_decay_rates: Vec<f32>,
 }
 
 /// Default values for initializing every cell in the grid.
