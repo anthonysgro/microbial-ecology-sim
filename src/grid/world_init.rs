@@ -150,6 +150,9 @@ pub(crate) fn generate_sources(
             cell_index,
             field: SourceField::Heat,
             emission_rate,
+            reservoir: f32::INFINITY,
+            initial_capacity: f32::INFINITY,
+            deceleration_threshold: 0.0,
         })?;
     }
 
@@ -163,6 +166,9 @@ pub(crate) fn generate_sources(
                 cell_index,
                 field: SourceField::Chemical(species),
                 emission_rate,
+                reservoir: f32::INFINITY,
+                initial_capacity: f32::INFINITY,
+                deceleration_threshold: 0.0,
             })?;
         }
     }

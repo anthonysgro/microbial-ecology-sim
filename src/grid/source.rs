@@ -27,11 +27,25 @@ pub struct SourceId {
 ///
 /// Plain data struct — no methods beyond construction. Negative `emission_rate`
 /// values are valid and represent drains (sinks).
+///
+/// Renewable sources use `f32::INFINITY` for `reservoir` and `initial_capacity`.
+/// This eliminates branching in the emission loop — the deceleration math works
+/// identically for both renewable and finite sources.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Source {
     pub cell_index: usize,
     pub field: SourceField,
+    /// Base emission rate (units per tick). May be negative for sinks.
     pub emission_rate: f32,
+    /// Remaining emittable quantity. `f32::INFINITY` for renewable sources.
+    pub reservoir: f32,
+    /// Total capacity at creation. `f32::INFINITY` for renewable sources.
+    /// Used as denominator in deceleration computation.
+    pub initial_capacity: f32,
+    /// Fraction of initial_capacity below which emission decelerates.
+    /// 0.0 = no deceleration (full rate until exhaustion).
+    /// 1.0 = deceleration begins immediately.
+    pub deceleration_threshold: f32,
 }
 
 /// Internal slot in the `SourceRegistry`. Holds an optional source and a
@@ -60,6 +74,17 @@ pub enum SourceError {
     InvalidSourceId {
         index: usize,
         generation: u64,
+    },
+
+    #[error("invalid reservoir: finite source requires reservoir > 0.0 and reservoir <= initial_capacity, got reservoir={reservoir}, initial_capacity={initial_capacity}")]
+    InvalidReservoir {
+        reservoir: f32,
+        initial_capacity: f32,
+    },
+
+    #[error("deceleration threshold {threshold} out of range [0.0, 1.0]")]
+    InvalidDecelerationThreshold {
+        threshold: f32,
     },
 }
 
@@ -110,6 +135,35 @@ impl SourceRegistry {
                     num_chemicals,
                 });
             }
+        }
+
+        // Validate reservoir fields.
+        // Renewable sources: both reservoir and initial_capacity must be INFINITY.
+        // Finite sources: both must be finite, positive, and reservoir <= initial_capacity.
+        let r = source.reservoir;
+        let ic = source.initial_capacity;
+        if r.is_infinite() && ic.is_infinite() {
+            // Renewable — valid.
+        } else if r.is_infinite() || ic.is_infinite() {
+            // Mixed infinite/finite — invalid.
+            return Err(SourceError::InvalidReservoir {
+                reservoir: r,
+                initial_capacity: ic,
+            });
+        } else {
+            // Both finite: must be positive and reservoir <= initial_capacity.
+            if r <= 0.0 || r.is_nan() || ic <= 0.0 || ic.is_nan() || r > ic {
+                return Err(SourceError::InvalidReservoir {
+                    reservoir: r,
+                    initial_capacity: ic,
+                });
+            }
+        }
+
+        // Validate deceleration threshold in [0.0, 1.0].
+        let t = source.deceleration_threshold;
+        if !(0.0..=1.0).contains(&t) {
+            return Err(SourceError::InvalidDecelerationThreshold { threshold: t });
         }
 
         let (index, generation) = if let Some(free_index) = self.free_list.pop() {

@@ -6,27 +6,27 @@ Extend the `Source` struct with reservoir, initial_capacity, and deceleration_th
 
 ## Tasks
 
-- [ ] 1. Extend Source struct and SourceError with reservoir fields
-  - [ ] 1.1 Add `reservoir`, `initial_capacity`, and `deceleration_threshold` fields to `Source` in `src/grid/source.rs`
+- [x] 1. Extend Source struct and SourceError with reservoir fields
+  - [x] 1.1 Add `reservoir`, `initial_capacity`, and `deceleration_threshold` fields to `Source` in `src/grid/source.rs`
     - `reservoir: f32` — remaining emittable quantity, `f32::INFINITY` for renewable
     - `initial_capacity: f32` — total at creation, `f32::INFINITY` for renewable
     - `deceleration_threshold: f32` — fraction in [0.0, 1.0]
     - _Requirements: 1.1, 1.2, 3.1_
-  - [ ] 1.2 Add `InvalidReservoir` and `InvalidDecelerationThreshold` variants to `SourceError`
+  - [x] 1.2 Add `InvalidReservoir` and `InvalidDecelerationThreshold` variants to `SourceError`
     - _Requirements: 1.3_
-  - [ ] 1.3 Add validation in `SourceRegistry::add()` for the new fields
+  - [x] 1.3 Add validation in `SourceRegistry::add()` for the new fields
     - Reject finite reservoir ≤ 0.0, initial_capacity ≤ 0.0, reservoir > initial_capacity, threshold outside [0.0, 1.0]
     - Allow `f32::INFINITY` for both reservoir and initial_capacity (renewable)
     - _Requirements: 1.3_
   - [ ]* 1.4 Write property test: invalid reservoir rejection (Property 1)
     - **Property 1: Invalid reservoir rejection**
     - **Validates: Requirements 1.3**
-  - [ ] 1.5 Fix all existing call sites that construct `Source` to include the new fields
+  - [x] 1.5 Fix all existing call sites that construct `Source` to include the new fields
     - Update `generate_sources` in `src/grid/world_init.rs` to pass default renewable values (`f32::INFINITY`) temporarily
     - Update any test code that constructs `Source` directly
     - _Requirements: 1.1, 1.2_
 
-- [ ] 2. Implement `iter_mut`, `is_depleted`, and `active_emitting_count` on SourceRegistry
+- [-] 2. Implement `iter_mut`, `is_depleted`, and `active_emitting_count` on SourceRegistry
   - [ ] 2.1 Add `iter_mut()` method returning `impl Iterator<Item = &mut Source>` over active slots
     - _Requirements: 2.1_
   - [ ] 2.2 Add `is_depleted(id: SourceId) -> Result<bool, SourceError>` method
@@ -97,7 +97,7 @@ Extend the `Source` struct with reservoir, initial_capacity, and deceleration_th
     - Run emission for N ticks on two identical grids with identical source configs, verify identical reservoir and field state
     - **Validates: Requirements 6.1**
 
-- [ ] 7. Final checkpoint - Ensure all tests pass
+- [~] 7. Final checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Notes
