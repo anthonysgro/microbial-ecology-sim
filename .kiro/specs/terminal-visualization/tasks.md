@@ -51,8 +51,8 @@ Implement a COLD-path terminal renderer in `src/viz/` that reads `Grid` field bu
     - 'h' → Heat, 'm' → Moisture, 'q' → Quit, Esc → Quit (Req 5.3, 6.2, 6.3)
     - _Requirements: 5.3, 6.2, 6.3_
 
-- [ ] 6. Implement stats computation and formatting
-  - [ ] 6.1 Create `src/viz/stats.rs` with `FieldStats` struct, `compute_stats(buffer: &[f32], center_index: usize) -> FieldStats`, and `format_stats_bar(tick: u64, overlay: &OverlayMode, stats: &FieldStats) -> String` that includes tick, overlay label, total, min, max, center
+- [-] 6. Implement stats computation and formatting
+  - [x] 6.1 Create `src/viz/stats.rs` with `FieldStats` struct, `compute_stats(buffer: &[f32], center_index: usize) -> FieldStats`, and `format_stats_bar(tick: u64, overlay: &OverlayMode, stats: &FieldStats) -> String` that includes tick, overlay label, total, min, max, center
     - _Requirements: 5.4, 6.5, 7.1, 7.2_
   - [ ]* 6.2 Write property test: Stats bar completeness
     - **Property 6: Stats bar completeness**
