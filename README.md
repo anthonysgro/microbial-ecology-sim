@@ -16,25 +16,23 @@ cargo build --release
 
 ## Running
 
-### Bevy (graphical window)
-
 ```sh
-cargo run --release --bin bevy_viz [seed]
+cargo run --release
 ```
 
-Opens a GPU-accelerated window with a 128×128 grid, camera controls, and a HUD overlay.
+Opens a GPU-accelerated Bevy window with camera controls and a HUD overlay.
 
 ## Seeds
 
-Both binaries accept an optional integer seed as the first CLI argument. The seed controls all RNG: source placement, initial field values, actor spawning. Same seed = same world, deterministically.
+The binary accepts an optional integer seed as a positional CLI argument. The seed controls all RNG: source placement, initial field values, actor spawning. Same seed = same world, deterministically.
 
 ```sh
-cargo run --release --bin bevy_viz 99
+cargo run --release -- 99
 ```
 
 Default seed is `42` if omitted.
 
-### Bevy mode
+### Keyboard & Mouse Controls
 
 | Key / Input | Action |
 |-------------|--------|
@@ -51,7 +49,40 @@ Default seed is `42` if omitted.
 
 ## Configuration
 
-All parameters are set in code at the binary entry points (`src/main.rs` and `src/bin/bevy_viz.rs`). There is no file-based config — changing values requires recompilation.
+The simulation is configured via a TOML file. Pass it with `--config`:
+
+```sh
+cargo run --release -- --config example_config.toml
+```
+
+An optional positional seed argument overrides the seed in the TOML file:
+
+```sh
+cargo run --release -- --config example_config.toml 99
+```
+
+If no `--config` is provided, compiled defaults are used. Every field in the TOML file is optional — omit any field or entire section to use its default. Unknown keys are rejected at parse time.
+
+See `example_config.toml` for a complete annotated example with all defaults.
+
+### Precedence
+
+1. CLI seed argument (highest)
+2. TOML file values
+3. Compiled defaults (lowest)
+
+### TOML Structure
+
+The config file has four top-level sections:
+
+```toml
+seed = 42          # Global RNG seed
+
+[grid]             # Environment physics
+[world_init]       # Procedural generation parameters
+[actor]            # Actor metabolism & lifecycle (omit for no actors)
+[bevy]             # Bevy visualization settings (ignored by headless binary)
+```
 
 Three config structs control world initialization:
 
@@ -103,22 +134,28 @@ Optional — pass `None` to `initialize()` to skip actor systems entirely.
 | `movement_cost` | `f32` | Energy subtracted on successful move to an adjacent cell |
 | `removal_threshold` | `f32` | Energy level below which an inert actor is permanently removed (must be ≤ 0.0) |
 
-### Bevy-Only Parameters
+### BevyExtras — Visualization Settings
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `tick_hz` | `f64` | Simulation ticks per second (controls simulation speed) |
+Only consumed by the Bevy binary. Ignored if running headless. Lives under `[bevy]` in the TOML file.
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `tick_hz` | `f64` | `10.0` | Simulation ticks per second |
+| `zoom_min` | `f32` | `0.1` | Minimum camera zoom level |
+| `zoom_max` | `f32` | `10.0` | Maximum camera zoom level |
+| `zoom_speed` | `f32` | `0.1` | Scroll-wheel zoom sensitivity |
+| `pan_speed` | `f32` | `1.0` | Middle-mouse pan sensitivity |
+| `color_scale_max` | `f32` | `10.0` | Upper bound for overlay color normalization |
 
 ## Project structure
 
 ```
 src/
 ├── grid/           # Environment grid, cells, diffusion, heat, actors, tick orchestration
-├── viz/            # Terminal visualization (crossterm)
+├── io/             # CLI parsing, TOML config loading, validation
 ├── viz_bevy/       # Bevy GPU visualization
-├── bin/bevy_viz.rs # Bevy binary entry point
 ├── lib.rs          # Public API surface
-└── main.rs         # Terminal binary entry point
+└── main.rs         # Bevy binary entry point
 ```
 
 ## License
