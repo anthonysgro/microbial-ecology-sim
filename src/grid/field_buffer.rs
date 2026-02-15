@@ -42,6 +42,23 @@ impl<T: Copy> FieldBuffer<T> {
         }
     }
 
+    /// Copy the read buffer contents into the write buffer.
+    ///
+    /// Used by the emission phase to ensure emission adds to the current
+    /// state rather than to stale or zeroed data. Single `memcpy` — for a
+    /// 100×100 grid this is 40 KB per field, well within L1 cache.
+    pub fn copy_read_to_write(&mut self) {
+        let read_idx = self.current;
+        // split_at_mut gives disjoint borrows, avoiding the simultaneous
+        // mutable + immutable borrow on self.buffers.
+        let (first, second) = self.buffers.split_at_mut(1);
+        if read_idx == 0 {
+            second[0].copy_from_slice(&first[0]);
+        } else {
+            first[0].copy_from_slice(&second[0]);
+        }
+    }
+
     /// Swap read and write buffers. No data copy — just flips the index.
     pub fn swap(&mut self) {
         self.current ^= 1;

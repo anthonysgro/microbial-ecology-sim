@@ -109,12 +109,12 @@ Two-phase implementation: first strip all moisture infrastructure from the codeb
     - Empty registry: len() == 0, iter() yields nothing
     - _Requirements: 10.3_
 
-- [ ] 7. Implement FieldBuffer::copy_read_to_write and run_emission
-  - [ ] 7.1 Add `copy_read_to_write` method to `FieldBuffer<T: Copy>`
+- [x] 7. Implement FieldBuffer::copy_read_to_write and run_emission
+  - [x] 7.1 Add `copy_read_to_write` method to `FieldBuffer<T: Copy>`
     - Copies read buffer contents into write buffer via `copy_from_slice`
     - _Requirements: 8.2_
 
-  - [ ] 7.2 Implement `run_emission` function in `src/grid/source.rs`
+  - [x] 7.2 Implement `run_emission` function in `src/grid/source.rs`
     - Iterates `SourceRegistry::iter()`, matches on `SourceField`, adds emission_rate to the appropriate write buffer at cell_index
     - WARM path: sequential, no parallelism, no allocation
     - _Requirements: 6.1, 7.1, 8.4_
@@ -126,10 +126,10 @@ Two-phase implementation: first strip all moisture infrastructure from the codeb
     - Verify untargeted cells are unchanged
     - **Validates: Requirements 6.1, 6.2, 6.3, 7.1, 7.2, 7.3, 8.2**
 
-- [ ] 8. Checkpoint
+- [x] 8. Checkpoint
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 9. Integrate emission phase into TickOrchestrator
+- [~] 9. Integrate emission phase into TickOrchestrator
   - [ ] 9.1 Implement `run_emission_phase` helper in `src/grid/tick.rs`
     - Scan source registry to determine which field types have active sources
     - For each affected field: copy_read_to_write, run_emission
@@ -162,7 +162,7 @@ Two-phase implementation: first strip all moisture infrastructure from the codeb
     - Empty registry produces identical pre/post tick state
     - _Requirements: 9.1_
 
-- [ ] 10. Add Grid convenience API and wire into main.rs
+- [~] 10. Add Grid convenience API and wire into main.rs
   - [ ] 10.1 Add `sources`, `sources_mut`, `add_source`, `remove_source` methods to `Grid`
     - `add_source` delegates to `sources.add()` with grid's cell_count and num_chemicals
     - `remove_source` delegates to `sources.remove()`
@@ -174,7 +174,7 @@ Two-phase implementation: first strip all moisture infrastructure from the codeb
     - Replace the manual chemical hotspot seeding with a chemical source
     - _Requirements: 6.1, 7.1_
 
-- [ ] 11. Final checkpoint
+- [~] 11. Final checkpoint
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Notes

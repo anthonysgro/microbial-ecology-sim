@@ -1,8 +1,10 @@
-/// Persistent energy source data types and registry error handling.
+/// Persistent energy source data types, registry, and emission system.
 ///
 /// This module defines the data model for grid energy sources — persistent
 /// emitters that inject heat or chemical values into field write buffers
 /// each tick during the WARM emission phase.
+
+use crate::grid::Grid;
 
 /// Identifies which grid field a source emits into.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -167,6 +169,37 @@ impl SourceRegistry {
     /// Iterate active sources in deterministic slot order.
     pub fn iter(&self) -> impl Iterator<Item = &Source> {
         self.slots.iter().filter_map(|slot| slot.source.as_ref())
+    }
+}
+
+// WARM PATH: Executes once per tick over the source list.
+// No heap allocation. No dynamic dispatch. Sequential iteration.
+
+/// Inject emission rates from all active sources into the appropriate
+/// field write buffers.
+///
+/// Iterates the registry in deterministic slot order. For each source,
+/// adds `emission_rate` to the write buffer of the target field at the
+/// source's `cell_index`. Caller is responsible for copy-read-to-write
+/// before calling this, and for validation + swap after.
+///
+/// Species indices were validated at registration time, so chemical
+/// buffer lookups use `get_mut` with a silent skip on index mismatch
+/// (defensive — should never occur in practice).
+pub fn run_emission(grid: &mut Grid, registry: &SourceRegistry) {
+    for source in registry.iter() {
+        match source.field {
+            SourceField::Heat => {
+                grid.write_heat()[source.cell_index] += source.emission_rate;
+            }
+            SourceField::Chemical(species) => {
+                // Species validated at add() time. Defensive get_mut avoids
+                // panic if registry and grid are somehow out of sync.
+                if let Ok(buf) = grid.write_chemical(species) {
+                    buf[source.cell_index] += source.emission_rate;
+                }
+            }
+        }
     }
 }
 
