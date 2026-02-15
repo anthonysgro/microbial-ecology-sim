@@ -69,8 +69,8 @@ Incremental build-up of the `viz_bevy` module: pure functions first (normalize, 
     - Spawn UI text node at top-left with `OverlayLabel` marker, displaying initial overlay name
     - _Requirements: 5.1, 5.3, 5.4, 7.1, 7.2, 8.1, 9.2, 10.1_
 
-- [-] 7. Implement simulation tick system
-  - [-] 7.1 Implement `tick_simulation` in `src/viz_bevy/systems.rs`
+- [x] 7. Implement simulation tick system
+  - [x] 7.1 Implement `tick_simulation` in `src/viz_bevy/systems.rs`
     - Runs in `FixedUpdate` schedule
     - Skip if `running == false`
     - Call `TickOrchestrator::step(&mut grid, &config)`
@@ -82,8 +82,8 @@ Incremental build-up of the `viz_bevy` module: pure functions first (normalize, 
     - **Property 9: Tick counter advancement**
     - **Validates: Requirements 2.2**
 
-- [~] 8. Implement texture update system
-  - [ ] 8.1 Implement `update_texture` in `src/viz_bevy/systems.rs`
+- [-] 8. Implement texture update system
+  - [-] 8.1 Implement `update_texture` in `src/viz_bevy/systems.rs`
     - Runs in `Update` schedule
     - Select field buffer based on `ActiveOverlay` (`read_heat()` or `read_chemical(species)`)
     - Call `normalize_field` into `RenderState.norm_buffer`
