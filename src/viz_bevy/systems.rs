@@ -25,13 +25,23 @@ use super::setup::{build_scale_image, overlay_label_text};
 /// subsequent invocations become no-ops.
 ///
 /// Requirements: 2.2, 2.3, 2.4, 7.1
-pub fn tick_simulation(mut sim: ResMut<SimulationState>, rate: Res<SimRateController>) {
+pub fn tick_simulation(
+    mut sim: ResMut<SimulationState>,
+    rate: Res<SimRateController>,
+    viz_config: Res<BevyVizConfig>,
+) {
     if !sim.running || rate.paused {
         return;
     }
 
     let sim = &mut *sim;
-    match TickOrchestrator::step(&mut sim.grid, &sim.config, sim.tick) {
+    match TickOrchestrator::step(
+        &mut sim.grid,
+        &sim.config,
+        sim.tick,
+        &viz_config.init_config.heat_source_config,
+        &viz_config.init_config.chemical_source_config,
+    ) {
         Ok(()) => {
             sim.tick += 1;
         }

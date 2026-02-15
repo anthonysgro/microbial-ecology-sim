@@ -45,6 +45,9 @@ min_reservoir_capacity = 100.0
 max_reservoir_capacity = 500.0       # Finite sources last 30–500 ticks depending on rate
 min_deceleration_threshold = 0.2
 max_deceleration_threshold = 0.4     # Gradual tapering as sources deplete
+respawn_enabled = true               # Depleted non-renewable heat sources respawn after cooldown.
+min_respawn_cooldown_ticks = 50      # Minimum ticks before a depleted source respawns.
+max_respawn_cooldown_ticks = 150     # Maximum ticks before a depleted source respawns.
 
 # Chemical sources: moderate count, low emission — actors out-consume any single source
 [world_init.chemical_source_config]
@@ -52,11 +55,14 @@ min_sources = 4
 max_sources = 10
 min_emission_rate = 0.2
 max_emission_rate = 0.8              # Below consumption_rate (1.5) — actors drain sources
-renewable_fraction = 0.3             # Mostly finite — forces migration as sources deplete
+renewable_fraction = 0             # Mostly finite — forces migration as sources deplete
 min_reservoir_capacity = 150.0
 max_reservoir_capacity = 600.0
 min_deceleration_threshold = 0.15
 max_deceleration_threshold = 0.35
+respawn_enabled = true               # Depleted non-renewable chemical sources respawn after cooldown.
+min_respawn_cooldown_ticks = 50      # Minimum ticks before a depleted source respawns.
+max_respawn_cooldown_ticks = 150     # Maximum ticks before a depleted source respawns.
 
 # ─── Actor Configuration ────────────────────────────────────────────
 #
@@ -96,4 +102,4 @@ zoom_min = 0.1
 zoom_max = 10.0
 zoom_speed = 0.15
 pan_speed = 1.5
-color_scale_max = 8.0  # Matched to typical peak concentrations for good color range
+color_scale_max = 2.0  # Matched to typical peak concentrations for good color range

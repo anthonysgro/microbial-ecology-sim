@@ -10,9 +10,10 @@ use crate::grid::decay::run_decay;
 use crate::grid::diffusion::run_diffusion;
 use crate::grid::error::TickError;
 use crate::grid::heat::run_heat;
-use crate::grid::source::{run_emission, SourceField};
+use crate::grid::source::{run_emission, run_respawn_phase, RespawnEntry, SourceField};
+use crate::grid::world_init::SourceFieldConfig;
 use crate::grid::Grid;
-use rand::SeedableRng;
+use rand::{Rng, SeedableRng};
 use rand_chacha::ChaCha8Rng;
 
 /// Scan a write buffer for NaN or infinity values.
@@ -78,8 +79,37 @@ pub struct TickOrchestrator;
 /// 8.3 — swap after emission so downstream reads post-emission state
 /// 9.1 — NaN/infinity validation
 /// 9.2 — clamp chemical concentrations to ≥ 0.0
-fn run_emission_phase(grid: &mut Grid, _config: &GridConfig) -> Result<(), TickError> {
-    if grid.sources().is_empty() {
+// WARM PATH: Emission phase — runs once per tick over the source list.
+// Allocation: one temporary take/put of the SourceRegistry (no heap alloc,
+// just a pointer swap via mem::replace). No dynamic dispatch.
+
+/// Execute the emission phase: inject source values into field write buffers,
+/// process depletion events, and run the respawn phase.
+///
+/// For each field type that has active sources:
+/// 1. Copy read buffer → write buffer (so emission adds to current state)
+/// 2. Run emission (additive injection from all sources)
+/// 3. Process depletion events: remove depleted slots, enqueue respawns if enabled
+/// 4. Clamp chemical write buffers to ≥ 0.0
+/// 5. Validate write buffers for NaN/infinity
+/// 6. Swap affected field buffers
+/// 7. Run respawn phase: spawn replacements for mature queue entries
+///
+/// No-op if the source registry is empty and the respawn queue is empty.
+///
+/// # Requirements
+/// 2.1, 2.2, 2.4 — cooldown sampling and queue management
+/// 7.1, 7.2, 7.3 — respawn phase after emission, new sources emit next tick
+/// 8.1 — depleted slot removal after respawn entry queued
+fn run_emission_phase(
+    grid: &mut Grid,
+    _config: &GridConfig,
+    current_tick: u64,
+    heat_config: &SourceFieldConfig,
+    chemical_config: &SourceFieldConfig,
+    rng: &mut ChaCha8Rng,
+) -> Result<(), TickError> {
+    if grid.sources().is_empty() && grid.respawn_queue().is_empty() {
         return Ok(());
     }
 
@@ -118,7 +148,27 @@ fn run_emission_phase(grid: &mut Grid, _config: &GridConfig) -> Result<(), TickE
     }
 
     // Inject emission values into write buffers, draining reservoirs.
-    run_emission(grid, &mut registry);
+    let depletions = run_emission(grid, &mut registry, current_tick);
+
+    // Process depletion events: remove depleted slots, enqueue respawns.
+    for event in &depletions {
+        let field_config = match event.field {
+            SourceField::Heat => heat_config,
+            SourceField::Chemical(_) => chemical_config,
+        };
+        if field_config.respawn_enabled {
+            let cooldown = rng.random_range(
+                field_config.min_respawn_cooldown_ticks..=field_config.max_respawn_cooldown_ticks,
+            );
+            grid.respawn_queue_mut().push(RespawnEntry {
+                field: event.field,
+                respawn_tick: current_tick + u64::from(cooldown),
+            });
+        }
+        // Remove depleted source from registry — slot freed for reuse.
+        // Defensive .ok(): should not fail if depletion detection is correct.
+        registry.remove(event.source_id).ok();
+    }
 
     // Clamp chemical write buffers to ≥ 0.0 (concentrations cannot be negative).
     for species in 0..num_chemicals {
@@ -166,6 +216,18 @@ fn run_emission_phase(grid: &mut Grid, _config: &GridConfig) -> Result<(), TickE
 
     // Return the registry to the grid.
     grid.put_sources(registry);
+
+    // Respawn phase: spawn replacements for mature entries.
+    // Executes after emission so depletion events from this tick are captured.
+    // Newly spawned sources begin emitting on the next tick (Req 7.2).
+    run_respawn_phase(
+        grid,
+        rng,
+        current_tick,
+        heat_config,
+        chemical_config,
+        num_chemicals,
+    );
 
     Ok(())
 }
@@ -286,9 +348,35 @@ fn run_actor_phases(grid: &mut Grid, _config: &GridConfig, tick: u64) -> Result<
 }
 
 impl TickOrchestrator {
-    pub fn step(grid: &mut Grid, config: &GridConfig, tick: u64) -> Result<(), TickError> {
-        // Phase 0: Emission (WARM) — inject source values before downstream systems
-        run_emission_phase(grid, config)?;
+    /// Advance the simulation by one tick.
+    ///
+    /// Requires `SourceFieldConfig` references for the emission/respawn phases.
+    /// These control depletion event processing (cooldown sampling) and
+    /// replacement source parameter sampling.
+    pub fn step(
+        grid: &mut Grid,
+        config: &GridConfig,
+        tick: u64,
+        heat_source_config: &SourceFieldConfig,
+        chemical_source_config: &SourceFieldConfig,
+    ) -> Result<(), TickError> {
+        // Per-tick RNG for emission-phase cooldown sampling and respawn-phase
+        // source parameter sampling. Seeded deterministically from grid seed +
+        // tick, offset by a domain constant to avoid correlation with the
+        // actor-phase RNG (which uses seed + tick directly).
+        let mut emission_rng =
+            ChaCha8Rng::seed_from_u64(grid.seed().wrapping_add(tick).wrapping_add(0xDEAD_BEEF));
+
+        // Phase 0: Emission (WARM) — inject source values, detect depletions
+        // Phase 0.5: Respawn (WARM) — process mature queue entries, spawn replacements
+        run_emission_phase(
+            grid,
+            config,
+            tick,
+            heat_source_config,
+            chemical_source_config,
+            &mut emission_rng,
+        )?;
 
         // Phases 1–4: Actor phases (WARM) — sensing, metabolism, removal, movement.
         // Skip entirely when no actors are registered (zero overhead).

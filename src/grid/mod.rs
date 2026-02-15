@@ -18,7 +18,7 @@ use config::{CellDefaults, GridConfig};
 use error::GridError;
 use field_buffer::FieldBuffer;
 use partition::{compute_partitions, Partition};
-use source::SourceRegistry;
+use source::{RespawnQueue, SourceRegistry};
 
 /// Top-level environment grid.
 ///
@@ -31,6 +31,7 @@ pub struct Grid {
     heat: FieldBuffer<f32>,
     partitions: Vec<Partition>,
     sources: SourceRegistry,
+    respawn_queue: RespawnQueue,
     actors: ActorRegistry,
     actor_config: Option<ActorConfig>,
     /// Cell index → slot index of the occupying Actor, or None.
@@ -139,6 +140,7 @@ impl Grid {
             heat,
             partitions,
             sources: SourceRegistry::new(),
+            respawn_queue: RespawnQueue::with_capacity(0),
             actors,
             actor_config,
             occupancy,
@@ -268,6 +270,16 @@ impl Grid {
 
     pub fn sources_mut(&mut self) -> &mut SourceRegistry {
         &mut self.sources
+    }
+
+    /// Immutable access to the respawn queue.
+    pub fn respawn_queue(&self) -> &RespawnQueue {
+        &self.respawn_queue
+    }
+
+    /// Mutable access to the respawn queue.
+    pub fn respawn_queue_mut(&mut self) -> &mut RespawnQueue {
+        &mut self.respawn_queue
     }
 
     /// Temporarily take the source registry out of the grid.

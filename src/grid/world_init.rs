@@ -11,7 +11,7 @@ use crate::grid::actor::{Actor, ActorError};
 use crate::grid::actor_config::ActorConfig;
 use crate::grid::config::{CellDefaults, GridConfig};
 use crate::grid::error::GridError;
-use crate::grid::source::{Source, SourceError, SourceField};
+use crate::grid::source::{RespawnQueue, Source, SourceError, SourceField};
 
 /// Per-field-type configuration for source generation.
 /// Reusable for any fundamental (heat, chemical, future types).
@@ -33,6 +33,13 @@ pub struct SourceFieldConfig {
     /// Range for deceleration threshold of non-renewable sources. [0.0, 1.0].
     pub min_deceleration_threshold: f32,
     pub max_deceleration_threshold: f32,
+    /// Whether depleted sources of this field type trigger respawns.
+    /// Default: false (backward compatible).
+    pub respawn_enabled: bool,
+    /// Minimum cooldown ticks before a depleted source respawns.
+    pub min_respawn_cooldown_ticks: u32,
+    /// Maximum cooldown ticks before a depleted source respawns.
+    pub max_respawn_cooldown_ticks: u32,
 }
 
 /// Ranges and constraints for procedural world generation.
@@ -71,6 +78,9 @@ impl Default for SourceFieldConfig {
             max_reservoir_capacity: 200.0,
             min_deceleration_threshold: 0.1,
             max_deceleration_threshold: 0.5,
+            respawn_enabled: false,
+            min_respawn_cooldown_ticks: 50,
+            max_respawn_cooldown_ticks: 150,
         }
     }
 }
@@ -127,6 +137,8 @@ struct SourceFieldLabels {
     min_deceleration_threshold: &'static str,
     max_deceleration_threshold: &'static str,
     deceleration_threshold: &'static str,
+    respawn_cooldown: &'static str,
+    respawn_zero_cooldown: &'static str,
 }
 
 const HEAT_LABELS: SourceFieldLabels = SourceFieldLabels {
@@ -138,6 +150,8 @@ const HEAT_LABELS: SourceFieldLabels = SourceFieldLabels {
     min_deceleration_threshold: "heat min_deceleration_threshold must be in [0.0, 1.0]",
     max_deceleration_threshold: "heat max_deceleration_threshold must be in [0.0, 1.0]",
     deceleration_threshold: "heat_deceleration_threshold",
+    respawn_cooldown: "heat_respawn_cooldown_ticks",
+    respawn_zero_cooldown: "heat max_respawn_cooldown_ticks must be > 0 when respawn is enabled",
 };
 
 const CHEMICAL_LABELS: SourceFieldLabels = SourceFieldLabels {
@@ -149,6 +163,8 @@ const CHEMICAL_LABELS: SourceFieldLabels = SourceFieldLabels {
     min_deceleration_threshold: "chemical min_deceleration_threshold must be in [0.0, 1.0]",
     max_deceleration_threshold: "chemical max_deceleration_threshold must be in [0.0, 1.0]",
     deceleration_threshold: "chemical_deceleration_threshold",
+    respawn_cooldown: "chemical_respawn_cooldown_ticks",
+    respawn_zero_cooldown: "chemical max_respawn_cooldown_ticks must be > 0 when respawn is enabled",
 };
 
 /// Validate a single `SourceFieldConfig`. All error messages are prefixed
@@ -204,6 +220,21 @@ fn validate_source_field_config(
             min: f64::from(config.min_deceleration_threshold),
             max: f64::from(config.max_deceleration_threshold),
         });
+    }
+    // Respawn cooldown validation: only when respawn is enabled.
+    if config.respawn_enabled {
+        if config.max_respawn_cooldown_ticks == 0 {
+            return Err(WorldInitError::InvalidConfig {
+                reason: labels.respawn_zero_cooldown,
+            });
+        }
+        if config.min_respawn_cooldown_ticks > config.max_respawn_cooldown_ticks {
+            return Err(WorldInitError::InvalidRange {
+                field: labels.respawn_cooldown,
+                min: f64::from(config.min_respawn_cooldown_ticks),
+                max: f64::from(config.max_respawn_cooldown_ticks),
+            });
+        }
     }
     Ok(())
 }
@@ -450,6 +481,12 @@ pub fn initialize(
     let mut actor_rng = ChaCha8Rng::from_rng(&mut master_rng);
 
     generate_sources(&mut grid, &mut source_rng, init_config, num_chemicals)?;
+
+    // Pre-allocate respawn queue capacity based on initial source count.
+    // Bounded by total sources — the queue can never exceed this.
+    let source_count = grid.sources().len();
+    *grid.respawn_queue_mut() = RespawnQueue::with_capacity(source_count);
+
     populate_fields(&mut grid, &mut field_rng, init_config, num_chemicals);
     generate_actors(&mut grid, &mut actor_rng, init_config)?;
 

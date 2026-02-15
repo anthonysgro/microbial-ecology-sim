@@ -74,6 +74,8 @@ pub(super) fn format_config_info(
     writeln!(out, "heat renewable_fraction: {:.4}", hs.renewable_fraction).ok();
     writeln!(out, "heat reservoir_capacity: {:.4}..{:.4}", hs.min_reservoir_capacity, hs.max_reservoir_capacity).ok();
     writeln!(out, "heat deceleration_threshold: {:.4}..{:.4}", hs.min_deceleration_threshold, hs.max_deceleration_threshold).ok();
+    writeln!(out, "heat respawn_enabled: {}", hs.respawn_enabled).ok();
+    writeln!(out, "heat respawn_cooldown_ticks: {}..{}", hs.min_respawn_cooldown_ticks, hs.max_respawn_cooldown_ticks).ok();
 
     // Chemical sources
     let cs = &init_config.chemical_source_config;
@@ -82,6 +84,8 @@ pub(super) fn format_config_info(
     writeln!(out, "chemical renewable_fraction: {:.4}", cs.renewable_fraction).ok();
     writeln!(out, "chemical reservoir_capacity: {:.4}..{:.4}", cs.min_reservoir_capacity, cs.max_reservoir_capacity).ok();
     writeln!(out, "chemical deceleration_threshold: {:.4}..{:.4}", cs.min_deceleration_threshold, cs.max_deceleration_threshold).ok();
+    writeln!(out, "chemical respawn_enabled: {}", cs.respawn_enabled).ok();
+    writeln!(out, "chemical respawn_cooldown_ticks: {}..{}", cs.min_respawn_cooldown_ticks, cs.max_respawn_cooldown_ticks).ok();
 
     // Initial ranges
     writeln!(out, "initial_heat: {:.4}..{:.4}", init_config.min_initial_heat, init_config.max_initial_heat).ok();

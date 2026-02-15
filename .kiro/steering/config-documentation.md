@@ -60,6 +60,9 @@ All configuration is loaded from a TOML file. Omitted sections/fields fall back 
 | `max_reservoir_capacity` | `f32` | `200.0` | Maximum initial reservoir for non-renewable sources. |
 | `min_deceleration_threshold` | `f32` | `0.1` | Minimum deceleration threshold for non-renewable sources. `[0.0, 1.0]`. |
 | `max_deceleration_threshold` | `f32` | `0.5` | Maximum deceleration threshold for non-renewable sources. `[0.0, 1.0]`. |
+| `respawn_enabled` | `bool` | `false` | Whether depleted non-renewable sources trigger respawns. |
+| `min_respawn_cooldown_ticks` | `u32` | `50` | Minimum ticks before a depleted source respawns. |
+| `max_respawn_cooldown_ticks` | `u32` | `150` | Maximum ticks before a depleted source respawns. When `respawn_enabled` is true, must be `> 0` and `>= min_respawn_cooldown_ticks`. |
 
 ### `[world_init.chemical_source_config]` — `SourceFieldConfig` (chemical)
 
