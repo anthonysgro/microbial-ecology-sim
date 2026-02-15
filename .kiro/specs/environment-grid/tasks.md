@@ -43,8 +43,8 @@ Implement the Layer 0 environment grid substrate in Rust: a double-buffered, SoA
     - **Property 11: Spatial partitions are balanced** — max-min cell count ≤ width
     - **Validates: Requirements 7.2**
 
-- [ ] 4. Implement Grid struct and coordinate access
-  - [ ] 4.1 Implement `Grid` struct in `src/grid/mod.rs`
+- [x] 4. Implement Grid struct and coordinate access
+  - [x] 4.1 Implement `Grid` struct in `src/grid/mod.rs`
     - Owns `Vec<FieldBuffer<f32>>` for chemicals, `FieldBuffer<f32>` for heat and moisture, `Vec<Partition>`
     - `Grid::new(config, defaults) -> Result<Self, GridError>` — validate dimensions, allocate SoA buffers, compute partitions
     - `index(x, y) -> Result<usize, GridError>` — bounds check, return y*width+x
@@ -59,7 +59,7 @@ Implement the Layer 0 environment grid substrate in Rust: a double-buffered, SoA
     - **Property 5: Out-of-bounds coordinate rejection** — invalid coords return OutOfBounds error
     - **Validates: Requirements 2.3**
 
-- [ ] 5. Checkpoint — core data structures
+- [-] 5. Checkpoint — core data structures
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 6. Implement Diffusion System
