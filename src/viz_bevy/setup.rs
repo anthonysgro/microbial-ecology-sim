@@ -14,7 +14,7 @@ use super::resources::{
 };
 
 /// Format the overlay name for the UI label.
-fn overlay_label_text(overlay: &ActiveOverlay) -> String {
+pub(super) fn overlay_label_text(overlay: &ActiveOverlay) -> String {
     match overlay {
         ActiveOverlay::Heat => "Heat".to_string(),
         ActiveOverlay::Chemical(n) => format!("Chemical {n}"),

@@ -104,8 +104,8 @@ Incremental build-up of the `viz_bevy` module: pure functions first (normalize, 
     - **Property 5: Overlay key mapping correctness**
     - **Validates: Requirements 6.2, 6.3**
 
-- [-] 10. Implement overlay label update system
-  - [-] 10.1 Implement `update_overlay_label` in `src/viz_bevy/systems.rs`
+- [x] 10. Implement overlay label update system
+  - [x] 10.1 Implement `update_overlay_label` in `src/viz_bevy/systems.rs`
     - Runs in `Update` schedule
     - Query `OverlayLabel` text entity
     - Set text to `"Heat"` or `"Chemical N"` based on `ActiveOverlay`
@@ -115,8 +115,8 @@ Incremental build-up of the `viz_bevy` module: pure functions first (normalize, 
     - **Property 6: Label-overlay text sync**
     - **Validates: Requirements 6.4**
 
-- [~] 11. Implement camera control system
-  - [ ] 11.1 Implement `camera_controls` in `src/viz_bevy/systems.rs`
+- [-] 11. Implement camera control system
+  - [-] 11.1 Implement `camera_controls` in `src/viz_bevy/systems.rs`
     - Runs in `Update` schedule
     - Mouse wheel up → decrease orthographic scale (zoom in)
     - Mouse wheel down → increase orthographic scale (zoom out)

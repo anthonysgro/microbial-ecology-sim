@@ -2,12 +2,17 @@
 // COLD PATH: input, camera, label systems run every Update frame.
 // Allocation forbidden in tick_simulation. Standard rules for Update systems.
 
+use bevy::input::mouse::MouseWheel;
 use bevy::prelude::*;
 
 use crate::grid::tick::TickOrchestrator;
 
 use super::{color, normalize};
-use super::resources::{ActiveOverlay, GridSprite, RenderState, SimulationState};
+use super::resources::{
+    ActiveOverlay, BevyVizConfig, GridSprite, MainCamera, OverlayLabel, RenderState,
+    SimulationState,
+};
+use super::setup::overlay_label_text;
 
 /// Advance the simulation by one tick.
 ///
@@ -137,3 +142,24 @@ pub fn handle_input(
     }
 }
 
+
+/// Sync the overlay label text with the current `ActiveOverlay` value.
+///
+/// COLD PATH: Runs every `Update` frame. Only mutates the `Text` component
+/// when the overlay has actually changed (Bevy's change detection on
+/// `Res<ActiveOverlay>` gates the query).
+///
+/// Requirements: 6.4 (label updates on overlay change), 7.3 (same-frame update).
+pub fn update_overlay_label(
+    overlay: Res<ActiveOverlay>,
+    mut query: Query<&mut Text, With<OverlayLabel>>,
+) {
+    if !overlay.is_changed() {
+        return;
+    }
+
+    let label = overlay_label_text(&overlay);
+    for mut text in &mut query {
+        **text = label.clone();
+    }
+}
