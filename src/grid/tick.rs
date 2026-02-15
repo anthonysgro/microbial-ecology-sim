@@ -200,6 +200,12 @@ fn run_actor_phases(grid: &mut Grid, _config: &GridConfig) -> Result<(), TickErr
     let (mut actors, mut occupancy, mut removal_buffer, mut movement_targets) =
         grid.take_actors();
 
+    // Ensure movement_targets covers all registry slots.
+    let slot_count = actors.slot_count();
+    if movement_targets.len() < slot_count {
+        movement_targets.resize(slot_count, None);
+    }
+
     // Phase 1: Sensing (WARM) — read chemical gradients, compute movement targets.
     // Reads from chemical species 0 read buffer only.
     {

@@ -223,6 +223,12 @@ impl ActorRegistry {
         self.active_count == 0
     }
 
+    /// Total number of slots (active + free). Used to size external
+    /// buffers indexed by slot index (e.g., movement_targets).
+    pub fn slot_count(&self) -> usize {
+        self.slots.len()
+    }
+
     /// Iterate active Actors in deterministic slot-index order.
     ///
     /// Yields `(slot_index, &Actor)` for each occupied slot, ascending

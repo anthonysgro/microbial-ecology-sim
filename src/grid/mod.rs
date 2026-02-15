@@ -89,7 +89,7 @@ impl Grid {
 
         let occupancy = vec![None; cell_count];
         let removal_buffer = Vec::with_capacity(initial_cap);
-        let movement_targets = Vec::with_capacity(initial_cap);
+        let movement_targets = vec![None; initial_cap];
 
         Ok(Self {
             config,
