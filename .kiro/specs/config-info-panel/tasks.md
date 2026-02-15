@@ -6,12 +6,12 @@ Add a toggle-able info panel to the Bevy visualization layer. The implementation
 
 ## Tasks
 
-- [ ] 1. Add marker component, visibility resource, and pure formatting function
-  - [ ] 1.1 Add `InfoPanel` marker component and `InfoPanelVisible` resource to `src/viz_bevy/resources.rs`
+- [x] 1. Add marker component, visibility resource, and pure formatting function
+  - [x] 1.1 Add `InfoPanel` marker component and `InfoPanelVisible` resource to `src/viz_bevy/resources.rs`
     - `InfoPanel`: plain `#[derive(Component)]` marker, no methods
     - `InfoPanelVisible(pub bool)`: plain `#[derive(Resource)]` struct, default `false`
     - _Requirements: 5.1, 5.2, 1.2_
-  - [ ] 1.2 Implement `format_config_info` pure function in `src/viz_bevy/setup.rs`
+  - [x] 1.2 Implement `format_config_info` pure function in `src/viz_bevy/setup.rs`
     - Signature: `pub(super) fn format_config_info(seed: u64, grid_config: &GridConfig, init_config: &WorldInitConfig, actor_config: Option<&ActorConfig>) -> String`
     - Sections: Seed, Grid, World Init (heat sources, chemical sources, initial ranges, actor range), Actors
     - Format all floats to consistent decimal precision
@@ -31,24 +31,24 @@ Add a toggle-able info panel to the Bevy visualization layer. The implementation
     - Test `format_config_info` with `actor_config: None` contains "disabled" (Requirement 2.5)
     - Test `format_config_info` with empty `chemical_decay_rates` vec (edge case)
 
-- [ ] 2. Checkpoint - Ensure all tests pass
+- [x] 2. Checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 3. Add input system, update system, and spawn the panel entity
-  - [ ] 3.1 Implement `info_panel_input` system in `src/viz_bevy/systems.rs`
+- [x] 3. Add input system, update system, and spawn the panel entity
+  - [x] 3.1 Implement `info_panel_input` system in `src/viz_bevy/systems.rs`
     - Check `keys.just_pressed(KeyCode::KeyI)`, toggle `InfoPanelVisible.0`
     - COLD PATH, follows `rate_control_input` pattern
     - _Requirements: 1.1, 1.3_
-  - [ ] 3.2 Implement `update_info_panel` system in `src/viz_bevy/systems.rs`
+  - [x] 3.2 Implement `update_info_panel` system in `src/viz_bevy/systems.rs`
     - Gate on `visible.is_changed()`, set `Visibility::Visible` or `Visibility::Hidden` on `InfoPanel` entity
     - COLD PATH, follows `update_overlay_label` pattern
     - _Requirements: 1.1_
-  - [ ] 3.3 Spawn info panel entity in `src/viz_bevy/setup.rs` `setup` function
+  - [x] 3.3 Spawn info panel entity in `src/viz_bevy/setup.rs` `setup` function
     - Call `format_config_info` with config data from `BevyVizConfig`
     - Spawn `Text` entity with `InfoPanel` marker, `Visibility::Hidden`, semi-transparent `BackgroundColor`, absolute positioning at `top: 40px, left: 10px`
     - Insert `InfoPanelVisible(false)` resource
     - _Requirements: 1.2, 4.1, 4.2_
-  - [ ] 3.4 Register new systems in `src/viz_bevy/mod.rs` `BevyVizPlugin::build`
+  - [x] 3.4 Register new systems in `src/viz_bevy/mod.rs` `BevyVizPlugin::build`
     - Add `systems::info_panel_input` and `systems::update_info_panel` to the `Update` schedule
     - _Requirements: 5.3_
   - [ ]* 3.5 Write property test for toggle invariant
@@ -56,8 +56,8 @@ Add a toggle-able info panel to the Bevy visualization layer. The implementation
     - **Validates: Requirements 1.1**
     - For any boolean state, toggling produces negation; toggling twice restores original
 
-- [ ] 4. Update README with new key binding
-  - [ ] 4.1 Add `I` key to the Bevy mode key binding table in `README.md`
+- [x] 4. Update README with new key binding
+  - [x] 4.1 Add `I` key to the Bevy mode key binding table in `README.md`
     - Add row: `i` | Show / hide config info panel
     - _Requirements: (documentation)_
 

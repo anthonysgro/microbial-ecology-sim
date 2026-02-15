@@ -6,12 +6,15 @@ use bevy::asset::RenderAssetUsages;
 use bevy::image::ImageSampler;
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 
+use crate::grid::actor_config::ActorConfig;
+use crate::grid::config::GridConfig;
 use crate::grid::world_init;
+use crate::grid::world_init::WorldInitConfig;
 
 use super::resources::{
-    ActiveOverlay, BevyVizConfig, GridSprite, HoverTooltip, MainCamera, OverlayLabel,
-    RateLabel, RenderState, ScaleBar, ScaleMaxLabel, ScaleMinLabel, SimRateController,
-    SimulationState,
+    ActiveOverlay, BevyVizConfig, GridSprite, HoverTooltip, InfoPanel, InfoPanelVisible,
+    MainCamera, OverlayLabel, RateLabel, RenderState, ScaleBar, ScaleMaxLabel, ScaleMinLabel,
+    SimRateController, SimulationState,
 };
 
 /// Format the overlay name for the UI label.
@@ -20,6 +23,89 @@ pub(super) fn overlay_label_text(overlay: &ActiveOverlay) -> String {
         ActiveOverlay::Heat => "Heat".to_string(),
         ActiveOverlay::Chemical(n) => format!("Chemical {n}"),
     }
+}
+
+/// Format the full config info panel text from configuration data.
+///
+/// Pure function — no Bevy dependencies. Testable in isolation.
+/// All floats formatted to 4 decimal places for consistency.
+///
+/// Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 3.1, 3.2, 3.3
+pub(super) fn format_config_info(
+    seed: u64,
+    grid_config: &GridConfig,
+    init_config: &WorldInitConfig,
+    actor_config: Option<&ActorConfig>,
+) -> String {
+    use std::fmt::Write;
+
+    let mut out = String::new();
+
+    // ── Seed ───────────────────────────────────────────────────────
+    writeln!(out, "--- Seed ---").ok();
+    writeln!(out, "seed: {seed}").ok();
+
+    // ── Grid ───────────────────────────────────────────────────────
+    writeln!(out, "\n--- Grid ---").ok();
+    writeln!(out, "width: {}", grid_config.width).ok();
+    writeln!(out, "height: {}", grid_config.height).ok();
+    writeln!(out, "num_chemicals: {}", grid_config.num_chemicals).ok();
+    writeln!(out, "diffusion_rate: {:.4}", grid_config.diffusion_rate).ok();
+    writeln!(out, "thermal_conductivity: {:.4}", grid_config.thermal_conductivity).ok();
+    writeln!(out, "ambient_heat: {:.4}", grid_config.ambient_heat).ok();
+    writeln!(out, "tick_duration: {:.4}", grid_config.tick_duration).ok();
+    writeln!(out, "num_threads: {}", grid_config.num_threads).ok();
+    write!(out, "chemical_decay_rates: [").ok();
+    for (i, rate) in grid_config.chemical_decay_rates.iter().enumerate() {
+        if i > 0 {
+            write!(out, ", ").ok();
+        }
+        write!(out, "{rate:.4}").ok();
+    }
+    writeln!(out, "]").ok();
+
+    // ── World Init ─────────────────────────────────────────────────
+    writeln!(out, "\n--- World Init ---").ok();
+
+    // Heat sources
+    let hs = &init_config.heat_source_config;
+    writeln!(out, "heat sources: {}..{}", hs.min_sources, hs.max_sources).ok();
+    writeln!(out, "heat emission_rate: {:.4}..{:.4}", hs.min_emission_rate, hs.max_emission_rate).ok();
+    writeln!(out, "heat renewable_fraction: {:.4}", hs.renewable_fraction).ok();
+    writeln!(out, "heat reservoir_capacity: {:.4}..{:.4}", hs.min_reservoir_capacity, hs.max_reservoir_capacity).ok();
+    writeln!(out, "heat deceleration_threshold: {:.4}..{:.4}", hs.min_deceleration_threshold, hs.max_deceleration_threshold).ok();
+
+    // Chemical sources
+    let cs = &init_config.chemical_source_config;
+    writeln!(out, "chemical sources: {}..{}", cs.min_sources, cs.max_sources).ok();
+    writeln!(out, "chemical emission_rate: {:.4}..{:.4}", cs.min_emission_rate, cs.max_emission_rate).ok();
+    writeln!(out, "chemical renewable_fraction: {:.4}", cs.renewable_fraction).ok();
+    writeln!(out, "chemical reservoir_capacity: {:.4}..{:.4}", cs.min_reservoir_capacity, cs.max_reservoir_capacity).ok();
+    writeln!(out, "chemical deceleration_threshold: {:.4}..{:.4}", cs.min_deceleration_threshold, cs.max_deceleration_threshold).ok();
+
+    // Initial ranges
+    writeln!(out, "initial_heat: {:.4}..{:.4}", init_config.min_initial_heat, init_config.max_initial_heat).ok();
+    writeln!(out, "initial_concentration: {:.4}..{:.4}", init_config.min_initial_concentration, init_config.max_initial_concentration).ok();
+
+    // Actor range
+    writeln!(out, "actors: {}..{}", init_config.min_actors, init_config.max_actors).ok();
+
+    // ── Actors ─────────────────────────────────────────────────────
+    writeln!(out, "\n--- Actors ---").ok();
+    match actor_config {
+        Some(ac) => {
+            writeln!(out, "consumption_rate: {:.4}", ac.consumption_rate).ok();
+            writeln!(out, "energy_conversion_factor: {:.4}", ac.energy_conversion_factor).ok();
+            writeln!(out, "base_energy_decay: {:.4}", ac.base_energy_decay).ok();
+            writeln!(out, "initial_energy: {:.4}", ac.initial_energy).ok();
+            writeln!(out, "initial_actor_capacity: {}", ac.initial_actor_capacity).ok();
+        }
+        None => {
+            writeln!(out, "Actors: disabled").ok();
+        }
+    }
+
+    out
 }
 
 /// Build a vertical gradient image for the color scale bar.
@@ -247,4 +333,32 @@ pub fn setup(
                 ScaleMinLabel,
             ));
         });
+
+    // ── Spawn info panel (hidden by default, Req 1.2, 4.1, 4.2) ───
+    let info_text = format_config_info(
+        config.seed,
+        &config.grid_config,
+        &config.init_config,
+        config.actor_config.as_ref(),
+    );
+
+    commands.spawn((
+        Text::new(info_text),
+        TextFont {
+            font_size: 14.0,
+            ..default()
+        },
+        TextColor(Color::WHITE),
+        Node {
+            position_type: PositionType::Absolute,
+            top: Val::Px(40.0),
+            left: Val::Px(10.0),
+            ..default()
+        },
+        BackgroundColor(Color::srgba(0.0, 0.0, 0.0, 0.7)),
+        Visibility::Hidden,
+        InfoPanel,
+    ));
+
+    commands.insert_resource(InfoPanelVisible(false));
 }

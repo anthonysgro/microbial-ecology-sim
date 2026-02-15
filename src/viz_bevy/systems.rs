@@ -9,8 +9,9 @@ use crate::grid::tick::TickOrchestrator;
 
 use super::{color, normalize};
 use super::resources::{
-    ActiveOverlay, BevyVizConfig, GridSprite, HoverTooltip, MainCamera, OverlayLabel,
-    RateLabel, RenderState, ScaleBar, ScaleMaxLabel, SimRateController, SimulationState,
+    ActiveOverlay, BevyVizConfig, GridSprite, HoverTooltip, InfoPanel, InfoPanelVisible,
+    MainCamera, OverlayLabel, RateLabel, RenderState, ScaleBar, ScaleMaxLabel,
+    SimRateController, SimulationState,
 };
 use super::setup::{build_scale_image, overlay_label_text};
 
@@ -449,5 +450,42 @@ pub fn update_scale_bar(
     // Update the max label in case color_scale_max changed (future-proofing).
     for mut text in &mut max_label_q {
         **text = format!("{:.1}", config.color_scale_max);
+    }
+}
+
+/// COLD PATH: Toggle info panel visibility on `I` key press.
+///
+/// Follows the `rate_control_input` pattern: read key state, mutate resource.
+/// Requirements: 1.1, 1.3
+pub fn info_panel_input(
+    keys: Res<ButtonInput<KeyCode>>,
+    mut visible: ResMut<InfoPanelVisible>,
+) {
+    if keys.just_pressed(KeyCode::KeyI) {
+        visible.0 = !visible.0;
+    }
+}
+
+/// COLD PATH: Sync info panel entity visibility with the `InfoPanelVisible` resource.
+///
+/// Gated on `is_changed()` — only touches the entity when the resource
+/// was mutated (i.e. on `I` key press). Follows `update_overlay_label` pattern.
+/// Requirements: 1.1
+pub fn update_info_panel(
+    visible: Res<InfoPanelVisible>,
+    mut query: Query<&mut Visibility, With<InfoPanel>>,
+) {
+    if !visible.is_changed() {
+        return;
+    }
+
+    let target = if visible.0 {
+        Visibility::Visible
+    } else {
+        Visibility::Hidden
+    };
+
+    for mut vis in &mut query {
+        *vis = target;
     }
 }

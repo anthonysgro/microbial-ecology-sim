@@ -155,3 +155,18 @@ pub struct ScaleMaxLabel;
 /// Requirements: 6.1, 6.3
 #[derive(Component)]
 pub struct RateLabel;
+
+/// Marker for the config info panel text entity.
+///
+/// COLD: Only queried when `InfoPanelVisible` changes.
+/// Requirements: 5.1
+#[derive(Component)]
+pub struct InfoPanel;
+
+/// Tracks whether the info panel is shown or hidden.
+///
+/// COLD: Mutated only on `I` key press.
+/// Default: hidden (`false`).
+/// Requirements: 5.2, 1.2
+#[derive(Resource)]
+pub struct InfoPanelVisible(pub bool);

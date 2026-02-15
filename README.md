@@ -46,6 +46,7 @@ Default seed is `42` if omitted.
 | `r` | Reset tick rate to default |
 | Scroll wheel | Zoom in / out |
 | Middle mouse drag | Pan camera |
+| `i` | Show / hide config info panel |
 | `q` / `Esc` | Quit |
 
 ## Configuration

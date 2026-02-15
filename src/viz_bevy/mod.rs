@@ -55,6 +55,8 @@ impl Plugin for BevyVizPlugin {
                 systems::update_rate_label,
                 systems::update_hover_tooltip,
                 systems::update_scale_bar,
+                systems::info_panel_input,
+                systems::update_info_panel,
             ),
         );
     }
