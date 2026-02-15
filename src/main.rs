@@ -12,8 +12,8 @@ use emergent_sovereignty::viz::{InputAction, OverlayMode, RendererConfig};
 
 fn main() {
     let config = GridConfig {
-        width: 10,
-        height: 10,
+        width: 30,
+        height: 30,
         num_chemicals: 1,
         diffusion_rate: 0.05,
         thermal_conductivity: 0.05,

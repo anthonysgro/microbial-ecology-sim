@@ -78,7 +78,7 @@ Implement a COLD-path terminal renderer in `src/viz/` that reads `Grid` field bu
   - [x] 9.2 Add `pub mod viz;` to `src/lib.rs` (or keep viz private to the binary if not in lib.rs — wire appropriately)
     - _Requirements: N/A (project structure)_
 
-- [-] 10. Final checkpoint
+- [x] 10. Final checkpoint
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Notes
