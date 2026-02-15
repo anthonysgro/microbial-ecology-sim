@@ -10,20 +10,22 @@ use crate::grid::tick::TickOrchestrator;
 use super::{color, normalize};
 use super::resources::{
     ActiveOverlay, BevyVizConfig, GridSprite, HoverTooltip, MainCamera, OverlayLabel,
-    RenderState, ScaleBar, ScaleMaxLabel, SimulationState,
+    RateLabel, RenderState, ScaleBar, ScaleMaxLabel, SimRateController, SimulationState,
 };
 use super::setup::{build_scale_image, overlay_label_text};
 
 /// Advance the simulation by one tick.
 ///
-/// Runs in `FixedUpdate`. Skips when `running == false` (halted due to
-/// a prior tick error). On error, logs via `tracing::error!` and sets
-/// `running = false` so subsequent invocations become no-ops.
+/// Runs in `FixedUpdate`. Skips when:
+///   1. `SimulationState.running == false` (error-halted), OR
+///   2. `SimRateController.paused == true` (user-paused)
 ///
-/// Requirements: 2.2 (tick advancement), 2.4 (fixed timestep decoupling),
-/// 2.5 (error halts tick).
-pub fn tick_simulation(mut sim: ResMut<SimulationState>) {
-    if !sim.running {
+/// On error, logs via `tracing::error!` and sets `running = false` so
+/// subsequent invocations become no-ops.
+///
+/// Requirements: 2.2, 2.3, 2.4, 7.1
+pub fn tick_simulation(mut sim: ResMut<SimulationState>, rate: Res<SimRateController>) {
+    if !sim.running || rate.paused {
         return;
     }
 
@@ -157,6 +159,54 @@ pub fn handle_input(
     }
 }
 
+/// Read rate-control keys, mutate `SimRateController` and `Time<Fixed>`.
+///
+/// COLD PATH: Runs every `Update` frame. Only performs work when a
+/// rate-control key is pressed (Space, Up, Down, R).
+///
+/// Key bindings:
+///   Space      → toggle pause
+///   Up Arrow   → speed up (×2, clamped to `MAX_HZ`)
+///   Down Arrow → slow down (÷2, clamped to `MIN_HZ`)
+///   R          → reset to initial rate
+///
+/// When the tick rate changes, the `Time<Fixed>` timestep is updated
+/// in the same frame so the new rate takes effect immediately.
+///
+/// Requirements: 2.1, 3.1, 3.2, 3.3, 4.1, 4.2, 4.3, 5.1, 5.2
+pub fn rate_control_input(
+    keys: Res<ButtonInput<KeyCode>>,
+    mut rate: ResMut<SimRateController>,
+    mut fixed_time: ResMut<Time<Fixed>>,
+) {
+    let mut rate_changed = false;
+
+    if keys.just_pressed(KeyCode::Space) {
+        rate.toggle_pause();
+    }
+
+    if keys.just_pressed(KeyCode::ArrowUp) {
+        rate.speed_up();
+        rate_changed = true;
+    }
+
+    if keys.just_pressed(KeyCode::ArrowDown) {
+        rate.slow_down();
+        rate_changed = true;
+    }
+
+    if keys.just_pressed(KeyCode::KeyR) {
+        rate.reset();
+        rate_changed = true;
+    }
+
+    if rate_changed {
+        let period = std::time::Duration::from_secs_f64(1.0 / rate.tick_hz);
+        fixed_time.set_timestep(period);
+    }
+}
+
+
 
 /// Sync the overlay label text with the current `ActiveOverlay` value.
 ///
@@ -174,6 +224,47 @@ pub fn update_overlay_label(
     }
 
     let label = overlay_label_text(&overlay);
+    for mut text in &mut query {
+        **text = label.clone();
+    }
+}
+
+/// Format the rate label text from simulation state.
+///
+/// Pure function — no Bevy dependencies, testable in isolation.
+///
+/// Display logic:
+///   - Error-halted (`running == false`): `"HALTED"`
+///   - User-paused: `"{tick_hz:.1} Hz — PAUSED"`
+///   - Running: `"{tick_hz:.1} Hz"`
+///
+/// Requirements: 6.1, 7.2
+pub fn format_rate_label(tick_hz: f64, paused: bool, running: bool) -> String {
+    if !running {
+        "HALTED".to_string()
+    } else if paused {
+        format!("{tick_hz:.1} Hz \u{2014} PAUSED")
+    } else {
+        format!("{tick_hz:.1} Hz")
+    }
+}
+
+/// Sync the rate label text with `SimRateController` and `SimulationState`.
+///
+/// COLD PATH: Runs every `Update` frame. Only mutates the `Text` component
+/// when either resource has changed (Bevy change detection gates the update).
+///
+/// Requirements: 6.1, 6.2, 7.2
+pub fn update_rate_label(
+    rate: Res<SimRateController>,
+    sim: Res<SimulationState>,
+    mut query: Query<&mut Text, With<RateLabel>>,
+) {
+    if !rate.is_changed() && !sim.is_changed() {
+        return;
+    }
+
+    let label = format_rate_label(rate.tick_hz, rate.paused, sim.running);
     for mut text in &mut query {
         **text = label.clone();
     }

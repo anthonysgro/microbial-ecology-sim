@@ -10,7 +10,8 @@ use crate::grid::world_init;
 
 use super::resources::{
     ActiveOverlay, BevyVizConfig, GridSprite, HoverTooltip, MainCamera, OverlayLabel,
-    RenderState, ScaleBar, ScaleMaxLabel, ScaleMinLabel, SimulationState,
+    RateLabel, RenderState, ScaleBar, ScaleMaxLabel, ScaleMinLabel, SimRateController,
+    SimulationState,
 };
 
 /// Format the overlay name for the UI label.
@@ -105,6 +106,9 @@ pub fn setup(
     // ── Insert active overlay from config ──────────────────────────
     commands.insert_resource(config.initial_overlay);
 
+    // ── Insert rate controller from config (Req 1.4) ───────────────
+    commands.insert_resource(SimRateController::new(config.tick_hz));
+
     // ── Create GPU texture (Req 5.1) ───────────────────────────────
     let mut image = Image::new_fill(
         Extent3d {
@@ -150,6 +154,23 @@ pub fn setup(
             ..default()
         },
         OverlayLabel,
+    ));
+
+    // ── Spawn rate label (top-right, Req 6.3) ──────────────────────
+    commands.spawn((
+        Text::new(format!("{:.1} Hz", config.tick_hz)),
+        TextFont {
+            font_size: 18.0,
+            ..default()
+        },
+        TextColor(Color::WHITE),
+        Node {
+            position_type: PositionType::Absolute,
+            top: Val::Px(10.0),
+            right: Val::Px(50.0),
+            ..default()
+        },
+        RateLabel,
     ));
 
     // ── Spawn hover tooltip (bottom-left) ──────────────────────────

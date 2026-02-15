@@ -36,6 +36,59 @@ pub struct RenderState {
     pub norm_buffer: Vec<f32>,
 }
 
+/// Controls simulation pacing: tick rate, pause state, and reset baseline.
+///
+/// COLD: mutated only on user key press (rate_control_input system).
+/// Read per fixed-tick (tick_simulation pause guard) and per-frame
+/// (update_rate_label). No hot-path allocation.
+///
+/// Invariant: `MIN_HZ <= tick_hz <= MAX_HZ` after any public method call.
+/// `initial_tick_hz` is immutable after construction.
+///
+/// Requirements: 1.1, 1.2, 1.3, 1.4
+#[derive(Resource)]
+pub struct SimRateController {
+    /// Current simulation ticks per second.
+    pub tick_hz: f64,
+    /// Whether the user has paused the simulation.
+    pub paused: bool,
+    /// Initial tick_hz from startup config, used for reset.
+    pub initial_tick_hz: f64,
+}
+
+impl SimRateController {
+    pub const MIN_HZ: f64 = 0.5;
+    pub const MAX_HZ: f64 = 480.0;
+
+    pub fn new(tick_hz: f64) -> Self {
+        Self {
+            tick_hz,
+            paused: false,
+            initial_tick_hz: tick_hz,
+        }
+    }
+
+    /// Double the tick rate, clamping to MAX_HZ.
+    pub fn speed_up(&mut self) {
+        self.tick_hz = (self.tick_hz * 2.0).min(Self::MAX_HZ);
+    }
+
+    /// Halve the tick rate, clamping to MIN_HZ.
+    pub fn slow_down(&mut self) {
+        self.tick_hz = (self.tick_hz / 2.0).max(Self::MIN_HZ);
+    }
+
+    /// Reset to the initial tick rate.
+    pub fn reset(&mut self) {
+        self.tick_hz = self.initial_tick_hz;
+    }
+
+    /// Toggle pause state.
+    pub fn toggle_pause(&mut self) {
+        self.paused = !self.paused;
+    }
+}
+
 /// Current overlay selection. Inserted as a Bevy resource.
 #[derive(Resource, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ActiveOverlay {
@@ -96,3 +149,9 @@ pub struct ScaleMinLabel;
 /// Marker for the scale bar max label.
 #[derive(Component)]
 pub struct ScaleMaxLabel;
+
+/// Marker for the simulation rate display text entity.
+///
+/// Requirements: 6.1, 6.3
+#[derive(Component)]
+pub struct RateLabel;

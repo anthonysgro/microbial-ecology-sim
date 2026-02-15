@@ -48,9 +48,11 @@ impl Plugin for BevyVizPlugin {
             Update,
             (
                 systems::handle_input,
+                systems::rate_control_input,
                 systems::update_texture,
                 systems::camera_controls,
                 systems::update_overlay_label,
+                systems::update_rate_label,
                 systems::update_hover_tooltip,
                 systems::update_scale_bar,
             ),
