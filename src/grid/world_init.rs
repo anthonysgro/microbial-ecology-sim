@@ -147,3 +147,44 @@ pub(crate) fn generate_sources(
 
     Ok(())
 }
+
+/// Write seeded initial values into grid field buffers.
+///
+/// Writes to the write buffers, then swaps so seeded values land in the
+/// read buffers. This avoids needing mutable access to read buffers.
+///
+/// Infallible: all indices are derived from grid dimensions, so no
+/// bounds errors are possible.
+pub(crate) fn populate_fields(
+    grid: &mut Grid,
+    rng: &mut impl Rng,
+    config: &WorldInitConfig,
+    num_chemicals: usize,
+) {
+    let cell_count = grid.cell_count();
+
+    // Heat: sample per-cell values into the write buffer, then swap.
+    {
+        let heat_write = grid.write_heat();
+        for i in 0..cell_count {
+            heat_write[i] = rng.random_range(config.min_initial_heat..=config.max_initial_heat);
+        }
+    }
+    grid.swap_heat();
+
+    // Chemicals: for each species, sample per-cell concentrations into
+    // the write buffer, then swap all chemical buffers at the end.
+    for species in 0..num_chemicals {
+        // Species index is always valid since num_chemicals comes from the grid.
+        let chem_write = grid
+            .write_chemical(species)
+            .expect("species index derived from grid; always valid");
+        for i in 0..cell_count {
+            chem_write[i] = rng.random_range(
+                config.min_initial_concentration..=config.max_initial_concentration,
+            );
+        }
+    }
+    grid.swap_chemicals();
+}
+
