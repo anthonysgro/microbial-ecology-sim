@@ -71,7 +71,7 @@ Add `extraction_cost: f32` to `ActorConfig`, update validation, modify the metab
     - Add row: `extraction_cost` | `f32` | `0.2` | Energy cost per unit of chemical consumed. Net gain = `consumed * (energy_conversion_factor - extraction_cost)`. Must be `>= 0.0` and `< energy_conversion_factor`. |
     - _Requirements: 5.3_
 
-- [-] 6. Final checkpoint - Ensure all tests pass
+- [x] 6. Final checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Notes

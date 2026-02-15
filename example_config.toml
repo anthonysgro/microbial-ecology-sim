@@ -10,7 +10,7 @@
 # Grid: 60×60 = 3,600 cells. Large enough for spatial structure,
 # small enough for fast iteration and clear visualization.
 
-seed = 7
+seed = 773
 
 [grid]
 width  = 60
