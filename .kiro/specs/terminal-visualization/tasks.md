@@ -6,8 +6,8 @@ Implement a COLD-path terminal renderer in `src/viz/` that reads `Grid` field bu
 
 ## Tasks
 
-- [ ] 1. Create viz module structure and core types
-  - [ ] 1.1 Create `src/viz/mod.rs` with submodule declarations and `OverlayMode` enum with `label()` method, `RendererConfig` struct, and `InputAction` enum
+- [x] 1. Create viz module structure and core types
+  - [x] 1.1 Create `src/viz/mod.rs` with submodule declarations and `OverlayMode` enum with `label()` method, `RendererConfig` struct, and `InputAction` enum
     - _Requirements: 6.1, 6.2, 6.3, 6.5_
 
 - [ ] 2. Implement glyph mapping
