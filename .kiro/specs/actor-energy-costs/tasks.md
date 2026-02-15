@@ -103,7 +103,7 @@ Add movement energy costs and an inert actor state to the simulation. Modifies `
     - Ensure existing tests still pass with the new fields
     - _Requirements: 1.3, 2.6, 2.7_
 
-- [-] 6. Checkpoint — Ensure all tests pass
+- [x] 6. Checkpoint — Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Notes

@@ -51,16 +51,63 @@ Default seed is `42` if omitted.
 
 ## Configuration
 
-Grid parameters are set in code at the binary entry points (`src/main.rs` and `src/bin/bevy_viz.rs`). Key knobs:
+All parameters are set in code at the binary entry points (`src/main.rs` and `src/bin/bevy_viz.rs`). There is no file-based config — changing values requires recompilation.
 
-| Parameter | Description |
-|-----------|-------------|
-| `width` / `height` | Grid dimensions |
-| `num_chemicals` | Number of chemical species tracked per cell |
-| `diffusion_rate` | Chemical diffusion coefficient |
-| `thermal_conductivity` | Heat radiation coefficient |
-| `min_actors` / `max_actors` | Actor count range at initialization |
-| `tick_hz` | Simulation ticks per second (Bevy only) |
+Three config structs control world initialization:
+
+### GridConfig — Environment Physics
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `width` | `u32` | Grid width in cells |
+| `height` | `u32` | Grid height in cells |
+| `num_chemicals` | `usize` | Number of chemical species tracked per cell |
+| `diffusion_rate` | `f32` | Chemical diffusion coefficient (discrete Laplacian scaling factor) |
+| `thermal_conductivity` | `f32` | Heat radiation coefficient |
+| `ambient_heat` | `f32` | Boundary condition for heat — missing neighbors use this value |
+| `tick_duration` | `f32` | Simulated time per tick (seconds) |
+| `num_threads` | `usize` | Spatial partition count (maps to rayon thread count) |
+| `chemical_decay_rates` | `Vec<f32>` | Per-species decay rate in `[0.0, 1.0]`. Applied as `concentration *= (1.0 - rate)` each tick. Length must equal `num_chemicals` |
+
+### WorldInitConfig — Procedural Generation
+
+Controls how the world is seeded. All ranges are inclusive `[min, max]`.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `min_initial_heat` / `max_initial_heat` | `f32` | Per-cell heat value range at spawn |
+| `min_initial_concentration` / `max_initial_concentration` | `f32` | Per-cell chemical concentration range at spawn (all species) |
+| `min_actors` / `max_actors` | `u32` | Actor count range to seed. Both `0` = no actors |
+
+Each of `heat_source_config` and `chemical_source_config` is a `SourceFieldConfig`:
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `min_sources` / `max_sources` | `u32` | Number of sources to place |
+| `min_emission_rate` / `max_emission_rate` | `f32` | Source emission rate (units per tick) |
+| `renewable_fraction` | `f32` | Fraction of sources that are renewable `[0.0, 1.0]` |
+| `min_reservoir_capacity` / `max_reservoir_capacity` | `f32` | Initial reservoir for non-renewable sources |
+| `min_deceleration_threshold` / `max_deceleration_threshold` | `f32` | When non-renewable sources begin tapering `[0.0, 1.0]` |
+
+### ActorConfig — Metabolism & Lifecycle
+
+Optional — pass `None` to `initialize()` to skip actor systems entirely.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `consumption_rate` | `f32` | Chemical units consumed per tick from the actor's current cell (species 0) |
+| `energy_conversion_factor` | `f32` | Energy gained per unit of chemical consumed |
+| `base_energy_decay` | `f32` | Basal metabolic cost subtracted each tick |
+| `initial_energy` | `f32` | Energy assigned to newly spawned actors |
+| `initial_actor_capacity` | `usize` | Pre-allocated slot capacity for the actor registry |
+| `movement_cost` | `f32` | Energy subtracted on successful move to an adjacent cell |
+| `removal_threshold` | `f32` | Energy level below which an inert actor is permanently removed (must be ≤ 0.0) |
+
+### Bevy-Only Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `tick_hz` | `f64` | Simulation ticks per second (controls simulation speed) |
 
 ## Project structure
 
