@@ -12,7 +12,7 @@ use crossterm::{
 };
 
 use crate::grid::Grid;
-use crate::viz::color::{chemical_color, heat_color, moisture_bg_color};
+use crate::viz::color::{chemical_color, heat_color};
 use crate::viz::glyph::value_to_glyph;
 use crate::viz::input::map_key_event;
 use crate::viz::stats::{compute_stats, format_stats_bar};
@@ -128,7 +128,6 @@ impl Renderer {
                 .read_chemical(species)
                 .context("read chemical buffer")?,
             OverlayMode::Heat => grid.read_heat(),
-            OverlayMode::Moisture => grid.read_moisture(),
         };
 
         // Normalize into the pre-allocated buffer.
@@ -159,14 +158,6 @@ impl Renderer {
                         self.stdout
                             .queue(style::PrintStyledContent(
                                 style::style(glyph).with(fg),
-                            ))?;
-                    }
-                    OverlayMode::Moisture => {
-                        let bg = moisture_bg_color(norm_val);
-                        let fg = crossterm::style::Color::White;
-                        self.stdout
-                            .queue(style::PrintStyledContent(
-                                style::style(glyph).with(fg).on(bg),
                             ))?;
                     }
                     OverlayMode::Chemical(_) => {

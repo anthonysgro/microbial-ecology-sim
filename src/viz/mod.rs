@@ -13,7 +13,6 @@ pub enum OverlayMode {
     /// Chemical species by 0-based index.
     Chemical(usize),
     Heat,
-    Moisture,
 }
 
 impl OverlayMode {
@@ -21,7 +20,6 @@ impl OverlayMode {
         match self {
             Self::Chemical(i) => format!("Chemical {i}"),
             Self::Heat => "Heat".into(),
-            Self::Moisture => "Moisture".into(),
         }
     }
 }

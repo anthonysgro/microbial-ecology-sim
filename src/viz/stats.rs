@@ -127,16 +127,4 @@ mod tests {
         assert!(bar.contains("Chemical 2"), "should contain chemical label");
     }
 
-    #[test]
-    fn format_stats_bar_moisture_overlay() {
-        let stats = FieldStats {
-            total: 1.0,
-            min: 0.5,
-            max: 1.0,
-            center: 0.75,
-        };
-        let bar = format_stats_bar(999, &OverlayMode::Moisture, &stats);
-        assert!(bar.contains("999"));
-        assert!(bar.contains("Moisture"));
-    }
 }

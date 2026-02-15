@@ -32,32 +32,32 @@ Two-phase implementation: first strip all moisture infrastructure from the codeb
     - Tick sequence becomes: diffusion → validate → swap chemicals, heat → validate → swap heat
     - _Requirements: 2.3, 2.4_
 
-- [ ] 2. Remove moisture from the visualization layer
-  - [ ] 2.1 Strip moisture from `src/viz/mod.rs`
+- [x] 2. Remove moisture from the visualization layer
+  - [x] 2.1 Strip moisture from `src/viz/mod.rs`
     - Remove `OverlayMode::Moisture` variant from enum
     - Remove `"Moisture"` label from `OverlayMode::label()`
     - _Requirements: 3.1_
 
-  - [ ] 2.2 Strip moisture from `src/viz/renderer.rs`
+  - [x] 2.2 Strip moisture from `src/viz/renderer.rs`
     - Remove `use crate::viz::color::moisture_bg_color;` import
     - Remove `OverlayMode::Moisture => grid.read_moisture()` field selection branch
     - Remove `OverlayMode::Moisture => { ... moisture_bg_color ... }` rendering branch
     - _Requirements: 3.2_
 
-  - [ ] 2.3 Strip moisture from `src/viz/input.rs`
+  - [x] 2.3 Strip moisture from `src/viz/input.rs`
     - Remove `KeyCode::Char('m') => InputAction::SwitchOverlay(OverlayMode::Moisture)` keybinding
     - _Requirements: 3.3_
 
-  - [ ] 2.4 Strip moisture from `src/viz/color.rs`
+  - [x] 2.4 Strip moisture from `src/viz/color.rs`
     - Remove `moisture_bg_color()` function
     - Remove associated moisture color tests
     - _Requirements: 3.4_
 
-  - [ ] 2.5 Strip moisture from `src/viz/stats.rs`
+  - [x] 2.5 Strip moisture from `src/viz/stats.rs`
     - Remove `format_stats_bar_moisture_overlay` test (or any test referencing `OverlayMode::Moisture`)
     - _Requirements: 3.5_
 
-- [ ] 3. Remove moisture from application entry point
+- [-] 3. Remove moisture from application entry point
   - [ ] 3.1 Update `src/main.rs`
     - Remove `moisture: 1.0` from `CellDefaults` construction
     - Remove `evaporation_coefficient: 0.01` from `GridConfig` construction

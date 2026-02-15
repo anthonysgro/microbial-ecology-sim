@@ -38,18 +38,6 @@ pub fn heat_color(normalized: f32) -> Color {
     Color::Rgb { r, g, b }
 }
 
-/// Map a normalized value [0.0, 1.0] to a background color for the moisture overlay.
-///
-/// Single-hue blue gradient: dark blue (0,0,30) at 0.0 → bright blue (0,0,255) at 1.0.
-/// Red and green channels stay at zero to maintain blue-channel dominance (Req 3.2).
-///
-/// Requirements: 3.1 (background color shading), 3.2 (single-hue blue palette)
-pub fn moisture_bg_color(normalized: f32) -> Color {
-    let v = normalized.clamp(0.0, 1.0);
-    let b = lerp_u8(30, 255, v);
-    Color::Rgb { r: 0, g: 0, b }
-}
-
 /// Map a normalized value [0.0, 1.0] to a foreground color for the chemical overlay.
 ///
 /// Green-scale gradient: dark green (0,30,0) at 0.0 → bright green (0,255,0) at 1.0.
@@ -103,24 +91,6 @@ mod tests {
 
         let (r, g, b) = extract_rgb(heat_color(1.5));
         assert_eq!((r, g, b), (255, 0, 0));
-    }
-
-    #[test]
-    fn moisture_blue_dominance() {
-        for i in 0..=10 {
-            let v = i as f32 / 10.0;
-            let (r, g, b) = extract_rgb(moisture_bg_color(v));
-            assert!(b >= r, "blue {b} < red {r} at v={v}");
-            assert!(b >= g, "blue {b} < green {g} at v={v}");
-        }
-    }
-
-    #[test]
-    fn moisture_gradient_range() {
-        let (_, _, b_lo) = extract_rgb(moisture_bg_color(0.0));
-        let (_, _, b_hi) = extract_rgb(moisture_bg_color(1.0));
-        assert_eq!(b_lo, 30);
-        assert_eq!(b_hi, 255);
     }
 
     #[test]
