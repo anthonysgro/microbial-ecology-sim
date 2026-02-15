@@ -45,11 +45,11 @@ Incremental build-up of the `viz_bevy` module: pure functions first (normalize, 
     - **Property 4: Render pipeline pixel correctness**
     - **Validates: Requirements 5.2**
 
-- [ ] 4. Checkpoint — Ensure all tests pass
+- [x] 4. Checkpoint — Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 5. Define Bevy resources and marker components
-  - [ ] 5.1 Implement resources in `src/viz_bevy/resources.rs`
+- [x] 5. Define Bevy resources and marker components
+  - [x] 5.1 Implement resources in `src/viz_bevy/resources.rs`
     - `SimulationState` resource: owns `Grid`, `GridConfig`, `tick: u64`, `running: bool`
     - `RenderState` resource: owns `pixel_buffer: Vec<u8>`, `norm_buffer: Vec<f32>`
     - `ActiveOverlay` resource enum: `Heat`, `Chemical(usize)`
@@ -57,8 +57,8 @@ Incremental build-up of the `viz_bevy` module: pure functions first (normalize, 
     - Marker components: `GridSprite`, `OverlayLabel`, `MainCamera`
     - _Requirements: 2.1, 9.2_
 
-- [ ] 6. Implement startup system
-  - [ ] 6.1 Implement `setup` function in `src/viz_bevy/setup.rs`
+- [-] 6. Implement startup system
+  - [-] 6.1 Implement `setup` function in `src/viz_bevy/setup.rs`
     - Initialize `Grid` via `world_init::initialize` using config from `BevyVizConfig`
     - Insert `SimulationState` resource with the initialized grid
     - Insert `RenderState` with pre-allocated buffers (`pixel_buffer`: `width*height*4`, `norm_buffer`: `width*height`)
@@ -69,7 +69,7 @@ Incremental build-up of the `viz_bevy` module: pure functions first (normalize, 
     - Spawn UI text node at top-left with `OverlayLabel` marker, displaying initial overlay name
     - _Requirements: 5.1, 5.3, 5.4, 7.1, 7.2, 8.1, 9.2, 10.1_
 
-- [ ] 7. Implement simulation tick system
+- [~] 7. Implement simulation tick system
   - [ ] 7.1 Implement `tick_simulation` in `src/viz_bevy/systems.rs`
     - Runs in `FixedUpdate` schedule
     - Skip if `running == false`
@@ -82,7 +82,7 @@ Incremental build-up of the `viz_bevy` module: pure functions first (normalize, 
     - **Property 9: Tick counter advancement**
     - **Validates: Requirements 2.2**
 
-- [ ] 8. Implement texture update system
+- [~] 8. Implement texture update system
   - [ ] 8.1 Implement `update_texture` in `src/viz_bevy/systems.rs`
     - Runs in `Update` schedule
     - Select field buffer based on `ActiveOverlay` (`read_heat()` or `read_chemical(species)`)
@@ -92,7 +92,7 @@ Incremental build-up of the `viz_bevy` module: pure functions first (normalize, 
     - Zero per-frame allocations: all buffers pre-allocated
     - _Requirements: 5.2, 9.1, 9.3_
 
-- [ ] 9. Implement input handling system
+- [~] 9. Implement input handling system
   - [ ] 9.1 Implement `handle_input` in `src/viz_bevy/systems.rs`
     - Runs in `Update` schedule
     - `H` key → set `ActiveOverlay::Heat`
@@ -104,7 +104,7 @@ Incremental build-up of the `viz_bevy` module: pure functions first (normalize, 
     - **Property 5: Overlay key mapping correctness**
     - **Validates: Requirements 6.2, 6.3**
 
-- [ ] 10. Implement overlay label update system
+- [~] 10. Implement overlay label update system
   - [ ] 10.1 Implement `update_overlay_label` in `src/viz_bevy/systems.rs`
     - Runs in `Update` schedule
     - Query `OverlayLabel` text entity
@@ -115,7 +115,7 @@ Incremental build-up of the `viz_bevy` module: pure functions first (normalize, 
     - **Property 6: Label-overlay text sync**
     - **Validates: Requirements 6.4**
 
-- [ ] 11. Implement camera control system
+- [~] 11. Implement camera control system
   - [ ] 11.1 Implement `camera_controls` in `src/viz_bevy/systems.rs`
     - Runs in `Update` schedule
     - Mouse wheel up → decrease orthographic scale (zoom in)
@@ -132,7 +132,7 @@ Incremental build-up of the `viz_bevy` module: pure functions first (normalize, 
     - **Property 8: Zoom clamping invariant**
     - **Validates: Requirements 8.5**
 
-- [ ] 12. Wire plugin and app entry point
+- [~] 12. Wire plugin and app entry point
   - [ ] 12.1 Implement `BevyVizPlugin` in `src/viz_bevy/mod.rs`
     - Define a Bevy `Plugin` that registers all systems and schedules:
       - `Startup`: `setup`
@@ -146,7 +146,7 @@ Incremental build-up of the `viz_bevy` module: pure functions first (normalize, 
     - Build Bevy `App`, insert `BevyVizConfig` resource, add `BevyVizPlugin`, run
     - _Requirements: 10.1, 10.3_
 
-- [ ] 13. Final checkpoint — Ensure all tests pass
+- [~] 13. Final checkpoint — Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Notes
