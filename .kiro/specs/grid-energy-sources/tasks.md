@@ -63,7 +63,7 @@ Two-phase implementation: first strip all moisture infrastructure from the codeb
     - Remove `evaporation_coefficient: 0.01` from `GridConfig` construction
     - _Requirements: 4.1, 4.2_
 
-- [ ] 4. Checkpoint — Verify clean compilation after moisture removal
+- [x] 4. Checkpoint — Verify clean compilation after moisture removal
   - Ensure `cargo build` succeeds with no errors
   - Ensure all existing tests pass (`cargo test`)
   - Ask the user if questions arise.
