@@ -10,8 +10,8 @@ Implement a COLD-path terminal renderer in `src/viz/` that reads `Grid` field bu
   - [x] 1.1 Create `src/viz/mod.rs` with submodule declarations and `OverlayMode` enum with `label()` method, `RendererConfig` struct, and `InputAction` enum
     - _Requirements: 6.1, 6.2, 6.3, 6.5_
 
-- [ ] 2. Implement glyph mapping
-  - [ ] 2.1 Create `src/viz/glyph.rs` with `value_to_glyph(normalized: f32) -> char` using the threshold sequence: space < 0.01, `.` [0.01, 0.25), `:` [0.25, 0.50), `*` [0.50, 0.75), `#` [0.75, 1.0]. Also add `glyph_to_range(ch: char) -> (f32, f32)` returning the threshold range for round-trip verification.
+- [x] 2. Implement glyph mapping
+  - [x] 2.1 Create `src/viz/glyph.rs` with `value_to_glyph(normalized: f32) -> char` using the threshold sequence: space < 0.01, `.` [0.01, 0.25), `:` [0.25, 0.50), `*` [0.50, 0.75), `#` [0.75, 1.0]. Also add `glyph_to_range(ch: char) -> (f32, f32)` returning the threshold range for round-trip verification.
     - _Requirements: 1.1, 1.4, 9.2_
   - [ ]* 2.2 Write property test: Glyph threshold correctness
     - **Property 1: Glyph threshold correctness**
