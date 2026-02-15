@@ -2,8 +2,11 @@
 // Allocations and dynamic dispatch permitted.
 
 use rand::Rng;
+use rand::SeedableRng;
+use rand_chacha::ChaCha8Rng;
 
 use crate::grid::Grid;
+use crate::grid::config::{CellDefaults, GridConfig};
 use crate::grid::error::GridError;
 use crate::grid::source::{Source, SourceError, SourceField};
 
@@ -186,5 +189,43 @@ pub(crate) fn populate_fields(
         }
     }
     grid.swap_chemicals();
+}
+/// Generate a fully initialized Grid from a seed and configuration.
+///
+/// COLD PATH: Runs once at startup. Allocations permitted.
+///
+/// Creates a master `ChaCha8Rng` from the seed, then forks into independent
+/// child RNGs for source generation and field population. This isolation
+/// ensures that adding new generation phases won't retroactively change
+/// earlier outputs for the same seed.
+///
+/// Returns a Grid ready for immediate tick execution.
+pub fn initialize(
+    seed: u64,
+    grid_config: GridConfig,
+    init_config: &WorldInitConfig,
+) -> Result<Grid, WorldInitError> {
+    validate_config(init_config)?;
+
+    let num_chemicals = grid_config.num_chemicals;
+
+    // Zero defaults — populate_fields overwrites all cells after construction.
+    let defaults = CellDefaults {
+        chemical_concentrations: vec![0.0; num_chemicals],
+        heat: 0.0,
+    };
+
+    let mut grid = Grid::new(grid_config, defaults)?;
+
+    // Deterministic RNG forking: each phase draws from an independent stream,
+    // so changes to one phase cannot perturb the other.
+    let mut master_rng = ChaCha8Rng::seed_from_u64(seed);
+    let mut source_rng = ChaCha8Rng::from_rng(&mut master_rng);
+    let mut field_rng = ChaCha8Rng::from_rng(&mut master_rng);
+
+    generate_sources(&mut grid, &mut source_rng, init_config, num_chemicals)?;
+    populate_fields(&mut grid, &mut field_rng, init_config, num_chemicals);
+
+    Ok(grid)
 }
 

@@ -47,8 +47,8 @@ Implement a COLD-path procedural initialization system in `src/grid/world_init.r
     - For all sources in initialized grid, verify `cell_index < cell_count` and `emission_rate` in `[min_emission_rate, max_emission_rate]`
     - **Validates: Requirements 2.3, 2.4**
 
-- [-] 4. Implement field population
-  - [-] 4.1 Implement `populate_fields` function
+- [x] 4. Implement field population
+  - [x] 4.1 Implement `populate_fields` function
     - Accept `&mut Grid`, `&mut impl Rng`, `&WorldInitConfig`, `num_chemicals: usize`
     - For each cell: sample heat from `[min_initial_heat, max_initial_heat]`, write to heat write buffer
     - For each species, for each cell: sample concentration from `[min_initial_concentration, max_initial_concentration]`, write to chemical write buffer
@@ -60,8 +60,8 @@ Implement a COLD-path procedural initialization system in `src/grid/world_init.r
     - After `initialize`, read all cells from `grid.read_heat()` and `grid.read_chemical(i)`; verify all values in configured ranges
     - **Validates: Requirements 3.1, 3.2, 3.3**
 
-- [ ] 5. Implement top-level `initialize` function and RNG forking
-  - [ ] 5.1 Implement `pub fn initialize(seed: u64, grid_config: GridConfig, init_config: &WorldInitConfig) -> Result<Grid, WorldInitError>`
+- [-] 5. Implement top-level `initialize` function and RNG forking
+  - [x] 5.1 Implement `pub fn initialize(seed: u64, grid_config: GridConfig, init_config: &WorldInitConfig) -> Result<Grid, WorldInitError>`
     - Call `validate_config`
     - Construct `CellDefaults` with zeros (field population overwrites them)
     - Call `Grid::new(grid_config, defaults)?`
