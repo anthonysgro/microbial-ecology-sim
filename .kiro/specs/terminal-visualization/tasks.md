@@ -20,8 +20,8 @@ Implement a COLD-path terminal renderer in `src/viz/` that reads `Grid` field bu
     - **Property 8: Glyph round-trip consistency**
     - **Validates: Requirements 9.2**
 
-- [ ] 3. Implement normalization
-  - [ ] 3.1 Create normalization function `normalize_field(raw: &[f32], out: &mut Vec<f32>) -> f32` in `src/viz/renderer.rs` (or a dedicated `src/viz/normalize.rs`). Divides by max, guards against near-zero max with epsilon 1e-9. When all values identical and non-zero, normalizes to 1.0.
+- [x] 3. Implement normalization
+  - [x] 3.1 Create normalization function `normalize_field(raw: &[f32], out: &mut Vec<f32>) -> f32` in `src/viz/renderer.rs` (or a dedicated `src/viz/normalize.rs`). Divides by max, guards against near-zero max with epsilon 1e-9. When all values identical and non-zero, normalizes to 1.0.
     - _Requirements: 1.2, 1.3, 9.1, 9.3_
   - [ ]* 3.2 Write property test: Normalization bounds
     - **Property 2: Normalization bounds**
