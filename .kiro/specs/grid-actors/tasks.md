@@ -6,8 +6,8 @@ Incremental implementation of mobile Actors into the existing deterministic grid
 
 ## Tasks
 
-- [ ] 1. Define Actor data types and error enum
-  - [ ] 1.1 Create `src/grid/actor.rs` with `Actor`, `ActorId`, `ActorSlot`, and `ActorError` types
+- [x] 1. Define Actor data types and error enum
+  - [x] 1.1 Create `src/grid/actor.rs` with `Actor`, `ActorId`, `ActorSlot`, and `ActorError` types
     - `Actor`: plain data struct with `cell_index: usize` and `energy: f32`, deriving `Debug, Clone, Copy, PartialEq`
     - `ActorId`: generational index with `index: usize` and `generation: u64`, deriving `Debug, Clone, Copy, PartialEq, Eq, Hash`
     - `ActorSlot`: `pub(crate)` struct with `actor: Option<Actor>` and `generation: u64`
