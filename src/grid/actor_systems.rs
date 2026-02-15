@@ -208,6 +208,39 @@ pub fn run_actor_movement(
     }
 }
 
+// WARM PATH: Executes once per tick after metabolism completes.
+// No heap allocation. No dynamic dispatch.
+
+/// Remove all Actors marked for death during the metabolism phase.
+///
+/// Sorts the removal buffer by slot index (ascending) for deterministic
+/// removal order, then calls `ActorRegistry::remove` for each entry,
+/// clearing the corresponding occupancy map slot. The buffer is cleared
+/// after all removals complete.
+///
+/// # Arguments
+///
+/// * `actors` — mutable reference to the actor registry.
+/// * `occupancy` — mutable occupancy map, length = cell_count.
+/// * `removal_buffer` — buffer of `ActorId`s populated by metabolism.
+///   Cleared after processing.
+pub fn run_deferred_removal(
+    actors: &mut ActorRegistry,
+    occupancy: &mut [Option<usize>],
+    removal_buffer: &mut Vec<ActorId>,
+) -> Result<(), crate::grid::actor::ActorError> {
+    // Sort by slot index (ascending) for deterministic removal order.
+    removal_buffer.sort_unstable_by_key(|id| id.index);
+
+    for &id in removal_buffer.iter() {
+        actors.remove(id, occupancy)?;
+    }
+
+    removal_buffer.clear();
+    Ok(())
+}
+
+
 
 #[cfg(test)]
 mod tests {

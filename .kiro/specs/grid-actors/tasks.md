@@ -124,8 +124,8 @@ Incremental implementation of mobile Actors into the existing deterministic grid
     - Generate two actors targeting the same cell, verify lower slot index occupies target
     - **Validates: Requirements 6.3, 6.6**
 
-- [ ] 8. Implement deferred removal
-  - [ ] 8.1 Implement `run_deferred_removal` function in `src/grid/actor_systems.rs`
+- [x] 8. Implement deferred removal
+  - [x] 8.1 Implement `run_deferred_removal` function in `src/grid/actor_systems.rs`
     - Sort removal_buffer by slot index (ascending) for deterministic order
     - Call `ActorRegistry::remove` for each entry, clearing occupancy
     - Clear removal_buffer after processing
