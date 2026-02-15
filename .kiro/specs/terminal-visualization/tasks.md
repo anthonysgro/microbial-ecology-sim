@@ -31,8 +31,8 @@ Implement a COLD-path terminal renderer in `src/viz/` that reads `Grid` field bu
     - Identical non-zero buffer → all 1.0 (Req 9.3)
     - _Requirements: 1.3, 9.3_
 
-- [ ] 4. Implement color mapping
-  - [ ] 4.1 Create `src/viz/color.rs` with `heat_color(normalized: f32) -> Color` (blue→cyan→green→yellow→red RGB interpolation), `moisture_bg_color(normalized: f32) -> Color` (single-hue blue gradient), and `chemical_color(normalized: f32) -> Color` (green-scale gradient)
+- [-] 4. Implement color mapping
+  - [x] 4.1 Create `src/viz/color.rs` with `heat_color(normalized: f32) -> Color` (blue→cyan→green→yellow→red RGB interpolation), `moisture_bg_color(normalized: f32) -> Color` (single-hue blue gradient), and `chemical_color(normalized: f32) -> Color` (green-scale gradient)
     - _Requirements: 2.1, 2.2, 3.1, 3.2_
   - [ ]* 4.2 Write property test: Heat color gradient monotonicity
     - **Property 3: Heat color gradient monotonicity**
