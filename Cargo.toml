@@ -3,16 +3,11 @@ name = "emergent-sovereignty"
 version = "0.1.0"
 edition = "2024"
 
-[[bin]]
-name = "bevy_viz"
-path = "src/bin/bevy_viz.rs"
-
 [dependencies]
 anyhow = "1"
 rand = "0.9"
 rand_chacha = "0.9"
 rayon = "1.10"
-crossterm = "0.28"
 serde = { version = "1", features = ["derive"] }
 thiserror = "2"
 toml = "0.8"

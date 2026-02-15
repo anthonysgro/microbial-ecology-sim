@@ -54,3 +54,12 @@ initial_energy = 10.0
 initial_actor_capacity = 64
 movement_cost = 0.5
 removal_threshold = -5.0
+
+# Bevy visualization settings.
+[bevy]
+tick_hz = 10.0
+zoom_min = 0.1
+zoom_max = 10.0
+zoom_speed = 0.1
+pan_speed = 1.0
+color_scale_max = 10.0
