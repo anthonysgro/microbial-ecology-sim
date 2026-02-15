@@ -5,7 +5,9 @@
 /// borrowed slices and registry references — no owned state, no
 /// dynamic dispatch, no heap allocation.
 
-use crate::grid::actor::ActorRegistry;
+use crate::grid::actor::{ActorId, ActorRegistry};
+use crate::grid::actor_config::ActorConfig;
+use crate::grid::error::TickError;
 
 // WARM PATH: Executes once per tick over the actor list.
 // No heap allocation. No dynamic dispatch. Sequential iteration.
@@ -95,10 +97,77 @@ pub fn run_actor_sensing(
     }
 }
 
+// WARM PATH: Executes once per tick over the actor list.
+// No heap allocation. No dynamic dispatch. Sequential iteration.
+
+/// Execute the metabolism phase for all active Actors.
+///
+/// For each Actor in deterministic slot-index order:
+/// 1. Compute `consumed = min(consumption_rate, chemical_read[cell_index])`.
+/// 2. Subtract `consumed` from `chemical_write[cell_index]`, clamping to 0.0.
+/// 3. Update actor energy: `+= consumed * energy_conversion_factor - base_energy_decay`.
+/// 4. If energy <= 0.0, push the `ActorId` into `removal_buffer` for deferred removal.
+/// 5. Validate actor energy for NaN/Inf — return `TickError::NumericalError` on detection.
+///
+/// The caller is responsible for copying `chemical_read` → `chemical_write`
+/// before invoking this function (same pattern as emission).
+///
+/// # Arguments
+///
+/// * `actors` — mutable reference to the actor registry (energy is updated in-place).
+/// * `chemical_read` — read buffer for chemical species 0, length = cell_count.
+/// * `chemical_write` — write buffer for chemical species 0, pre-initialized from read buffer.
+/// * `config` — actor configuration (consumption_rate, energy_conversion_factor, base_energy_decay).
+/// * `removal_buffer` — pre-allocated buffer for dead actor ids. Cleared before use.
+pub fn run_actor_metabolism(
+    actors: &mut ActorRegistry,
+    chemical_read: &[f32],
+    chemical_write: &mut [f32],
+    config: &ActorConfig,
+    removal_buffer: &mut Vec<ActorId>,
+) -> Result<(), TickError> {
+    removal_buffer.clear();
+
+    for (id, actor) in actors.iter_mut_with_ids() {
+        let ci = actor.cell_index;
+        let available = chemical_read[ci];
+
+        // Consume the lesser of the configured rate and what's available.
+        let consumed = config.consumption_rate.min(available);
+
+        // Subtract from write buffer, clamp to non-negative.
+        chemical_write[ci] -= consumed;
+        if chemical_write[ci] < 0.0 {
+            chemical_write[ci] = 0.0;
+        }
+
+        // Energy balance: gain from consumption, lose basal decay.
+        actor.energy += consumed * config.energy_conversion_factor - config.base_energy_decay;
+
+        // Validate for NaN/Inf before death check.
+        if actor.energy.is_nan() || actor.energy.is_infinite() {
+            return Err(TickError::NumericalError {
+                system: "actor_metabolism",
+                cell_index: ci,
+                field: "energy",
+                value: actor.energy,
+            });
+        }
+
+        // Mark for deferred removal if energy depleted.
+        if actor.energy <= 0.0 {
+            removal_buffer.push(id);
+        }
+    }
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::grid::actor::{Actor, ActorRegistry};
+    use crate::grid::actor_config::ActorConfig;
 
     /// 3×3 grid, actor at center (1,1). Highest concentration at North (0,1).
     /// Expected: movement target = North cell index.
@@ -193,5 +262,132 @@ mod tests {
 
         // North is checked before East, and we use strict `>`, so North wins the tie.
         assert_eq!(targets[0], Some(1), "tie-break: north wins over east");
+    }
+
+    // ── Metabolism tests ──────────────────────────────────────────────
+
+    fn default_config() -> ActorConfig {
+        ActorConfig {
+            consumption_rate: 2.0,
+            energy_conversion_factor: 1.5,
+            base_energy_decay: 0.5,
+            initial_energy: 10.0,
+            initial_actor_capacity: 8,
+        }
+    }
+
+    /// Basic metabolism: actor consumes available chemical, gains energy,
+    /// loses basal decay. Chemical write buffer decreases accordingly.
+    #[test]
+    fn metabolism_basic_energy_balance() {
+        let mut occupancy = vec![None; 4];
+        let mut registry = ActorRegistry::with_capacity(4);
+        let actor = Actor { cell_index: 1, energy: 10.0 };
+        let _id = registry.add(actor, 4, &mut occupancy).unwrap();
+
+        let config = default_config(); // rate=2.0, factor=1.5, decay=0.5
+        let chemical_read = vec![0.0, 5.0, 0.0, 0.0]; // 5.0 at cell 1
+        let mut chemical_write = chemical_read.clone();
+        let mut removal_buffer = Vec::new();
+
+        run_actor_metabolism(
+            &mut registry, &chemical_read, &mut chemical_write,
+            &config, &mut removal_buffer,
+        ).unwrap();
+
+        // consumed = min(2.0, 5.0) = 2.0
+        // energy delta = 2.0 * 1.5 - 0.5 = 2.5
+        // new energy = 10.0 + 2.5 = 12.5
+        let actor = registry.iter().next().unwrap().1;
+        assert!((actor.energy - 12.5).abs() < f32::EPSILON);
+        // chemical_write[1] = 5.0 - 2.0 = 3.0
+        assert!((chemical_write[1] - 3.0).abs() < f32::EPSILON);
+        assert!(removal_buffer.is_empty());
+    }
+
+    /// When available chemical < consumption_rate, consume only what's there.
+    #[test]
+    fn metabolism_partial_consumption() {
+        let mut occupancy = vec![None; 4];
+        let mut registry = ActorRegistry::with_capacity(4);
+        let actor = Actor { cell_index: 0, energy: 10.0 };
+        let _id = registry.add(actor, 4, &mut occupancy).unwrap();
+
+        let config = ActorConfig {
+            consumption_rate: 5.0,
+            energy_conversion_factor: 1.0,
+            base_energy_decay: 0.0,
+            initial_energy: 10.0,
+            initial_actor_capacity: 4,
+        };
+        let chemical_read = vec![1.5, 0.0, 0.0, 0.0]; // only 1.5 available
+        let mut chemical_write = chemical_read.clone();
+        let mut removal_buffer = Vec::new();
+
+        run_actor_metabolism(
+            &mut registry, &chemical_read, &mut chemical_write,
+            &config, &mut removal_buffer,
+        ).unwrap();
+
+        // consumed = min(5.0, 1.5) = 1.5
+        let actor = registry.iter().next().unwrap().1;
+        assert!((actor.energy - 11.5).abs() < f32::EPSILON);
+        assert!(chemical_write[0] < f32::EPSILON); // clamped to 0.0
+    }
+
+    /// Actor with insufficient energy after metabolism is marked for removal.
+    #[test]
+    fn metabolism_dead_actor_pushed_to_removal() {
+        let mut occupancy = vec![None; 4];
+        let mut registry = ActorRegistry::with_capacity(4);
+        // Low energy actor — decay will kill it.
+        let actor = Actor { cell_index: 0, energy: 0.1 };
+        let _id = registry.add(actor, 4, &mut occupancy).unwrap();
+
+        let config = ActorConfig {
+            consumption_rate: 1.0,
+            energy_conversion_factor: 0.0, // no energy from consumption
+            base_energy_decay: 1.0,        // heavy decay
+            initial_energy: 10.0,
+            initial_actor_capacity: 4,
+        };
+        let chemical_read = vec![0.0; 4]; // nothing to eat
+        let mut chemical_write = chemical_read.clone();
+        let mut removal_buffer = Vec::new();
+
+        run_actor_metabolism(
+            &mut registry, &chemical_read, &mut chemical_write,
+            &config, &mut removal_buffer,
+        ).unwrap();
+
+        // energy = 0.1 + 0.0 * 0.0 - 1.0 = -0.9 → dead
+        assert_eq!(removal_buffer.len(), 1);
+    }
+
+    /// NaN energy triggers TickError::NumericalError.
+    #[test]
+    fn metabolism_nan_energy_returns_error() {
+        let mut occupancy = vec![None; 4];
+        let mut registry = ActorRegistry::with_capacity(4);
+        let actor = Actor { cell_index: 0, energy: f32::NAN };
+        let _id = registry.add(actor, 4, &mut occupancy).unwrap();
+
+        let config = default_config();
+        let chemical_read = vec![1.0; 4];
+        let mut chemical_write = chemical_read.clone();
+        let mut removal_buffer = Vec::new();
+
+        let result = run_actor_metabolism(
+            &mut registry, &chemical_read, &mut chemical_write,
+            &config, &mut removal_buffer,
+        );
+
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            TickError::NumericalError { system, field, .. } => {
+                assert_eq!(system, "actor_metabolism");
+                assert_eq!(field, "energy");
+            }
+        }
     }
 }

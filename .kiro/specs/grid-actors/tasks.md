@@ -80,8 +80,8 @@ Incremental implementation of mobile Actors into the existing deterministic grid
     - Generate random grid chemical state and actor positions, verify selected target matches expected max-gradient neighbor
     - **Validates: Requirements 5.1, 5.3, 5.4, 5.5**
 
-- [ ] 6. Implement Actor metabolism system
-  - [ ] 6.1 Implement `run_actor_metabolism` function in `src/grid/actor_systems.rs`
+- [-] 6. Implement Actor metabolism system
+  - [x] 6.1 Implement `run_actor_metabolism` function in `src/grid/actor_systems.rs`
     - Copy chemical read → write buffer before metabolism (same pattern as emission)
     - Iterate actors in slot order
     - Compute consumed = min(consumption_rate, chemical_read[cell_index])

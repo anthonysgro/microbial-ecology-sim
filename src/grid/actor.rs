@@ -242,5 +242,19 @@ impl ActorRegistry {
             slot.actor.as_mut().map(|actor| (i, actor))
         })
     }
+
+    /// Iterate active Actors mutably, yielding `(ActorId, &mut Actor)` in
+    /// deterministic slot-index order.
+    ///
+    /// Used by metabolism (and future systems) that need the full
+    /// generational id to record actors for deferred removal.
+    pub fn iter_mut_with_ids(&mut self) -> impl Iterator<Item = (ActorId, &mut Actor)> {
+        self.slots.iter_mut().enumerate().filter_map(|(i, slot)| {
+            let generation = slot.generation;
+            slot.actor.as_mut().map(|actor| {
+                (ActorId { index: i, generation }, actor)
+            })
+        })
+    }
 }
 
