@@ -197,6 +197,23 @@ impl Grid {
         self.sources = sources;
     }
 
+    /// Add a source to the grid's registry, validating against grid dimensions.
+    ///
+    /// Delegates to `SourceRegistry::add()` with this grid's cell_count and
+    /// num_chemicals for bounds checking.
+    pub fn add_source(&mut self, source: source::Source) -> Result<source::SourceId, source::SourceError> {
+        let cell_count = self.cell_count();
+        let num_chemicals = self.num_chemicals();
+        self.sources.add(source, cell_count, num_chemicals)
+    }
+
+    /// Remove a source from the grid's registry by its identifier.
+    ///
+    /// Delegates to `SourceRegistry::remove()`.
+    pub fn remove_source(&mut self, id: source::SourceId) -> Result<(), source::SourceError> {
+        self.sources.remove(id)
+    }
+
     // ── Internal field buffer access for emission phase ────────────
 
     /// Direct mutable access to the heat `FieldBuffer`.

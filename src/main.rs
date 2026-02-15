@@ -5,6 +5,7 @@ use std::thread;
 use std::time::Duration;
 
 use emergent_sovereignty::grid::config::{CellDefaults, GridConfig};
+use emergent_sovereignty::grid::source::{Source, SourceField};
 use emergent_sovereignty::grid::tick::TickOrchestrator;
 use emergent_sovereignty::grid::Grid;
 use emergent_sovereignty::viz::renderer::Renderer;
@@ -52,14 +53,19 @@ fn run_visualization(
 ) -> anyhow::Result<()> {
     let mut grid = Grid::new(config.clone(), defaults)?;
 
-    // Seed a chemical hot spot in the center.
+    // Register persistent energy sources instead of manual buffer writes.
+    // The emission phase injects these values each tick before diffusion/heat.
     let center = grid.index(5, 5)?;
-    grid.write_chemical(0)?[center] = 100.0;
-    grid.swap_chemicals();
-
-    // Seed a heat source in the center.
-    grid.write_heat()[center] = 50.0;
-    grid.swap_heat();
+    grid.add_source(Source {
+        cell_index: center,
+        field: SourceField::Chemical(0),
+        emission_rate: 100.0,
+    })?;
+    grid.add_source(Source {
+        cell_index: center,
+        field: SourceField::Heat,
+        emission_rate: 50.0,
+    })?;
 
     let frame_delay = Duration::from_millis(viz_config.frame_delay_ms);
     let mut renderer = Renderer::init(viz_config)?;

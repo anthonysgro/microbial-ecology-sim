@@ -162,19 +162,19 @@ Two-phase implementation: first strip all moisture infrastructure from the codeb
     - Empty registry produces identical pre/post tick state
     - _Requirements: 9.1_
 
-- [~] 10. Add Grid convenience API and wire into main.rs
-  - [ ] 10.1 Add `sources`, `sources_mut`, `add_source`, `remove_source` methods to `Grid`
+- [x] 10. Add Grid convenience API and wire into main.rs
+  - [x] 10.1 Add `sources`, `sources_mut`, `add_source`, `remove_source` methods to `Grid`
     - `add_source` delegates to `sources.add()` with grid's cell_count and num_chemicals
     - `remove_source` delegates to `sources.remove()`
     - Initialize `SourceRegistry::new()` in `Grid::new()`
     - _Requirements: 10.1, 10.2, 10.3, 10.4_
 
-  - [ ] 10.2 Update `main.rs` to use `add_source` instead of direct buffer writes
+  - [x] 10.2 Update `main.rs` to use `add_source` instead of direct buffer writes
     - Replace the manual `write_heat()[center] = 50.0; swap_heat()` with `grid.add_source(Source { cell_index: center, field: SourceField::Heat, emission_rate: 50.0 })`
     - Replace the manual chemical hotspot seeding with a chemical source
     - _Requirements: 6.1, 7.1_
 
-- [~] 11. Final checkpoint
+- [x] 11. Final checkpoint
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Notes
