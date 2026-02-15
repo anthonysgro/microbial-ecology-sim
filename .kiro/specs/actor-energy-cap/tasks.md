@@ -81,7 +81,7 @@ Add a `max_energy` field to `ActorConfig`, convert metabolism to demand-driven c
     - Serialize to TOML, deserialize back, assert equality
     - **Validates: Requirements 5.1**
 
-- [-] 8. Final checkpoint — Ensure all tests pass
+- [x] 8. Final checkpoint — Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Notes
