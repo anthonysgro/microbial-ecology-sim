@@ -57,8 +57,8 @@ Incremental build-up of the `viz_bevy` module: pure functions first (normalize, 
     - Marker components: `GridSprite`, `OverlayLabel`, `MainCamera`
     - _Requirements: 2.1, 9.2_
 
-- [-] 6. Implement startup system
-  - [-] 6.1 Implement `setup` function in `src/viz_bevy/setup.rs`
+- [x] 6. Implement startup system
+  - [x] 6.1 Implement `setup` function in `src/viz_bevy/setup.rs`
     - Initialize `Grid` via `world_init::initialize` using config from `BevyVizConfig`
     - Insert `SimulationState` resource with the initialized grid
     - Insert `RenderState` with pre-allocated buffers (`pixel_buffer`: `width*height*4`, `norm_buffer`: `width*height`)
@@ -69,7 +69,7 @@ Incremental build-up of the `viz_bevy` module: pure functions first (normalize, 
     - Spawn UI text node at top-left with `OverlayLabel` marker, displaying initial overlay name
     - _Requirements: 5.1, 5.3, 5.4, 7.1, 7.2, 8.1, 9.2, 10.1_
 
-- [~] 7. Implement simulation tick system
+- [-] 7. Implement simulation tick system
   - [ ] 7.1 Implement `tick_simulation` in `src/viz_bevy/systems.rs`
     - Runs in `FixedUpdate` schedule
     - Skip if `running == false`
