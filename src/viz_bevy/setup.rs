@@ -2,7 +2,8 @@
 // spawn camera, sprite, and overlay label.
 
 use bevy::prelude::*;
-use bevy::image::{ImageSampler, RenderAssetUsages};
+use bevy::asset::RenderAssetUsages;
+use bevy::image::ImageSampler;
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 
 use crate::grid::world_init;

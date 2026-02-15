@@ -82,8 +82,8 @@ Incremental build-up of the `viz_bevy` module: pure functions first (normalize, 
     - **Property 9: Tick counter advancement**
     - **Validates: Requirements 2.2**
 
-- [-] 8. Implement texture update system
-  - [-] 8.1 Implement `update_texture` in `src/viz_bevy/systems.rs`
+- [x] 8. Implement texture update system
+  - [x] 8.1 Implement `update_texture` in `src/viz_bevy/systems.rs`
     - Runs in `Update` schedule
     - Select field buffer based on `ActiveOverlay` (`read_heat()` or `read_chemical(species)`)
     - Call `normalize_field` into `RenderState.norm_buffer`
