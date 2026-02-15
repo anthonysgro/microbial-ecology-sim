@@ -81,11 +81,18 @@ impl Grid {
 
         // Validate actor config fields when present.
         if let Some(ref ac) = actor_config {
-            if ac.movement_cost < 0.0 {
+            if ac.base_movement_cost < 0.0 {
                 return Err(GridError::InvalidActorConfig {
-                    field: "movement_cost",
-                    value: ac.movement_cost,
+                    field: "base_movement_cost",
+                    value: ac.base_movement_cost,
                     reason: "must be non-negative",
+                });
+            }
+            if ac.reference_energy <= 0.0 {
+                return Err(GridError::InvalidActorConfig {
+                    field: "reference_energy",
+                    value: ac.reference_energy,
+                    reason: "must be positive (> 0.0)",
                 });
             }
             if ac.removal_threshold > 0.0 {
@@ -442,7 +449,7 @@ impl Grid {
     /// extracted, emission runs against `&mut Grid` + `&SourceRegistry`,
     /// then the registry is returned via `put_sources`.
     pub(crate) fn take_sources(&mut self) -> SourceRegistry {
-        std::mem::replace(&mut self.sources, SourceRegistry::new())
+        std::mem::take(&mut self.sources)
     }
 
     /// Return a previously taken source registry.
@@ -484,10 +491,11 @@ impl Grid {
     ///
     /// Returns `(ActorRegistry, Vec<Option<usize>>, Vec<ActorId>, Vec<(usize, f32, HeritableTraits)>, Vec<Option<usize>>)`
     /// — the registry, occupancy map, removal buffer, spawn buffer, and movement targets.
+    #[allow(clippy::type_complexity)]
     pub(crate) fn take_actors(
         &mut self,
     ) -> (ActorRegistry, Vec<Option<usize>>, Vec<ActorId>, Vec<(usize, f32, HeritableTraits)>, Vec<Option<usize>>) {
-        let actors = std::mem::replace(&mut self.actors, ActorRegistry::new());
+        let actors = std::mem::take(&mut self.actors);
         let occupancy = std::mem::take(&mut self.occupancy);
         let removal_buffer = std::mem::take(&mut self.removal_buffer);
         let spawn_buffer = std::mem::take(&mut self.spawn_buffer);

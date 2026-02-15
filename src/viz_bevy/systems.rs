@@ -75,6 +75,7 @@ pub fn update_texture(
     selected: Res<SelectedActor>,
 ) {
     // Resolve the field slice and color function from the active overlay.
+    #[allow(clippy::type_complexity)]
     let (field, color_fn): (&[f32], fn(f32) -> [u8; 4]) = match *overlay {
         ActiveOverlay::Heat => (sim.grid.read_heat(), color::heat_color_rgba),
         ActiveOverlay::Chemical(species) => {
@@ -111,15 +112,15 @@ pub fn update_texture(
     }
 
     // Highlight the selected actor's cell in cyan.
-    if let Some(slot_index) = selected.0 {
-        if let Some((_, actor)) = sim.grid.actors().iter().find(|(si, _)| *si == slot_index) {
-            let offset = actor.cell_index * 4;
-            if offset + 3 < render.pixel_buffer.len() {
-                render.pixel_buffer[offset] = 0;       // R
-                render.pixel_buffer[offset + 1] = 255; // G
-                render.pixel_buffer[offset + 2] = 255; // B
-                render.pixel_buffer[offset + 3] = 255; // A
-            }
+    if let Some(slot_index) = selected.0
+        && let Some((_, actor)) = sim.grid.actors().iter().find(|(si, _)| *si == slot_index)
+    {
+        let offset = actor.cell_index * 4;
+        if offset + 3 < render.pixel_buffer.len() {
+            render.pixel_buffer[offset] = 0;       // R
+            render.pixel_buffer[offset + 1] = 255; // G
+            render.pixel_buffer[offset + 2] = 255; // B
+            render.pixel_buffer[offset + 3] = 255; // A
         }
     }
 
@@ -128,10 +129,10 @@ pub fn update_texture(
         return;
     };
 
-    if let Some(image) = images.get_mut(&sprite.image) {
-        if let Some(ref mut data) = image.data {
-            data.copy_from_slice(&render.pixel_buffer);
-        }
+    if let Some(image) = images.get_mut(&sprite.image)
+        && let Some(ref mut data) = image.data
+    {
+        data.copy_from_slice(&render.pixel_buffer);
     }
 }
 
@@ -793,7 +794,7 @@ pub fn compute_trait_stats_from_actors<'a>(
 /// Percentiles use nearest-rank (floor index).
 ///
 /// Precondition: `values` is non-empty.
-fn compute_single_stats(values: &mut Vec<f32>) -> SingleTraitStats {
+fn compute_single_stats(values: &mut [f32]) -> SingleTraitStats {
     values.sort_by(f32::total_cmp);
 
     let n = values.len();

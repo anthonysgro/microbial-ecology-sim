@@ -63,27 +63,6 @@ pub struct TickOrchestrator;
 // Allocation: one temporary take/put of the SourceRegistry (no heap alloc,
 // just a pointer swap via mem::replace). No dynamic dispatch.
 
-/// Execute the emission phase: inject source values into field write buffers.
-///
-/// For each field type that has active sources:
-/// 1. Copy read buffer → write buffer (so emission adds to current state)
-/// 2. Run emission (additive injection from all sources)
-/// 3. Clamp chemical write buffers to ≥ 0.0
-/// 4. Validate write buffers for NaN/infinity
-/// 5. Swap affected field buffers
-///
-/// No-op if the source registry is empty.
-///
-/// # Requirements
-/// 8.1 — emission before downstream systems
-/// 8.2 — copy read→write before emission
-/// 8.3 — swap after emission so downstream reads post-emission state
-/// 9.1 — NaN/infinity validation
-/// 9.2 — clamp chemical concentrations to ≥ 0.0
-// WARM PATH: Emission phase — runs once per tick over the source list.
-// Allocation: one temporary take/put of the SourceRegistry (no heap alloc,
-// just a pointer swap via mem::replace). No dynamic dispatch.
-
 /// Execute the emission phase: inject source values into field write buffers,
 /// process depletion events, and run the respawn phase.
 ///
@@ -141,10 +120,10 @@ fn run_emission_phase(
         grid.heat_buffer_mut().copy_read_to_write();
     }
     for species in 0..num_chemicals {
-        if species < chem_affected.len() && chem_affected[species] {
-            if let Some(buf) = grid.chemical_buffer_mut(species) {
-                buf.copy_read_to_write();
-            }
+        if species < chem_affected.len() && chem_affected[species]
+            && let Some(buf) = grid.chemical_buffer_mut(species)
+        {
+            buf.copy_read_to_write();
         }
     }
 
@@ -173,12 +152,12 @@ fn run_emission_phase(
 
     // Clamp chemical write buffers to ≥ 0.0 (concentrations cannot be negative).
     for species in 0..num_chemicals {
-        if species < chem_affected.len() && chem_affected[species] {
-            if let Ok(write_buf) = grid.write_chemical(species) {
-                for val in write_buf.iter_mut() {
-                    if *val < 0.0 {
-                        *val = 0.0;
-                    }
+        if species < chem_affected.len() && chem_affected[species]
+            && let Ok(write_buf) = grid.write_chemical(species)
+        {
+            for val in write_buf.iter_mut() {
+                if *val < 0.0 {
+                    *val = 0.0;
                 }
             }
         }
@@ -189,17 +168,17 @@ fn run_emission_phase(
         validate_buffer(grid.write_heat(), "emission", "heat")?;
     }
     for species in 0..num_chemicals {
-        if species < chem_affected.len() && chem_affected[species] {
-            if let Ok(write_buf) = grid.write_chemical(species) {
-                let field_name = match species {
-                    0 => "chemical_0",
-                    1 => "chemical_1",
-                    2 => "chemical_2",
-                    3 => "chemical_3",
-                    _ => "chemical_N",
-                };
-                validate_buffer(write_buf, "emission", field_name)?;
-            }
+        if species < chem_affected.len() && chem_affected[species]
+            && let Ok(write_buf) = grid.write_chemical(species)
+        {
+            let field_name = match species {
+                0 => "chemical_0",
+                1 => "chemical_1",
+                2 => "chemical_2",
+                3 => "chemical_3",
+                _ => "chemical_N",
+            };
+            validate_buffer(write_buf, "emission", field_name)?;
         }
     }
 
@@ -208,10 +187,10 @@ fn run_emission_phase(
         grid.swap_heat();
     }
     for species in 0..num_chemicals {
-        if species < chem_affected.len() && chem_affected[species] {
-            if let Some(buf) = grid.chemical_buffer_mut(species) {
-                buf.swap();
-            }
+        if species < chem_affected.len() && chem_affected[species]
+            && let Some(buf) = grid.chemical_buffer_mut(species)
+        {
+            buf.swap();
         }
     }
 
@@ -361,7 +340,7 @@ fn run_actor_phases(grid: &mut Grid, _config: &GridConfig, tick: u64) -> Result<
         &mut actors,
         &mut occupancy,
         &movement_targets,
-        actor_config.movement_cost,
+        &actor_config,
     )?;
 
     // Return actor data to the grid.

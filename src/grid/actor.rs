@@ -1,9 +1,9 @@
-/// Actor data types, generational registry slot, and error enum.
-///
-/// Mirrors the `source` module's generational slot pattern. Actors are
-/// mobile biological agents occupying exactly one grid cell, with an
-/// internal energy reserve. This module defines only the data model;
-/// the registry and system functions live in separate modules.
+//! Actor data types, generational registry slot, and error enum.
+//!
+//! Mirrors the `source` module's generational slot pattern. Actors are
+//! mobile biological agents occupying exactly one grid cell, with an
+//! internal energy reserve. This module defines only the data model;
+//! the registry and system functions live in separate modules.
 
 use crate::grid::actor_config::ActorConfig;
 use rand::Rng;
@@ -162,6 +162,12 @@ pub struct ActorRegistry {
     slots: Vec<ActorSlot>,
     free_list: Vec<usize>,
     active_count: usize,
+}
+
+impl Default for ActorRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ActorRegistry {

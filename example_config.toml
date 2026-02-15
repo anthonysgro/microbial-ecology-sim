@@ -20,7 +20,7 @@ diffusion_rate = 0.1                # Moderate spread — gradients persist 10�
 thermal_conductivity = 0.04          # Heat spreads slower than chemicals
 ambient_heat = 0.2                   # Mild ambient — edges don't become dead zones
 tick_duration = 1.0
-num_threads = 4
+num_threads = 1
 chemical_decay_rates = [0.005]        # Slow decay — sources must outpace it to build gradients
 
 # ─── World Initialization ───────────────────────────────────────────
@@ -70,7 +70,7 @@ max_respawn_cooldown_ticks = 150     # Maximum ticks before a depleted source re
 #   • consumption_rate (1.5) > max source emission (0.8) — actors drain any single source
 #   • energy_conversion_factor (1.8) — consuming 1.5 chemical yields 2.7 energy
 #   • base_energy_decay (0.03) — slow drain, actors survive ~260 ticks idle at full energy
-#   • movement_cost (0.3) — moving is cheap relative to starvation, encourages exploration
+#   • base_movement_cost (0.1) — base cost at reference_energy; actual cost scales with energy
 #   • initial_energy (8.0) — enough runway to find food, not enough to idle forever
 #   • removal_threshold (-3.0) — inert actors linger briefly before cleanup
 
@@ -83,7 +83,12 @@ extraction_cost = 0.2                # Energy cost per unit of chemical consumed
 base_energy_decay = 0.01
 initial_energy = 50.0
 initial_actor_capacity = 64
-movement_cost = 0.1
+base_movement_cost = 0.1             # Base energy cost for movement at the reference energy level.
+                                     # Actual cost = base_movement_cost * (actor.energy / reference_energy),
+                                     # floored at 10% of base. Must be >= 0.0.
+reference_energy = 25.0              # Energy level at which movement cost equals base_movement_cost.
+                                     # Actors above this are "heavier" and pay more to move;
+                                     # actors below are "lighter" and pay less. Must be > 0.0.
 removal_threshold = -3.0
 max_energy = 500.0                    # Maximum energy an actor can hold. Must be > 0, finite, >= initial_energy.
                                      # Caps reserves and makes consumption demand-driven: saturated actors

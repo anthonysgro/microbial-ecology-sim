@@ -40,6 +40,10 @@ fn default_color_scale_max() -> f32 {
     10.0
 }
 
+fn default_stats_update_interval() -> u64 {
+    10
+}
+
 // ── Top-level config structs ───────────────────────────────────────
 
 /// Top-level configuration aggregating seed and all simulation sub-configs.
@@ -89,6 +93,8 @@ pub struct BevyExtras {
     pub pan_speed: f32,
     #[serde(default = "default_color_scale_max")]
     pub color_scale_max: f32,
+    #[serde(default = "default_stats_update_interval")]
+    pub stats_update_interval: u64,
 }
 
 impl Default for BevyExtras {
@@ -100,6 +106,7 @@ impl Default for BevyExtras {
             zoom_speed: default_zoom_speed(),
             pan_speed: default_pan_speed(),
             color_scale_max: default_color_scale_max(),
+            stats_update_interval: default_stats_update_interval(),
         }
     }
 }
@@ -108,21 +115,12 @@ impl Default for BevyExtras {
 ///
 /// Uses `#[serde(flatten)]` so that `seed`, `grid`, `world_init`, and `actor`
 /// live at the TOML root alongside the `[bevy]` section.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct BevyWorldConfig {
     #[serde(flatten)]
     pub world: WorldConfig,
     #[serde(default)]
     pub bevy: BevyExtras,
-}
-
-impl Default for BevyWorldConfig {
-    fn default() -> Self {
-        Self {
-            world: WorldConfig::default(),
-            bevy: BevyExtras::default(),
-        }
-    }
 }
 
 // ── Public API ─────────────────────────────────────────────────────

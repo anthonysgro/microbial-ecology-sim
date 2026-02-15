@@ -187,7 +187,8 @@ pub(super) fn format_config_info(
             writeln!(out, "base_energy_decay: {:.4}", ac.base_energy_decay).ok();
             writeln!(out, "initial_energy: {:.4}", ac.initial_energy).ok();
             writeln!(out, "initial_actor_capacity: {}", ac.initial_actor_capacity).ok();
-            writeln!(out, "movement_cost: {:.4}", ac.movement_cost).ok();
+            writeln!(out, "base_movement_cost: {:.4}", ac.base_movement_cost).ok();
+            writeln!(out, "reference_energy: {:.4}", ac.reference_energy).ok();
             writeln!(out, "removal_threshold: {:.4}", ac.removal_threshold).ok();
             writeln!(out, "max_energy: {:.4}", ac.max_energy).ok();
             writeln!(out, "levy_exponent: {:.4}", ac.levy_exponent).ok();

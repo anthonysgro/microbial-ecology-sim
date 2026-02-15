@@ -1,8 +1,8 @@
-/// Persistent energy source data types, registry, and emission system.
-///
-/// This module defines the data model for grid energy sources — persistent
-/// emitters that inject heat or chemical values into field write buffers
-/// each tick during the WARM emission phase.
+//! Persistent energy source data types, registry, and emission system.
+//!
+//! This module defines the data model for grid energy sources — persistent
+//! emitters that inject heat or chemical values into field write buffers
+//! each tick during the WARM emission phase.
 
 use crate::grid::world_init::SourceFieldConfig;
 use crate::grid::Grid;
@@ -117,6 +117,12 @@ pub struct SourceRegistry {
     active_count: usize,
 }
 
+impl Default for SourceRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SourceRegistry {
     /// Create an empty registry.
     pub fn new() -> Self {
@@ -146,13 +152,13 @@ impl SourceRegistry {
         }
 
         // Validate chemical species if applicable.
-        if let SourceField::Chemical(species) = source.field {
-            if species >= num_chemicals {
-                return Err(SourceError::InvalidChemicalSpecies {
-                    species,
-                    num_chemicals,
-                });
-            }
+        if let SourceField::Chemical(species) = source.field
+            && species >= num_chemicals
+        {
+            return Err(SourceError::InvalidChemicalSpecies {
+                species,
+                num_chemicals,
+            });
         }
 
         // Validate reservoir fields.

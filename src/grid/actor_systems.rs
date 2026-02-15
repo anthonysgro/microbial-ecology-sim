@@ -1,9 +1,9 @@
-/// Actor system functions: sensing, metabolism, movement, deferred removal.
-///
-/// All functions are free (stateless), matching the existing pattern
-/// (`run_emission`, `run_diffusion`, `run_heat`). Each operates on
-/// borrowed slices and registry references — no owned state, no
-/// dynamic dispatch, no heap allocation.
+//! Actor system functions: sensing, metabolism, movement, deferred removal.
+//!
+//! All functions are free (stateless), matching the existing pattern
+//! (`run_emission`, `run_diffusion`, `run_heat`). Each operates on
+//! borrowed slices and registry references — no owned state, no
+//! dynamic dispatch, no heap allocation.
 
 use crate::grid::actor::{ActorId, ActorRegistry};
 use crate::grid::actor_config::ActorConfig;
@@ -65,9 +65,9 @@ pub(crate) fn direction_to_target(cell_index: usize, direction: u8, w: usize, h:
 /// * `grid_height` — number of rows in the grid.
 /// * `movement_targets` — pre-allocated buffer indexed by slot index.
 ///   Entries for inactive slots are left untouched.
-/// Compute movement targets for all active Actors based on local
-/// chemical gradients (Von Neumann neighborhood, species 0) and
-/// Lévy flight tumble state.
+///   Compute movement targets for all active Actors based on local
+///   chemical gradients (Von Neumann neighborhood, species 0) and
+///   Lévy flight tumble state.
 ///
 /// For each Actor in deterministic slot-index order:
 /// 1. Compute the metabolic break-even concentration from `config`.
@@ -316,8 +316,12 @@ pub fn run_actor_movement(
     actors: &mut ActorRegistry,
     occupancy: &mut [Option<usize>],
     movement_targets: &[Option<usize>],
-    movement_cost: f32,
+    actor_config: &ActorConfig,
 ) -> Result<(), TickError> {
+    let base = actor_config.base_movement_cost;
+    let reference = actor_config.reference_energy;
+    let floor = base * 0.1;
+
     for (slot_index, actor) in actors.iter_mut() {
         // Inert actors do not move.
         if actor.inert {
@@ -340,8 +344,10 @@ pub fn run_actor_movement(
         occupancy[target] = Some(slot_index);
         actor.cell_index = target;
 
-        // Deduct movement energy cost after successful move.
-        actor.energy -= movement_cost;
+        // Deduct energy-proportional movement cost after successful move.
+        let proportional = base * (actor.energy / reference);
+        let actual = if proportional > floor { proportional } else { floor };
+        actor.energy -= actual;
 
         if actor.energy.is_nan() || actor.energy.is_infinite() {
             return Err(TickError::NumericalError {
@@ -678,7 +684,8 @@ mod tests {
             initial_energy: 10.0,
             max_energy: 1000.0,
             initial_actor_capacity: 8,
-            movement_cost: 0.5,
+            base_movement_cost: 0.5,
+            reference_energy: 25.0,
             removal_threshold: -5.0,
             extraction_cost: 0.0,
             levy_exponent: 1.5,
@@ -732,7 +739,8 @@ mod tests {
             initial_energy: 10.0,
             max_energy: 1000.0,
             initial_actor_capacity: 4,
-            movement_cost: 0.5,
+            base_movement_cost: 0.5,
+            reference_energy: 25.0,
             removal_threshold: -5.0,
             extraction_cost: 0.0,
             levy_exponent: 1.5,
@@ -773,7 +781,8 @@ mod tests {
             initial_energy: 10.0,
             max_energy: 1000.0,
             initial_actor_capacity: 4,
-            movement_cost: 0.5,
+            base_movement_cost: 0.5,
+            reference_energy: 25.0,
             removal_threshold: -5.0,
             extraction_cost: 0.0,
             levy_exponent: 1.5,

@@ -18,6 +18,8 @@ fn default_trait_offspring_energy_min() -> f32 { 0.1 }
 fn default_trait_offspring_energy_max() -> f32 { 100.0 }
 fn default_trait_mutation_rate_min() -> f32 { 0.001 }
 fn default_trait_mutation_rate_max() -> f32 { 0.5 }
+fn default_base_movement_cost() -> f32 { 0.5 }
+fn default_reference_energy() -> f32 { 25.0 }
 
 /// Configuration parameters for Actor metabolism, sensing, and spawning.
 ///
@@ -39,8 +41,17 @@ pub struct ActorConfig {
     pub max_energy: f32,
     /// Pre-allocated slot capacity for the ActorRegistry.
     pub initial_actor_capacity: usize,
-    /// Energy subtracted from an Actor when it successfully moves to an adjacent cell.
-    pub movement_cost: f32,
+    /// Base energy cost for movement at the reference energy level.
+    /// Actual cost scales proportionally with actor energy:
+    /// `max(base_movement_cost * (energy / reference_energy), base_movement_cost * 0.1)`.
+    /// Must be >= 0.0. Default: 0.5.
+    #[serde(default = "default_base_movement_cost")]
+    pub base_movement_cost: f32,
+    /// Energy level at which movement cost equals `base_movement_cost`.
+    /// Actors above this pay more; actors below pay less.
+    /// Must be > 0.0. Default: 25.0.
+    #[serde(default = "default_reference_energy")]
+    pub reference_energy: f32,
     /// Energy level below which an inert Actor is permanently removed (must be <= 0.0).
     pub removal_threshold: f32,
     /// Energy cost per unit of chemical consumed. Reduces net energy gain
@@ -136,7 +147,8 @@ impl Default for ActorConfig {
             initial_energy: 10.0,
             max_energy: 50.0,
             initial_actor_capacity: 64,
-            movement_cost: 0.5,
+            base_movement_cost: default_base_movement_cost(),
+            reference_energy: default_reference_energy(),
             removal_threshold: -5.0,
             extraction_cost: 0.2,
             levy_exponent: 1.5,

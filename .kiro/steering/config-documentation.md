@@ -99,7 +99,8 @@ Present as `Option<ActorConfig>`. Omitting the entire `[actor]` section disables
 | `initial_energy` | `f32` | `10.0` | Energy assigned to newly spawned actors. Must be `<= max_energy`. |
 | `max_energy` | `f32` | `50.0` | Maximum energy an actor can hold. Clamped after each metabolic tick. Must be `> 0.0`, finite, `>= initial_energy`. |
 | `initial_actor_capacity` | `usize` | `64` | Pre-allocated slot capacity for the ActorRegistry. |
-| `movement_cost` | `f32` | `0.5` | Energy subtracted when an actor successfully moves to an adjacent cell. |
+| `base_movement_cost` | `f32` | `0.5` | Base energy cost for movement at the reference energy level. Actual cost = `base_movement_cost * (actor.energy / reference_energy)`, floored at 10% of base. Must be `>= 0.0`. |
+| `reference_energy` | `f32` | `25.0` | Energy level at which movement cost equals `base_movement_cost`. Actors above this pay more; actors below pay less. Must be `> 0.0`. |
 | `removal_threshold` | `f32` | `-5.0` | Energy level below which an inert actor is permanently removed. Must be `<= 0.0`. |
 | `levy_exponent` | `f32` | `1.5` | Power-law exponent α for Lévy flight step distribution. Controls the mix of short vs long tumble runs during random foraging. Must be `> 1.0`. |
 | `max_tumble_steps` | `u16` | `20` | Maximum steps in a single tumble run. Clamps the power-law sample. Must be `>= 1`. |

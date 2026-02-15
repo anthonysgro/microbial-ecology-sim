@@ -58,7 +58,7 @@ pub struct SimRateController {
 
 impl SimRateController {
     pub const MIN_HZ: f64 = 0.5;
-    pub const MAX_HZ: f64 = 480.0;
+    pub const MAX_HZ: f64 = 2048.0;
 
     pub fn new(tick_hz: f64) -> Self {
         Self {
