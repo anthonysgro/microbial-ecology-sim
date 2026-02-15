@@ -14,4 +14,8 @@ pub struct ActorConfig {
     pub initial_energy: f32,
     /// Pre-allocated slot capacity for the ActorRegistry.
     pub initial_actor_capacity: usize,
+    /// Energy subtracted from an Actor when it successfully moves to an adjacent cell.
+    pub movement_cost: f32,
+    /// Energy level below which an inert Actor is permanently removed (must be <= 0.0).
+    pub removal_threshold: f32,
 }

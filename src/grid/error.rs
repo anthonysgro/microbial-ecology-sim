@@ -8,6 +8,7 @@ pub enum GridError {
     InvalidChemicalSpecies { species: usize, num_chemicals: usize },
     DecayRateCountMismatch { got: usize, expected: usize },
     InvalidDecayRate { species: usize, rate: f32 },
+    InvalidActorConfig { field: &'static str, value: f32, reason: &'static str },
 }
 
 impl fmt::Display for GridError {
@@ -41,6 +42,12 @@ impl fmt::Display for GridError {
                 write!(
                     f,
                     "chemical decay rate for species {species} is {rate}, must be in [0.0, 1.0]"
+                )
+            }
+            Self::InvalidActorConfig { field, value, reason } => {
+                write!(
+                    f,
+                    "invalid actor config: {field} is {value}, {reason}"
                 )
             }
         }

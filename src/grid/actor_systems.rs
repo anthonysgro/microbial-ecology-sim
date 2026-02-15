@@ -255,7 +255,7 @@ mod tests {
         let mut occupancy = vec![None; 9];
         let mut registry = ActorRegistry::with_capacity(4);
         // Actor at center cell (index 4 on a 3×3 grid: x=1, y=1)
-        let actor = Actor { cell_index: 4, energy: 10.0 };
+        let actor = Actor { cell_index: 4, energy: 10.0, inert: false };
         let _id = registry.add(actor, 9, &mut occupancy).unwrap();
 
         // Chemical buffer: center=1.0, north=5.0, south=2.0, west=3.0, east=4.0
@@ -285,7 +285,7 @@ mod tests {
     fn sensing_boundary_cell_treats_oob_as_zero() {
         let mut occupancy = vec![None; 9];
         let mut registry = ActorRegistry::with_capacity(4);
-        let actor = Actor { cell_index: 0, energy: 10.0 };
+        let actor = Actor { cell_index: 0, energy: 10.0, inert: false };
         let _id = registry.add(actor, 9, &mut occupancy).unwrap();
 
         // Center (0,0) = 2.0, South (0,1) = index 3 = 5.0, East (1,0) = index 1 = 3.0
@@ -305,7 +305,7 @@ mod tests {
     fn sensing_no_positive_gradient_stays() {
         let mut occupancy = vec![None; 9];
         let mut registry = ActorRegistry::with_capacity(4);
-        let actor = Actor { cell_index: 4, energy: 10.0 };
+        let actor = Actor { cell_index: 4, energy: 10.0, inert: false };
         let _id = registry.add(actor, 9, &mut occupancy).unwrap();
 
         // Center has the highest value — all gradients are negative.
@@ -328,7 +328,7 @@ mod tests {
     fn sensing_tie_breaks_by_direction_priority() {
         let mut occupancy = vec![None; 9];
         let mut registry = ActorRegistry::with_capacity(4);
-        let actor = Actor { cell_index: 4, energy: 10.0 };
+        let actor = Actor { cell_index: 4, energy: 10.0, inert: false };
         let _id = registry.add(actor, 9, &mut occupancy).unwrap();
 
         let mut chemical = vec![0.0; 9];
@@ -352,6 +352,8 @@ mod tests {
             base_energy_decay: 0.5,
             initial_energy: 10.0,
             initial_actor_capacity: 8,
+            movement_cost: 0.5,
+            removal_threshold: -5.0,
         }
     }
 
@@ -361,7 +363,7 @@ mod tests {
     fn metabolism_basic_energy_balance() {
         let mut occupancy = vec![None; 4];
         let mut registry = ActorRegistry::with_capacity(4);
-        let actor = Actor { cell_index: 1, energy: 10.0 };
+        let actor = Actor { cell_index: 1, energy: 10.0, inert: false };
         let _id = registry.add(actor, 4, &mut occupancy).unwrap();
 
         let config = default_config(); // rate=2.0, factor=1.5, decay=0.5
@@ -389,7 +391,7 @@ mod tests {
     fn metabolism_partial_consumption() {
         let mut occupancy = vec![None; 4];
         let mut registry = ActorRegistry::with_capacity(4);
-        let actor = Actor { cell_index: 0, energy: 10.0 };
+        let actor = Actor { cell_index: 0, energy: 10.0, inert: false };
         let _id = registry.add(actor, 4, &mut occupancy).unwrap();
 
         let config = ActorConfig {
@@ -398,6 +400,8 @@ mod tests {
             base_energy_decay: 0.0,
             initial_energy: 10.0,
             initial_actor_capacity: 4,
+            movement_cost: 0.5,
+            removal_threshold: -5.0,
         };
         let chemical_read = vec![1.5, 0.0, 0.0, 0.0]; // only 1.5 available
         let mut chemical_write = chemical_read.clone();
@@ -420,7 +424,7 @@ mod tests {
         let mut occupancy = vec![None; 4];
         let mut registry = ActorRegistry::with_capacity(4);
         // Low energy actor — decay will kill it.
-        let actor = Actor { cell_index: 0, energy: 0.1 };
+        let actor = Actor { cell_index: 0, energy: 0.1, inert: false };
         let _id = registry.add(actor, 4, &mut occupancy).unwrap();
 
         let config = ActorConfig {
@@ -429,6 +433,8 @@ mod tests {
             base_energy_decay: 1.0,        // heavy decay
             initial_energy: 10.0,
             initial_actor_capacity: 4,
+            movement_cost: 0.5,
+            removal_threshold: -5.0,
         };
         let chemical_read = vec![0.0; 4]; // nothing to eat
         let mut chemical_write = chemical_read.clone();
@@ -448,7 +454,7 @@ mod tests {
     fn metabolism_nan_energy_returns_error() {
         let mut occupancy = vec![None; 4];
         let mut registry = ActorRegistry::with_capacity(4);
-        let actor = Actor { cell_index: 0, energy: f32::NAN };
+        let actor = Actor { cell_index: 0, energy: f32::NAN, inert: false };
         let _id = registry.add(actor, 4, &mut occupancy).unwrap();
 
         let config = default_config();

@@ -351,6 +351,7 @@ pub(crate) fn generate_actors(
             let actor = Actor {
                 cell_index,
                 energy: actor_config.initial_energy,
+                inert: false,
             };
             match grid.add_actor(actor) {
                 Ok(_) => {

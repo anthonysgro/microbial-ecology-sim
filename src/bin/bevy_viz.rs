@@ -36,6 +36,8 @@ fn main() {
         base_energy_decay: 0.05,
         initial_energy: 10.0,
         initial_actor_capacity: 64,
+        movement_cost: 0.5,
+        removal_threshold: -5.0,
     };
 
     let init_config = WorldInitConfig {

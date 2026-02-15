@@ -6,21 +6,21 @@ Add movement energy costs and an inert actor state to the simulation. Modifies `
 
 ## Tasks
 
-- [ ] 1. Extend data models with inert state and new config fields
-  - [ ] 1.1 Add `inert: bool` field to `Actor` struct in `src/grid/actor.rs`
+- [x] 1. Extend data models with inert state and new config fields
+  - [x] 1.1 Add `inert: bool` field to `Actor` struct in `src/grid/actor.rs`
     - Initialize to `false` in all existing construction sites
     - Update any existing tests that construct `Actor` literals
     - _Requirements: 2.7_
 
-  - [ ] 1.2 Add `movement_cost: f32` and `removal_threshold: f32` fields to `ActorConfig` in `src/grid/actor_config.rs`
+  - [x] 1.2 Add `movement_cost: f32` and `removal_threshold: f32` fields to `ActorConfig` in `src/grid/actor_config.rs`
     - _Requirements: 1.3, 2.6_
 
-  - [ ] 1.3 Add `InvalidActorConfig` variant to `GridError` in `src/grid/error.rs`
+  - [x] 1.3 Add `InvalidActorConfig` variant to `GridError` in `src/grid/error.rs`
     - Fields: `field: &'static str`, `value: f32`, `reason: &'static str`
     - Add `Display` impl arm matching existing pattern
     - _Requirements: 4.1, 4.2, 4.3_
 
-  - [ ] 1.4 Add config validation to `Grid::new` in `src/grid/mod.rs`
+  - [x] 1.4 Add config validation to `Grid::new` in `src/grid/mod.rs`
     - Validate `movement_cost >= 0.0`, `removal_threshold <= 0.0`, `base_energy_decay >= 0.0` when `actor_config` is `Some`
     - Return `GridError::InvalidActorConfig` on failure
     - _Requirements: 4.1, 4.2, 4.3_
@@ -32,8 +32,8 @@ Add movement energy costs and an inert actor state to the simulation. Modifies `
     - Test valid config → Ok
     - _Requirements: 4.1, 4.2, 4.3_
 
-- [ ] 2. Modify metabolism system for inert state transitions
-  - [ ] 2.1 Update `run_actor_metabolism` in `src/grid/actor_systems.rs`
+- [-] 2. Modify metabolism system for inert state transitions
+  - [-] 2.1 Update `run_actor_metabolism` in `src/grid/actor_systems.rs`
     - For active actors: existing consumption + energy balance logic, but instead of pushing to `removal_buffer` when `energy <= 0`, set `actor.inert = true`
     - For inert actors: skip chemical consumption, subtract only `base_energy_decay`, push to `removal_buffer` when `energy <= removal_threshold`
     - Pass `removal_threshold` from `ActorConfig` (add parameter or pass full config — config ref is already a parameter)
@@ -55,7 +55,7 @@ Add movement energy costs and an inert actor state to the simulation. Modifies `
     - Generate inert actors with energy near `removal_threshold`, run metabolism, verify removal buffer contains the actor
     - **Validates: Requirements 2.5**
 
-- [ ] 3. Modify sensing system to skip inert actors
+- [~] 3. Modify sensing system to skip inert actors
   - [ ] 3.1 Update `run_actor_sensing` in `src/grid/actor_systems.rs`
     - Add `if actor.inert { movement_targets[slot_index] = None; continue; }` at the top of the iteration loop
     - _Requirements: 2.2_
@@ -65,7 +65,7 @@ Add movement energy costs and an inert actor state to the simulation. Modifies `
     - Generate a mix of inert and active actors, run sensing, verify all inert actors have `movement_targets[slot] == None`
     - **Validates: Requirements 2.2, 2.4**
 
-- [ ] 4. Modify movement system to deduct energy and handle inert transition
+- [~] 4. Modify movement system to deduct energy and handle inert transition
   - [ ] 4.1 Update `run_actor_movement` in `src/grid/actor_systems.rs`
     - Add `movement_cost: f32` parameter
     - Skip inert actors (`if actor.inert { continue; }`)
@@ -90,7 +90,7 @@ Add movement energy costs and an inert actor state to the simulation. Modifies `
     - Generate actors with NaN or Inf energy, run movement with valid movement_cost, verify `Err(TickError::NumericalError)` returned
     - **Validates: Requirements 3.2**
 
-- [ ] 5. Update tick orchestrator and fix all call sites
+- [~] 5. Update tick orchestrator and fix all call sites
   - [ ] 5.1 Update `run_actor_phases` in `src/grid/tick.rs`
     - Pass `actor_config.movement_cost` to `run_actor_movement`
     - Handle the new `Result` return from `run_actor_movement` with `?`
@@ -103,7 +103,7 @@ Add movement energy costs and an inert actor state to the simulation. Modifies `
     - Ensure existing tests still pass with the new fields
     - _Requirements: 1.3, 2.6, 2.7_
 
-- [ ] 6. Checkpoint — Ensure all tests pass
+- [~] 6. Checkpoint — Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Notes

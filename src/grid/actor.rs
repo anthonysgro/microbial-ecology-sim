@@ -13,6 +13,7 @@
 pub struct Actor {
     pub cell_index: usize,
     pub energy: f32,
+    pub inert: bool,
 }
 
 /// Opaque handle for a registered Actor.

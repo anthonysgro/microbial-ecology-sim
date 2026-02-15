@@ -72,6 +72,31 @@ impl Grid {
             }
         }
 
+        // Validate actor config fields when present.
+        if let Some(ref ac) = actor_config {
+            if ac.movement_cost < 0.0 {
+                return Err(GridError::InvalidActorConfig {
+                    field: "movement_cost",
+                    value: ac.movement_cost,
+                    reason: "must be non-negative",
+                });
+            }
+            if ac.removal_threshold > 0.0 {
+                return Err(GridError::InvalidActorConfig {
+                    field: "removal_threshold",
+                    value: ac.removal_threshold,
+                    reason: "must be non-positive (negative or zero)",
+                });
+            }
+            if ac.base_energy_decay < 0.0 {
+                return Err(GridError::InvalidActorConfig {
+                    field: "base_energy_decay",
+                    value: ac.base_energy_decay,
+                    reason: "must be non-negative",
+                });
+            }
+        }
+
         let cell_count = (config.width as usize) * (config.height as usize);
 
         // One FieldBuffer per chemical species, initialized to caller defaults.
