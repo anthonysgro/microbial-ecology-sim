@@ -41,7 +41,13 @@ impl Plugin for BevyVizPlugin {
         app.add_systems(Startup, setup::setup);
 
         // FixedUpdate: advance simulation by one tick.
-        app.add_systems(FixedUpdate, systems::tick_simulation);
+        app.add_systems(
+            FixedUpdate,
+            (
+                systems::tick_simulation,
+                systems::compute_trait_stats.after(systems::tick_simulation),
+            ),
+        );
 
         // Update: input, texture upload, camera, label — all run every frame.
         app.add_systems(
@@ -49,6 +55,9 @@ impl Plugin for BevyVizPlugin {
             (
                 systems::handle_input,
                 systems::rate_control_input,
+                systems::select_actor_input.before(systems::update_texture),
+                systems::clear_stale_selection,
+                systems::update_actor_inspector,
                 systems::update_texture,
                 systems::camera_controls,
                 systems::update_overlay_label,
@@ -57,6 +66,8 @@ impl Plugin for BevyVizPlugin {
                 systems::update_scale_bar,
                 systems::info_panel_input,
                 systems::update_info_panel,
+                systems::stats_panel_input,
+                systems::update_stats_panel,
             ),
         );
     }

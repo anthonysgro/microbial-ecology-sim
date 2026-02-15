@@ -170,3 +170,60 @@ pub struct InfoPanel;
 /// Requirements: 5.2, 1.2
 #[derive(Resource)]
 pub struct InfoPanelVisible(pub bool);
+
+// ── Trait Visualization Resources ──────────────────────────────────
+
+/// Per-trait aggregate statistics (min, max, mean, percentiles).
+///
+/// Plain data struct — no methods, no business logic.
+/// Used as an element of `TraitStats::traits`.
+#[derive(Debug, Clone, Copy)]
+pub struct SingleTraitStats {
+    pub min: f32,
+    pub max: f32,
+    pub mean: f32,
+    pub p25: f32,
+    pub p50: f32,
+    pub p75: f32,
+}
+
+/// Pre-computed population statistics for heritable traits.
+///
+/// Recomputed every tick in `FixedUpdate` by `compute_trait_stats`.
+/// COLD path — heap allocation during computation is acceptable.
+///
+/// Array order: [consumption_rate, base_energy_decay, levy_exponent,
+/// reproduction_threshold].
+///
+/// Requirements: 1.2, 1.3
+#[derive(Resource, Debug, Clone)]
+pub struct TraitStats {
+    pub actor_count: usize,
+    pub tick: u64,
+    /// `None` when `actor_count == 0`.
+    pub traits: Option<[SingleTraitStats; 4]>,
+}
+
+/// Tracks the currently selected actor for inspection (by slot index).
+///
+/// `None` = no selection. Default: `None`.
+///
+/// Requirements: 3.1
+#[derive(Resource, Default)]
+pub struct SelectedActor(pub Option<usize>);
+
+/// Tracks whether the population stats panel is visible.
+///
+/// Default: hidden (`false`).
+#[derive(Resource)]
+pub struct StatsPanelVisible(pub bool);
+
+// ── Trait Visualization Marker Components ──────────────────────────
+
+/// Marker for the population stats panel text entity.
+#[derive(Component)]
+pub struct StatsPanel;
+
+/// Marker for the actor inspector panel text entity.
+#[derive(Component)]
+pub struct ActorInspector;

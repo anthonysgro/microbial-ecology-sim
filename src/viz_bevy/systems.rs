@@ -5,15 +5,17 @@
 use bevy::input::mouse::AccumulatedMouseScroll;
 use bevy::prelude::*;
 
+use crate::grid::actor::Actor;
 use crate::grid::tick::TickOrchestrator;
 
 use super::{color, normalize};
 use super::resources::{
-    ActiveOverlay, BevyVizConfig, GridSprite, HoverTooltip, InfoPanel, InfoPanelVisible,
-    MainCamera, OverlayLabel, RateLabel, RenderState, ScaleBar, ScaleMaxLabel,
-    SimRateController, SimulationState,
+    ActiveOverlay, ActorInspector, BevyVizConfig, GridSprite, HoverTooltip, InfoPanel,
+    InfoPanelVisible, MainCamera, OverlayLabel, RateLabel, RenderState, ScaleBar, ScaleMaxLabel,
+    SelectedActor, SimRateController, SimulationState, SingleTraitStats, StatsPanel,
+    StatsPanelVisible, TraitStats,
 };
-use super::setup::{build_scale_image, overlay_label_text};
+use super::setup::{build_scale_image, format_actor_info, format_trait_stats, overlay_label_text};
 
 /// Advance the simulation by one tick.
 ///
@@ -70,6 +72,7 @@ pub fn update_texture(
     mut images: ResMut<Assets<Image>>,
     query: Query<&Sprite, With<GridSprite>>,
     config: Res<BevyVizConfig>,
+    selected: Res<SelectedActor>,
 ) {
     // Resolve the field slice and color function from the active overlay.
     let (field, color_fn): (&[f32], fn(f32) -> [u8; 4]) = match *overlay {
@@ -107,6 +110,19 @@ pub fn update_texture(
         }
     }
 
+    // Highlight the selected actor's cell in cyan.
+    if let Some(slot_index) = selected.0 {
+        if let Some((_, actor)) = sim.grid.actors().iter().find(|(si, _)| *si == slot_index) {
+            let offset = actor.cell_index * 4;
+            if offset + 3 < render.pixel_buffer.len() {
+                render.pixel_buffer[offset] = 0;       // R
+                render.pixel_buffer[offset + 1] = 255; // G
+                render.pixel_buffer[offset + 2] = 255; // B
+                render.pixel_buffer[offset + 3] = 255; // A
+            }
+        }
+    }
+
     // Upload pixel buffer into the Bevy Image asset.
     let Ok(sprite) = query.single() else {
         return;
@@ -135,9 +151,20 @@ pub fn handle_input(
     mut overlay: ResMut<ActiveOverlay>,
     sim: Res<SimulationState>,
     mut exit: EventWriter<AppExit>,
+    mut selected: ResMut<SelectedActor>,
 ) {
-    // Quit on Escape or Q.
-    if keys.just_pressed(KeyCode::Escape) || keys.just_pressed(KeyCode::KeyQ) {
+    // Escape: deselect actor first, exit only when nothing is selected.
+    // Q always exits immediately.
+    if keys.just_pressed(KeyCode::Escape) {
+        if selected.0.is_some() {
+            selected.0 = None;
+        } else {
+            exit.write(AppExit::Success);
+        }
+        return;
+    }
+
+    if keys.just_pressed(KeyCode::KeyQ) {
         exit.write(AppExit::Success);
         return;
     }
@@ -342,6 +369,41 @@ pub fn camera_controls(
 
 
 
+/// Map cursor screen position to a grid cell index.
+///
+/// Returns `Some(cell_index)` if the cursor is within grid bounds, `None` otherwise.
+/// Shared by `update_hover_tooltip` and `select_actor_input` to avoid duplication.
+///
+/// Requirements: 3.5
+fn cursor_to_grid_cell(
+    window: &Window,
+    camera: &Camera,
+    cam_global: &GlobalTransform,
+    sprite_transform: &Transform,
+    sprite: &Sprite,
+    grid_width: u32,
+    grid_height: u32,
+) -> Option<usize> {
+    let cursor_screen = window.cursor_position()?;
+    let world_pos = camera.viewport_to_world_2d(cam_global, cursor_screen).ok()?;
+
+    let sprite_size = sprite.custom_size.unwrap_or(Vec2::ONE);
+    let sprite_origin = sprite_transform.translation.truncate() - sprite_size * 0.5;
+    let local = world_pos - sprite_origin;
+
+    let gx = local.x.floor() as i32;
+    let gy = (sprite_size.y - local.y).floor() as i32;
+
+    let w = grid_width as i32;
+    let h = grid_height as i32;
+
+    if gx < 0 || gy < 0 || gx >= w || gy >= h {
+        return None;
+    }
+
+    Some((gy as usize) * (grid_width as usize) + (gx as usize))
+}
+
 /// Update the hover tooltip with the raw field value under the cursor.
 ///
 /// COLD PATH: Runs every `Update` frame. Uses Bevy's `Camera` viewport
@@ -365,40 +427,25 @@ pub fn update_hover_tooltip(
         return;
     };
 
-    let Some(cursor_screen) = window.cursor_position() else {
+    let cell_index = cursor_to_grid_cell(
+        window,
+        camera,
+        cam_global,
+        sprite_transform,
+        sprite,
+        sim.grid.width(),
+        sim.grid.height(),
+    );
+
+    let Some(cell_index) = cell_index else {
         for mut text in &mut tooltip_q {
             **text = String::new();
         }
         return;
     };
 
-    // Use Bevy's built-in viewport_to_world_2d for accurate projection.
-    let Ok(world_pos) = camera.viewport_to_world_2d(cam_global, cursor_screen) else {
-        for mut text in &mut tooltip_q {
-            **text = String::new();
-        }
-        return;
-    };
-
-    // World position → grid cell.
-    let sprite_size = sprite.custom_size.unwrap_or(Vec2::ONE);
-    let sprite_origin = sprite_transform.translation.truncate() - sprite_size * 0.5;
-    let local = world_pos - sprite_origin;
-
-    let gx = local.x.floor() as i32;
-    let gy = (sprite_size.y - local.y).floor() as i32; // flip y: world y-up → row-major top-down
-
-    let width = sim.grid.width() as i32;
-    let height = sim.grid.height() as i32;
-
-    if gx < 0 || gy < 0 || gx >= width || gy >= height {
-        for mut text in &mut tooltip_q {
-            **text = String::new();
-        }
-        return;
-    }
-
-    let cell_index = (gy as usize) * (width as usize) + (gx as usize);
+    let gx = (cell_index % sim.grid.width() as usize) as i32;
+    let gy = (cell_index / sim.grid.width() as usize) as i32;
 
     let raw_value = match *overlay {
         ActiveOverlay::Heat => sim.grid.read_heat().get(cell_index).copied(),
@@ -414,7 +461,6 @@ pub fn update_hover_tooltip(
             let mut s = format!("({gx}, {gy}): {v:.4}");
             // If an actor occupies this cell, append its energy.
             if let Some(slot_index) = sim.grid.occupancy().get(cell_index).copied().flatten() {
-                // Find the actor by scanning — slot_index maps to the registry slot.
                 let energy = sim
                     .grid
                     .actors()
@@ -432,6 +478,83 @@ pub fn update_hover_tooltip(
 
     for mut text in &mut tooltip_q {
         **text = label.clone();
+    }
+}
+
+/// Handle left-click to select an actor on the grid.
+///
+/// COLD PATH: Runs every `Update` frame. On left-click, maps cursor to
+/// grid cell via `cursor_to_grid_cell`, looks up occupancy, and writes
+/// `SelectedActor`. Clicking an empty cell clears the selection.
+///
+/// Requirements: 3.1, 3.2, 3.5
+pub fn select_actor_input(
+    windows: Query<&Window>,
+    camera_q: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
+    sim: Res<SimulationState>,
+    sprite_q: Query<(&Transform, &Sprite), With<GridSprite>>,
+    mouse: Res<ButtonInput<MouseButton>>,
+    mut selected: ResMut<SelectedActor>,
+) {
+    if !mouse.just_pressed(MouseButton::Left) {
+        return;
+    }
+
+    let Ok(window) = windows.single() else {
+        return;
+    };
+    let Ok((camera, cam_global)) = camera_q.single() else {
+        return;
+    };
+    let Ok((sprite_transform, sprite)) = sprite_q.single() else {
+        return;
+    };
+
+    let cell_index = cursor_to_grid_cell(
+        window,
+        camera,
+        cam_global,
+        sprite_transform,
+        sprite,
+        sim.grid.width(),
+        sim.grid.height(),
+    );
+
+    match cell_index {
+        Some(ci) => {
+            selected.0 = sim.grid.occupancy().get(ci).copied().flatten();
+        }
+        None => {
+            // Click outside grid bounds — ignore (don't clear selection).
+        }
+    }
+}
+
+/// Clear `SelectedActor` if the referenced slot no longer holds a living actor.
+///
+/// COLD PATH: Runs every `Update` frame. Checks whether the selected slot
+/// index still maps to a non-inert actor in the registry. If the actor has
+/// died, been removed, or gone inert, the selection is cleared.
+///
+/// Requirements: 3.4
+pub fn clear_stale_selection(
+    sim: Res<SimulationState>,
+    mut selected: ResMut<SelectedActor>,
+) {
+    let Some(slot_index) = selected.0 else {
+        return;
+    };
+
+    // Check if the slot still holds a living (non-inert) actor.
+    let is_alive = sim
+        .grid
+        .actors()
+        .iter()
+        .find(|(si, _)| *si == slot_index)
+        .is_some_and(|(_, actor)| !actor.inert);
+
+    if !is_alive {
+        selected.0 = None;
     }
 }
 
@@ -498,4 +621,190 @@ pub fn update_info_panel(
     for mut vis in &mut query {
         *vis = target;
     }
+}
+
+/// COLD PATH: Toggle stats panel visibility on `T` key press.
+///
+/// Follows the `info_panel_input` pattern: read key state, mutate resource.
+/// Requirements: 2.1
+pub fn stats_panel_input(
+    keys: Res<ButtonInput<KeyCode>>,
+    mut visible: ResMut<StatsPanelVisible>,
+) {
+    if keys.just_pressed(KeyCode::KeyT) {
+        visible.0 = !visible.0;
+    }
+}
+
+/// COLD PATH: Sync stats panel text and visibility with `TraitStats` and
+/// `StatsPanelVisible` resources.
+///
+/// Gated on `is_changed()` — only touches the entity when either resource
+/// was mutated. Follows `update_info_panel` / `update_overlay_label` pattern.
+///
+/// Requirements: 2.1, 2.4, 2.5, 2.6
+pub fn update_stats_panel(
+    stats: Res<TraitStats>,
+    visible: Res<StatsPanelVisible>,
+    mut query: Query<(&mut Text, &mut Visibility), With<StatsPanel>>,
+) {
+    if !stats.is_changed() && !visible.is_changed() {
+        return;
+    }
+
+    let target_vis = if visible.0 {
+        Visibility::Visible
+    } else {
+        Visibility::Hidden
+    };
+
+    let content = format_trait_stats(&stats);
+
+    for (mut text, mut vis) in &mut query {
+        **text = content.clone();
+        *vis = target_vis;
+    }
+}
+
+/// COLD PATH: Sync actor inspector panel text and visibility with
+/// `SelectedActor` and `SimulationState`.
+///
+/// Hidden when no actor is selected. When `Some(slot_index)`, looks up
+/// the actor in the registry and formats its full state. Gated on
+/// `is_changed()` for both resources.
+///
+/// Requirements: 4.3, 4.4, 4.5, 4.6
+pub fn update_actor_inspector(
+    selected: Res<SelectedActor>,
+    sim: Res<SimulationState>,
+    mut query: Query<(&mut Text, &mut Visibility), With<ActorInspector>>,
+) {
+    if !selected.is_changed() && !sim.is_changed() {
+        return;
+    }
+
+    let Some(slot_index) = selected.0 else {
+        for (mut text, mut vis) in &mut query {
+            **text = String::new();
+            *vis = Visibility::Hidden;
+        }
+        return;
+    };
+
+    // Look up the actor by slot index.
+    let actor = sim
+        .grid
+        .actors()
+        .iter()
+        .find(|(si, _)| *si == slot_index)
+        .map(|(_, a)| a);
+
+    let Some(actor) = actor else {
+        for (mut text, mut vis) in &mut query {
+            **text = String::new();
+            *vis = Visibility::Hidden;
+        }
+        return;
+    };
+
+    let content = format_actor_info(actor, slot_index, sim.grid.width());
+
+    for (mut text, mut vis) in &mut query {
+        **text = content.clone();
+        *vis = Visibility::Visible;
+    }
+}
+
+
+
+// ── Trait Stats Computation ────────────────────────────────────────
+
+/// Compute population statistics from an iterator of actors.
+///
+/// COLD PATH: Allocates four `Vec<f32>` buffers, sorts each, and derives
+/// min/max/mean/percentiles via nearest-rank. Acceptable for per-tick
+/// visualization work.
+///
+/// - Non-inert actors only. Inert actors are excluded.
+/// - Zero living actors → `TraitStats { actor_count: 0, traits: None }`.
+/// - One living actor → all stats equal to that actor's trait values.
+///
+/// Pure function — no Bevy dependencies, testable in isolation.
+///
+/// Requirements: 1.1, 1.3, 1.4, 1.5
+pub fn compute_trait_stats_from_actors<'a>(
+    actors: impl Iterator<Item = &'a Actor>,
+    tick: u64,
+) -> TraitStats {
+    let mut consumption = Vec::new();
+    let mut decay = Vec::new();
+    let mut levy = Vec::new();
+    let mut repro = Vec::new();
+
+    for actor in actors {
+        if actor.inert {
+            continue;
+        }
+        consumption.push(actor.traits.consumption_rate);
+        decay.push(actor.traits.base_energy_decay);
+        levy.push(actor.traits.levy_exponent);
+        repro.push(actor.traits.reproduction_threshold);
+    }
+
+    let actor_count = consumption.len();
+
+    if actor_count == 0 {
+        return TraitStats {
+            actor_count: 0,
+            tick,
+            traits: None,
+        };
+    }
+
+    let traits = [
+        compute_single_stats(&mut consumption),
+        compute_single_stats(&mut decay),
+        compute_single_stats(&mut levy),
+        compute_single_stats(&mut repro),
+    ];
+
+    TraitStats {
+        actor_count,
+        tick,
+        traits: Some(traits),
+    }
+}
+
+/// Compute min/max/mean/percentiles for a single trait buffer.
+///
+/// Sorts the buffer in-place using `total_cmp` (NaN-safe).
+/// Percentiles use nearest-rank (floor index).
+///
+/// Precondition: `values` is non-empty.
+fn compute_single_stats(values: &mut Vec<f32>) -> SingleTraitStats {
+    values.sort_by(f32::total_cmp);
+
+    let n = values.len();
+    let sum: f32 = values.iter().sum();
+    let mean = sum / n as f32;
+
+    SingleTraitStats {
+        min: values[0],
+        max: values[n - 1],
+        mean,
+        p25: values[(n - 1) * 25 / 100],
+        p50: values[(n - 1) * 50 / 100],
+        p75: values[(n - 1) * 75 / 100],
+    }
+}
+
+/// Bevy system: recompute `TraitStats` from the current simulation state.
+///
+/// COLD PATH: Runs in `FixedUpdate` after `tick_simulation`. Reads the
+/// actor registry from `SimulationState`, writes the `TraitStats` resource.
+///
+/// Requirements: 1.1, 1.3, 1.4, 1.5
+pub fn compute_trait_stats(sim: Res<SimulationState>, mut stats: ResMut<TraitStats>) {
+    let actors = sim.grid.actors().iter().map(|(_, actor)| actor);
+    *stats = compute_trait_stats_from_actors(actors, sim.tick);
 }

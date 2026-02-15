@@ -12,9 +12,10 @@ use crate::grid::world_init;
 use crate::grid::world_init::WorldInitConfig;
 
 use super::resources::{
-    ActiveOverlay, BevyVizConfig, GridSprite, HoverTooltip, InfoPanel, InfoPanelVisible,
-    MainCamera, OverlayLabel, RateLabel, RenderState, ScaleBar, ScaleMaxLabel, ScaleMinLabel,
-    SimRateController, SimulationState,
+    ActiveOverlay, ActorInspector, BevyVizConfig, GridSprite, HoverTooltip, InfoPanel,
+    InfoPanelVisible, MainCamera, OverlayLabel, RateLabel, RenderState, ScaleBar, ScaleMaxLabel,
+    ScaleMinLabel, SelectedActor, SimRateController, SimulationState, StatsPanel,
+    StatsPanelVisible, TraitStats,
 };
 
 /// Format the overlay name for the UI label.
@@ -24,6 +25,80 @@ pub(super) fn overlay_label_text(overlay: &ActiveOverlay) -> String {
         ActiveOverlay::Chemical(n) => format!("Chemical {n}"),
     }
 }
+
+/// Trait names in display order, matching `TraitStats::traits` array indices.
+const TRAIT_NAMES: [&str; 4] = [
+    "consumption_rate",
+    "base_energy_decay",
+    "levy_exponent",
+    "reproduction_thresh",
+];
+
+/// Format `TraitStats` into a display string for the stats panel.
+///
+/// Pure function — no Bevy dependencies, testable in isolation.
+/// All stat values formatted to two decimal places.
+///
+/// When `traits` is `None` (zero living actors), returns a short
+/// "No living actors." message with tick number.
+///
+/// Requirements: 2.2, 2.3
+pub fn format_trait_stats(stats: &super::resources::TraitStats) -> String {
+    use std::fmt::Write;
+
+    let mut out = String::new();
+    writeln!(out, "Tick: {}  |  Actors: {}", stats.tick, stats.actor_count).ok();
+
+    let Some(ref traits) = stats.traits else {
+        writeln!(out, "\nNo living actors.").ok();
+        return out;
+    };
+
+    writeln!(out).ok();
+    for (i, name) in TRAIT_NAMES.iter().enumerate() {
+        let s = &traits[i];
+        writeln!(
+            out,
+            "{:<20} min: {:>6.2}  p25: {:>6.2}  p50: {:>6.2}  p75: {:>6.2}  max: {:>6.2}  mean: {:>6.2}",
+            name, s.min, s.p25, s.p50, s.p75, s.max, s.mean,
+        ).ok();
+    }
+
+    out
+}
+
+/// Format a single selected actor's state into a display string.
+///
+/// Pure function — no Bevy dependencies, testable in isolation.
+/// Energy formatted to 2dp, trait values to 4dp.
+/// Grid position derived from `cell_index` and `grid_width`.
+///
+/// Requirements: 4.1, 4.2
+pub fn format_actor_info(
+    actor: &crate::grid::actor::Actor,
+    slot_index: usize,
+    grid_width: u32,
+) -> String {
+    use std::fmt::Write;
+
+    let col = actor.cell_index % grid_width as usize;
+    let row = actor.cell_index / grid_width as usize;
+    let state = if actor.inert { "inert" } else { "active" };
+
+    let mut out = String::new();
+    writeln!(out, "Actor [slot {slot_index}] — {state}").ok();
+    writeln!(out, "Position: ({col}, {row})").ok();
+    writeln!(out, "Energy: {:.2}", actor.energy).ok();
+    writeln!(out).ok();
+    writeln!(out, "consumption_rate:        {:.4}", actor.traits.consumption_rate).ok();
+    writeln!(out, "base_energy_decay:       {:.4}", actor.traits.base_energy_decay).ok();
+    writeln!(out, "levy_exponent:           {:.4}", actor.traits.levy_exponent).ok();
+    writeln!(out, "reproduction_threshold: {:.4}", actor.traits.reproduction_threshold).ok();
+
+    out
+}
+
+
 
 /// Format the full config info panel text from configuration data.
 ///
@@ -379,4 +454,53 @@ pub fn setup(
     ));
 
     commands.insert_resource(InfoPanelVisible(false));
+
+    // ── Insert trait visualization resources ────────────────────────
+    commands.insert_resource(StatsPanelVisible(false));
+    commands.insert_resource(TraitStats {
+        actor_count: 0,
+        tick: 0,
+        traits: None,
+    });
+
+    // ── Spawn stats panel (hidden by default, Req 2.1, 2.5, 2.6) ──
+    commands.spawn((
+        Text::new(""),
+        TextFont {
+            font_size: 14.0,
+            ..default()
+        },
+        TextColor(Color::WHITE),
+        Node {
+            position_type: PositionType::Absolute,
+            top: Val::Px(40.0),
+            right: Val::Px(80.0),
+            ..default()
+        },
+        BackgroundColor(Color::srgba(0.0, 0.0, 0.0, 0.7)),
+        Visibility::Hidden,
+        StatsPanel,
+    ));
+
+    // ── Insert SelectedActor resource ──────────────────────────────
+    commands.insert_resource(SelectedActor::default());
+
+    // ── Spawn actor inspector (hidden by default, Req 4.3–4.6) ────
+    commands.spawn((
+        Text::new(""),
+        TextFont {
+            font_size: 14.0,
+            ..default()
+        },
+        TextColor(Color::WHITE),
+        Node {
+            position_type: PositionType::Absolute,
+            bottom: Val::Px(40.0),
+            left: Val::Px(10.0),
+            ..default()
+        },
+        BackgroundColor(Color::srgba(0.0, 0.0, 0.0, 0.7)),
+        Visibility::Hidden,
+        ActorInspector,
+    ));
 }

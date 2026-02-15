@@ -6,8 +6,8 @@ Add population stats panel and actor inspection to the Bevy visualization. All n
 
 ## Tasks
 
-- [ ] 1. Add new resources and marker components
-  - [ ] 1.1 Define `TraitStats`, `SingleTraitStats`, `SelectedActor`, `StatsPanelVisible`, `StatsPanel`, and `ActorInspector` in `src/viz_bevy/resources.rs`
+- [x] 1. Add new resources and marker components
+  - [x] 1.1 Define `TraitStats`, `SingleTraitStats`, `SelectedActor`, `StatsPanelVisible`, `StatsPanel`, and `ActorInspector` in `src/viz_bevy/resources.rs`
     - `TraitStats`: `actor_count: usize`, `tick: u64`, `traits: Option<[SingleTraitStats; 4]>`
     - `SingleTraitStats`: `min`, `max`, `mean`, `p25`, `p50`, `p75` (all `f32`)
     - `SelectedActor(pub Option<usize>)` — default `None`
@@ -15,8 +15,8 @@ Add population stats panel and actor inspection to the Bevy visualization. All n
     - `StatsPanel` and `ActorInspector` marker components
     - _Requirements: 1.2, 1.3, 3.1_
 
-- [ ] 2. Implement trait stats computation
-  - [ ] 2.1 Write `compute_trait_stats_from_actors` pure function and `compute_trait_stats` Bevy system in `src/viz_bevy/systems.rs`
+- [x] 2. Implement trait stats computation
+  - [x] 2.1 Write `compute_trait_stats_from_actors` pure function and `compute_trait_stats` Bevy system in `src/viz_bevy/systems.rs`
     - Pure function takes `impl Iterator<Item = &Actor>` and `tick: u64`, returns `TraitStats`
     - Collect trait values from non-inert actors into four `Vec<f32>`, sort with `total_cmp`, compute min/max/mean/percentiles via nearest-rank
     - Handle zero actors (traits: None) and single actor (all stats equal) edge cases
@@ -30,13 +30,13 @@ Add population stats panel and actor inspection to the Bevy visualization. All n
     - Cover edge cases: zero actors, one actor
     - **Validates: Requirements 1.1, 1.3, 1.4, 1.5**
 
-- [ ] 3. Implement stats panel formatting and display
-  - [ ] 3.1 Write `format_trait_stats` pure function in `src/viz_bevy/setup.rs`
+- [x] 3. Implement stats panel formatting and display
+  - [x] 3.1 Write `format_trait_stats` pure function in `src/viz_bevy/setup.rs`
     - Format tick, actor count, and four trait rows with min/p25/p50/p75/max/mean to two decimal places
     - Handle `traits: None` case with "No living actors." message
     - _Requirements: 2.2, 2.3_
 
-  - [ ] 3.2 Spawn `StatsPanel` entity in `setup` system and implement `stats_panel_input` + `update_stats_panel` systems
+  - [x] 3.2 Spawn `StatsPanel` entity in `setup` system and implement `stats_panel_input` + `update_stats_panel` systems
     - Spawn hidden text entity with `StatsPanel` marker, semi-transparent background, positioned top-right (to the left of scale bar)
     - `stats_panel_input`: toggle `StatsPanelVisible` on `T` key press
     - `update_stats_panel`: sync text content from `TraitStats` and visibility from `StatsPanelVisible`, gated on `is_changed()`
@@ -50,19 +50,19 @@ Add population stats panel and actor inspection to the Bevy visualization. All n
     - For any initial bool, toggling produces negation
     - **Validates: Requirements 2.1, 2.2, 2.3**
 
-- [ ] 4. Implement actor selection
-  - [ ] 4.1 Write `select_actor_input` system in `src/viz_bevy/systems.rs`
+- [x] 4. Implement actor selection
+  - [x] 4.1 Write `select_actor_input` system in `src/viz_bevy/systems.rs`
     - On left-click: reuse cursor → world → grid cell mapping from `update_hover_tooltip`, look up occupancy, write `SelectedActor`
     - Extract coordinate mapping into a shared helper function to avoid duplication with `update_hover_tooltip`
     - _Requirements: 3.1, 3.2, 3.5_
 
-  - [ ] 4.2 Modify `handle_input` to gate Escape on `SelectedActor`
+  - [x] 4.2 Modify `handle_input` to gate Escape on `SelectedActor`
     - When `SelectedActor` is `Some`: clear to `None`, do not exit
     - When `SelectedActor` is `None`: exit as before
     - Also handle Escape deselection in `select_actor_input` or `handle_input` (one place only)
     - _Requirements: 3.3, 6.3, 6.4_
 
-  - [ ] 4.3 Add stale selection detection in `update_actor_inspector` or a dedicated system
+  - [x] 4.3 Add stale selection detection in `update_actor_inspector` or a dedicated system
     - If `SelectedActor` holds a slot index that no longer maps to a living actor, clear to `None`
     - _Requirements: 3.4_
 
@@ -75,12 +75,12 @@ Add population stats panel and actor inspection to the Bevy visualization. All n
     - Generate random `Option<usize>`, verify Escape behavior
     - **Validates: Requirements 3.1, 3.2, 3.4, 6.3, 6.4**
 
-- [ ] 5. Implement actor inspector panel
-  - [ ] 5.1 Write `format_actor_info` pure function in `src/viz_bevy/setup.rs`
+- [x] 5. Implement actor inspector panel
+  - [x] 5.1 Write `format_actor_info` pure function in `src/viz_bevy/setup.rs`
     - Format slot index, active/inert state, grid position (col, row from cell_index and grid_width), energy (2dp), four trait values (4dp)
     - _Requirements: 4.1, 4.2_
 
-  - [ ] 5.2 Spawn `ActorInspector` entity in `setup` and implement `update_actor_inspector` system
+  - [x] 5.2 Spawn `ActorInspector` entity in `setup` and implement `update_actor_inspector` system
     - Spawn hidden text entity with `ActorInspector` marker, semi-transparent background, positioned bottom-left above hover tooltip
     - System reads `SelectedActor` and `SimulationState`, updates text and visibility
     - Hidden when `SelectedActor` is `None`, visible with formatted actor info when `Some`
@@ -91,8 +91,8 @@ Add population stats panel and actor inspection to the Bevy visualization. All n
     - Generate random `Actor` and grid width, verify output contains slot index, energy, position, state, and all four trait values
     - **Validates: Requirements 4.1, 4.2**
 
-- [ ] 6. Implement selected actor highlight
-  - [ ] 6.1 Modify `update_texture` in `src/viz_bevy/systems.rs` to read `SelectedActor` and render cyan highlight
+- [x] 6. Implement selected actor highlight
+  - [x] 6.1 Modify `update_texture` in `src/viz_bevy/systems.rs` to read `SelectedActor` and render cyan highlight
     - After the existing white-pixel actor overlay loop, check `SelectedActor`
     - If `Some(slot_index)`: find actor's `cell_index`, overwrite pixel with `[0, 255, 255, 255]`
     - _Requirements: 5.1, 5.2, 5.3_
@@ -102,17 +102,17 @@ Add population stats panel and actor inspection to the Bevy visualization. All n
     - Generate random occupancy map and optional selection, verify pixel colors
     - **Validates: Requirements 5.1, 5.2**
 
-- [ ] 7. Register new systems in BevyVizPlugin
-  - [ ] 7.1 Register all new systems in `src/viz_bevy/mod.rs`
+- [x] 7. Register new systems in BevyVizPlugin
+  - [x] 7.1 Register all new systems in `src/viz_bevy/mod.rs`
     - `compute_trait_stats` in `FixedUpdate` with `.after(tick_simulation)`
     - `stats_panel_input`, `update_stats_panel`, `select_actor_input`, `update_actor_inspector` in `Update`
     - Ensure `select_actor_input` runs before `update_texture` via `.before()` ordering
     - _Requirements: 1.1, 2.4, 6.1, 6.2_
 
-- [ ] 8. Checkpoint — Ensure all tests pass
+- [x] 8. Checkpoint — Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 9. Final checkpoint — Integration verification
+- [x] 9. Final checkpoint — Integration verification
   - Verify stats panel toggles with `T`, shows correct stats, updates each tick
   - Verify click-to-select works, inspector shows correct data, highlight follows actor
   - Verify Escape deselects before exiting, existing controls unaffected
