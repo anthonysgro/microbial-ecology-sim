@@ -90,20 +90,20 @@ Add movement energy costs and an inert actor state to the simulation. Modifies `
     - Generate actors with NaN or Inf energy, run movement with valid movement_cost, verify `Err(TickError::NumericalError)` returned
     - **Validates: Requirements 3.2**
 
-- [~] 5. Update tick orchestrator and fix all call sites
-  - [ ] 5.1 Update `run_actor_phases` in `src/grid/tick.rs`
+- [x] 5. Update tick orchestrator and fix all call sites
+  - [x] 5.1 Update `run_actor_phases` in `src/grid/tick.rs`
     - Pass `actor_config.movement_cost` to `run_actor_movement`
     - Handle the new `Result` return from `run_actor_movement` with `?`
     - Phase order remains: Sensing → Metabolism → Deferred Removal → Movement
     - _Requirements: 3.3_
 
-  - [ ] 5.2 Update all existing tests that construct `Actor` or `ActorConfig`
+  - [x] 5.2 Update all existing tests that construct `Actor` or `ActorConfig`
     - Add `inert: false` to all `Actor` literals
     - Add `movement_cost` and `removal_threshold` to all `ActorConfig` literals
     - Ensure existing tests still pass with the new fields
     - _Requirements: 1.3, 2.6, 2.7_
 
-- [~] 6. Checkpoint — Ensure all tests pass
+- [-] 6. Checkpoint — Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Notes
