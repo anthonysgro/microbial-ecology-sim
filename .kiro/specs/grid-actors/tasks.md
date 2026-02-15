@@ -48,12 +48,12 @@ Incremental implementation of mobile Actors into the existing deterministic grid
     - Add then remove, verify len==0, is_empty==true, occupancy cleared
     - **Validates: Requirements 2.7, 3.3**
 
-- [ ] 3. Create ActorConfig and extend Grid
-  - [ ] 3.1 Create `src/grid/actor_config.rs` with `ActorConfig` struct
+- [x] 3. Create ActorConfig and extend Grid
+  - [x] 3.1 Create `src/grid/actor_config.rs` with `ActorConfig` struct
     - Fields: `consumption_rate`, `energy_conversion_factor`, `base_energy_decay`, `initial_energy`, `initial_actor_capacity`
     - _Requirements: 9.1, 9.2, 9.3, 9.4, 9.5_
 
-  - [ ] 3.2 Extend `Grid` struct in `src/grid/mod.rs`
+  - [x] 3.2 Extend `Grid` struct in `src/grid/mod.rs`
     - Add `actors: ActorRegistry`, `occupancy: Vec<Option<usize>>`, `removal_buffer: Vec<ActorId>`, `movement_targets: Vec<Option<usize>>` fields
     - Pre-allocate occupancy (cell_count), removal_buffer and movement_targets (initial_actor_capacity) in `Grid::new`
     - Add `actors()`, `actors_mut()`, `occupancy()`, `add_actor()`, `remove_actor()` methods

@@ -1,4 +1,5 @@
 pub mod actor;
+pub mod actor_config;
 pub mod config;
 pub mod diffusion;
 pub mod heat;
@@ -9,6 +10,8 @@ pub mod source;
 pub mod tick;
 pub mod world_init;
 
+use actor::{Actor, ActorError, ActorId, ActorRegistry};
+use actor_config::ActorConfig;
 use config::{CellDefaults, GridConfig};
 use error::GridError;
 use field_buffer::FieldBuffer;
@@ -26,6 +29,15 @@ pub struct Grid {
     heat: FieldBuffer<f32>,
     partitions: Vec<Partition>,
     sources: SourceRegistry,
+    actors: ActorRegistry,
+    actor_config: Option<ActorConfig>,
+    /// Cell index → slot index of the occupying Actor, or None.
+    /// Pre-allocated to `cell_count` at construction time.
+    occupancy: Vec<Option<usize>>,
+    /// Pre-allocated buffer for deferred Actor removal during metabolism.
+    removal_buffer: Vec<ActorId>,
+    /// Pre-allocated buffer: slot index → target cell index for movement.
+    movement_targets: Vec<Option<usize>>,
 }
 
 impl Grid {
@@ -33,7 +45,11 @@ impl Grid {
     /// double-buffered SoA field arrays.
     ///
     /// Returns `GridError::InvalidDimensions` if width or height is zero.
-    pub fn new(config: GridConfig, defaults: CellDefaults) -> Result<Self, GridError> {
+    pub fn new(
+        config: GridConfig,
+        defaults: CellDefaults,
+        actor_config: Option<ActorConfig>,
+    ) -> Result<Self, GridError> {
         if config.width == 0 || config.height == 0 {
             return Err(GridError::InvalidDimensions {
                 width: config.width,
@@ -58,12 +74,33 @@ impl Grid {
             config.num_threads,
         );
 
+        // Pre-allocate actor subsystem buffers based on config, or use
+        // zero-capacity defaults when actors are not configured.
+        let initial_cap = actor_config
+            .as_ref()
+            .map_or(0, |ac| ac.initial_actor_capacity);
+
+        let actors = if initial_cap > 0 {
+            ActorRegistry::with_capacity(initial_cap)
+        } else {
+            ActorRegistry::new()
+        };
+
+        let occupancy = vec![None; cell_count];
+        let removal_buffer = Vec::with_capacity(initial_cap);
+        let movement_targets = Vec::with_capacity(initial_cap);
+
         Ok(Self {
             config,
             chemicals,
             heat,
             partitions,
             sources: SourceRegistry::new(),
+            actors,
+            actor_config,
+            occupancy,
+            removal_buffer,
+            movement_targets,
         })
     }
 
@@ -197,6 +234,64 @@ impl Grid {
     /// Return a previously taken source registry.
     pub(crate) fn put_sources(&mut self, sources: SourceRegistry) {
         self.sources = sources;
+    }
+
+    // ── Actor registry access ──────────────────────────────────────
+
+    pub fn actors(&self) -> &ActorRegistry {
+        &self.actors
+    }
+
+    pub fn actors_mut(&mut self) -> &mut ActorRegistry {
+        &mut self.actors
+    }
+
+    pub fn occupancy(&self) -> &[Option<usize>] {
+        &self.occupancy
+    }
+
+    pub fn actor_config(&self) -> Option<&ActorConfig> {
+        self.actor_config.as_ref()
+    }
+
+    /// Add an Actor to the grid, validating cell_index against grid dimensions.
+    pub fn add_actor(&mut self, actor: Actor) -> Result<ActorId, ActorError> {
+        let cell_count = self.cell_count();
+        self.actors.add(actor, cell_count, &mut self.occupancy)
+    }
+
+    /// Remove an Actor from the grid by its identifier.
+    pub fn remove_actor(&mut self, id: ActorId) -> Result<(), ActorError> {
+        self.actors.remove(id, &mut self.occupancy)
+    }
+
+    /// Temporarily extract the actor registry and occupancy map for
+    /// split-borrow patterns in actor system phases.
+    ///
+    /// Returns `(ActorRegistry, Vec<Option<usize>>, Vec<ActorId>, Vec<Option<usize>>)`
+    /// — the registry, occupancy map, removal buffer, and movement targets.
+    pub(crate) fn take_actors(
+        &mut self,
+    ) -> (ActorRegistry, Vec<Option<usize>>, Vec<ActorId>, Vec<Option<usize>>) {
+        let actors = std::mem::replace(&mut self.actors, ActorRegistry::new());
+        let occupancy = std::mem::take(&mut self.occupancy);
+        let removal_buffer = std::mem::take(&mut self.removal_buffer);
+        let movement_targets = std::mem::take(&mut self.movement_targets);
+        (actors, occupancy, removal_buffer, movement_targets)
+    }
+
+    /// Return previously taken actor subsystem state.
+    pub(crate) fn put_actors(
+        &mut self,
+        actors: ActorRegistry,
+        occupancy: Vec<Option<usize>>,
+        removal_buffer: Vec<ActorId>,
+        movement_targets: Vec<Option<usize>>,
+    ) {
+        self.actors = actors;
+        self.occupancy = occupancy;
+        self.removal_buffer = removal_buffer;
+        self.movement_targets = movement_targets;
     }
 
     /// Add a source to the grid's registry, validating against grid dimensions.

@@ -215,7 +215,7 @@ pub fn initialize(
         heat: 0.0,
     };
 
-    let mut grid = Grid::new(grid_config, defaults)?;
+    let mut grid = Grid::new(grid_config, defaults, None)?;
 
     // Deterministic RNG forking: each phase draws from an independent stream,
     // so changes to one phase cannot perturb the other.
