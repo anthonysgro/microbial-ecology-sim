@@ -34,16 +34,6 @@ cargo run --release --bin bevy_viz 99
 
 Default seed is `42` if omitted.
 
-## Controls
-
-### Terminal mode
-
-| Key | Action |
-|-----|--------|
-| `1`–`9` | Switch to chemical overlay (species index) |
-| `h` | Switch to heat overlay |
-| `q` / `Esc` | Quit |
-
 ### Bevy mode
 
 | Key / Input | Action |
