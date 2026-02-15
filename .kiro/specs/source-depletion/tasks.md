@@ -27,12 +27,12 @@ Extend the `Source` struct with reservoir, initial_capacity, and deceleration_th
     - _Requirements: 1.1, 1.2_
 
 - [-] 2. Implement `iter_mut`, `is_depleted`, and `active_emitting_count` on SourceRegistry
-  - [ ] 2.1 Add `iter_mut()` method returning `impl Iterator<Item = &mut Source>` over active slots
+  - [-] 2.1 Add `iter_mut()` method returning `impl Iterator<Item = &mut Source>` over active slots
     - _Requirements: 2.1_
-  - [ ] 2.2 Add `is_depleted(id: SourceId) -> Result<bool, SourceError>` method
+  - [-] 2.2 Add `is_depleted(id: SourceId) -> Result<bool, SourceError>` method
     - Returns true if source exists and reservoir == 0.0
     - _Requirements: 4.3_
-  - [ ] 2.3 Add `active_emitting_count()` method returning count of sources with reservoir > 0.0
+  - [-] 2.3 Add `active_emitting_count()` method returning count of sources with reservoir > 0.0
     - _Requirements: 4.4_
 
 - [ ] 3. Modify `run_emission` to support depletion and deceleration

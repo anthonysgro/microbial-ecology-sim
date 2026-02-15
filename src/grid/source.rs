@@ -224,6 +224,46 @@ impl SourceRegistry {
     pub fn iter(&self) -> impl Iterator<Item = &Source> {
         self.slots.iter().filter_map(|slot| slot.source.as_ref())
     }
+
+    /// Mutable iteration over active sources in deterministic slot order.
+    /// Required by `run_emission` to mutate reservoir state during depletion.
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut Source> {
+        self.slots
+            .iter_mut()
+            .filter_map(|slot| slot.source.as_mut())
+    }
+
+    /// Returns true if the source identified by `id` exists and is depleted
+    /// (reservoir == 0.0). Renewable sources (reservoir = INFINITY) are never
+    /// depleted.
+    pub fn is_depleted(&self, id: SourceId) -> Result<bool, SourceError> {
+        let slot = self.slots.get(id.index).ok_or(SourceError::InvalidSourceId {
+            index: id.index,
+            generation: id.generation,
+        })?;
+
+        if slot.generation != id.generation || slot.source.is_none() {
+            return Err(SourceError::InvalidSourceId {
+                index: id.index,
+                generation: id.generation,
+            });
+        }
+
+        // SAFETY of unwrap: guarded by the is_none() check above.
+        let source = slot.source.as_ref().expect("checked above");
+        Ok(source.reservoir == 0.0)
+    }
+
+    /// Count of active sources with reservoir > 0.0 (includes renewable
+    /// sources where reservoir is INFINITY). Depleted sources (reservoir == 0.0)
+    /// are excluded.
+    pub fn active_emitting_count(&self) -> usize {
+        self.slots
+            .iter()
+            .filter_map(|slot| slot.source.as_ref())
+            .filter(|source| source.reservoir > 0.0)
+            .count()
+    }
 }
 
 // WARM PATH: Executes once per tick over the source list.
