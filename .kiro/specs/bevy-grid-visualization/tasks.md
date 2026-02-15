@@ -146,7 +146,7 @@ Incremental build-up of the `viz_bevy` module: pure functions first (normalize, 
     - Build Bevy `App`, insert `BevyVizConfig` resource, add `BevyVizPlugin`, run
     - _Requirements: 10.1, 10.3_
 
-- [~] 13. Final checkpoint — Ensure all tests pass
+- [x] 13. Final checkpoint — Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Notes
