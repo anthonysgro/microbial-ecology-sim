@@ -62,11 +62,11 @@ Incremental implementation of mobile Actors into the existing deterministic grid
     - Register `actor` and `actor_config` modules in `src/grid/mod.rs`
     - _Requirements: 3.1, 3.2, 3.3, 3.5, 8.3_
 
-- [ ] 4. Checkpoint — Ensure all tests pass
+- [x] 4. Checkpoint — Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 5. Implement Actor sensing system
-  - [ ] 5.1 Create `src/grid/actor_systems.rs` with `run_actor_sensing` function
+- [x] 5. Implement Actor sensing system
+  - [x] 5.1 Create `src/grid/actor_systems.rs` with `run_actor_sensing` function
     - Iterate actors in slot order via `ActorRegistry::iter()`
     - For each actor, read Von Neumann neighbors from chemical read buffer (species 0)
     - Compute gradient for each neighbor, select max positive gradient
