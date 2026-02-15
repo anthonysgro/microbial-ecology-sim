@@ -12,12 +12,12 @@ Implement the Layer 0 environment grid substrate in Rust: a double-buffered, SoA
   - Wire modules into `src/lib.rs` and `src/main.rs`
   - _Requirements: 8.2_
 
-- [ ] 2. Implement FieldBuffer and error types
-  - [ ] 2.1 Implement `GridError` and `TickError` enums in `src/grid/error.rs`
+- [x] 2. Implement FieldBuffer and error types
+  - [x] 2.1 Implement `GridError` and `TickError` enums in `src/grid/error.rs`
     - `GridError::InvalidDimensions`, `GridError::OutOfBounds`, `GridError::InvalidChemicalSpecies`
     - `TickError::NumericalError` with system, cell_index, field, value
     - _Requirements: 1.4, 2.3, 9.4_
-  - [ ] 2.2 Implement `FieldBuffer<T>` in `src/grid/field_buffer.rs`
+  - [x] 2.2 Implement `FieldBuffer<T>` in `src/grid/field_buffer.rs`
     - `new(len, default)` allocating two `Vec<T>` buffers
     - `read() -> &[T]`, `write() -> &mut [T]`, `swap()`
     - Swap via XOR on index, no data copy
