@@ -406,6 +406,7 @@ mod tests {
             initial_actor_capacity: 8,
             movement_cost: 0.5,
             removal_threshold: -5.0,
+            extraction_cost: 0.0,
         }
     }
 
@@ -455,6 +456,7 @@ mod tests {
             initial_actor_capacity: 4,
             movement_cost: 0.5,
             removal_threshold: -5.0,
+            extraction_cost: 0.0,
         };
         let chemical_read = vec![1.5, 0.0, 0.0, 0.0]; // only 1.5 available
         let mut chemical_write = chemical_read.clone();
@@ -489,6 +491,7 @@ mod tests {
             initial_actor_capacity: 4,
             movement_cost: 0.5,
             removal_threshold: -5.0,
+            extraction_cost: 0.0,
         };
         let chemical_read = vec![0.0; 4]; // nothing to eat
         let mut chemical_write = chemical_read.clone();

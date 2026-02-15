@@ -46,13 +46,13 @@ max_reservoir_capacity = 500.0       # Finite sources last 30–500 ticks depend
 min_deceleration_threshold = 0.2
 max_deceleration_threshold = 0.4     # Gradual tapering as sources deplete
 
-# Chemical sources: more numerous, moderate strength — creates a nutrient landscape
+# Chemical sources: moderate count, low emission — actors out-consume any single source
 [world_init.chemical_source_config]
-min_sources = 3
-max_sources = 8
-min_emission_rate = 0.3
-max_emission_rate = 2.0              # Enough to sustain actors but not flood the grid
-renewable_fraction = 0.4             # Finite sources create resource scarcity over time
+min_sources = 4
+max_sources = 10
+min_emission_rate = 0.2
+max_emission_rate = 0.8              # Below consumption_rate (1.5) — actors drain sources
+renewable_fraction = 0.3             # Mostly finite — forces migration as sources deplete
 min_reservoir_capacity = 150.0
 max_reservoir_capacity = 600.0
 min_deceleration_threshold = 0.15
@@ -61,15 +61,15 @@ max_deceleration_threshold = 0.35
 # ─── Actor Configuration ────────────────────────────────────────────
 #
 # Tuning rationale:
-#   • consumption_rate (1.0) < typical source emission — actors must move to find food
-#   • energy_conversion_factor (1.8) — consuming 1.0 chemical yields 1.8 energy
+#   • consumption_rate (1.5) > max source emission (0.8) — actors drain any single source
+#   • energy_conversion_factor (1.8) — consuming 1.5 chemical yields 2.7 energy
 #   • base_energy_decay (0.03) — slow drain, actors survive ~260 ticks idle at full energy
 #   • movement_cost (0.3) — moving is cheap relative to starvation, encourages exploration
 #   • initial_energy (8.0) — enough runway to find food, not enough to idle forever
 #   • removal_threshold (-3.0) — inert actors linger briefly before cleanup
 
 [actor]
-consumption_rate = 1.0
+consumption_rate = 1.5
 energy_conversion_factor = 1.8
 base_energy_decay = 0.03
 initial_energy = 8.0

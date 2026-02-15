@@ -24,6 +24,10 @@ pub struct ActorConfig {
     pub movement_cost: f32,
     /// Energy level below which an inert Actor is permanently removed (must be <= 0.0).
     pub removal_threshold: f32,
+    /// Energy cost per unit of chemical consumed. Reduces net energy gain
+    /// from consumption. Must be in `[0.0, energy_conversion_factor)`.
+    /// Default: 0.2
+    pub extraction_cost: f32,
 }
 
 impl Default for ActorConfig {
@@ -37,6 +41,7 @@ impl Default for ActorConfig {
             initial_actor_capacity: 64,
             movement_cost: 0.5,
             removal_threshold: -5.0,
+            extraction_cost: 0.2,
         }
     }
 }
