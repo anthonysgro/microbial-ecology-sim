@@ -6,6 +6,8 @@ use rand::SeedableRng;
 use rand_chacha::ChaCha8Rng;
 
 use crate::grid::Grid;
+use crate::grid::actor::{Actor, ActorError};
+use crate::grid::actor_config::ActorConfig;
 use crate::grid::config::{CellDefaults, GridConfig};
 use crate::grid::error::GridError;
 use crate::grid::source::{Source, SourceError, SourceField};
@@ -33,6 +35,11 @@ pub struct WorldInitConfig {
     /// Range for initial per-cell chemical concentrations (per species).
     pub min_initial_concentration: f32,
     pub max_initial_concentration: f32,
+
+    /// Range for number of actors to seed at initialization.
+    /// Set both to 0 to skip actor seeding.
+    pub min_actors: u32,
+    pub max_actors: u32,
 }
 
 impl Default for WorldInitConfig {
@@ -48,6 +55,8 @@ impl Default for WorldInitConfig {
             max_initial_heat: 1.0,
             min_initial_concentration: 0.0,
             max_initial_concentration: 0.5,
+            min_actors: 0,
+            max_actors: 0,
         }
     }
 }
@@ -67,6 +76,9 @@ pub enum WorldInitError {
 
     #[error("source registration failed: {0}")]
     SourceError(#[from] SourceError),
+
+    #[error("actor registration failed: {0}")]
+    ActorError(#[from] ActorError),
 }
 
 /// Validate all `WorldInitConfig` ranges. Returns first error found.
@@ -104,6 +116,13 @@ pub(crate) fn validate_config(config: &WorldInitConfig) -> Result<(), WorldInitE
             field: "initial_concentration",
             min: f64::from(config.min_initial_concentration),
             max: f64::from(config.max_initial_concentration),
+        });
+    }
+    if config.min_actors > config.max_actors {
+        return Err(WorldInitError::InvalidRange {
+            field: "actors",
+            min: f64::from(config.min_actors),
+            max: f64::from(config.max_actors),
         });
     }
     Ok(())
@@ -145,6 +164,59 @@ pub(crate) fn generate_sources(
                 field: SourceField::Chemical(species),
                 emission_rate,
             })?;
+        }
+    }
+
+    Ok(())
+}
+
+/// Generate and register initial actors into the grid.
+///
+/// Samples actor count from `[min_actors, max_actors]`, then for each actor
+/// picks a random unoccupied cell. If a chosen cell is already occupied,
+/// it retries up to `cell_count` times before giving up on that actor.
+/// Each actor is spawned with `initial_energy` from the `ActorConfig`.
+///
+/// Skips entirely if `max_actors == 0` or no `ActorConfig` is present.
+pub(crate) fn generate_actors(
+    grid: &mut Grid,
+    rng: &mut impl Rng,
+    config: &WorldInitConfig,
+) -> Result<(), WorldInitError> {
+    let actor_config = match grid.actor_config() {
+        Some(ac) => ac.clone(),
+        None => return Ok(()),
+    };
+
+    if config.max_actors == 0 {
+        return Ok(());
+    }
+
+    let cell_count = grid.cell_count();
+    let actor_count = rng.random_range(config.min_actors..=config.max_actors) as usize;
+
+    for _ in 0..actor_count {
+        // Try to find an unoccupied cell. Bounded retries to avoid
+        // infinite loops on nearly-full grids.
+        let mut placed = false;
+        for _ in 0..cell_count {
+            let cell_index = rng.random_range(0..cell_count);
+            let actor = Actor {
+                cell_index,
+                energy: actor_config.initial_energy,
+            };
+            match grid.add_actor(actor) {
+                Ok(_) => {
+                    placed = true;
+                    break;
+                }
+                Err(ActorError::CellOccupied { .. }) => continue,
+                Err(e) => return Err(e.into()),
+            }
+        }
+        // If the grid is too full to place this actor, stop trying.
+        if !placed {
+            break;
         }
     }
 
@@ -204,6 +276,7 @@ pub fn initialize(
     seed: u64,
     grid_config: GridConfig,
     init_config: &WorldInitConfig,
+    actor_config: Option<ActorConfig>,
 ) -> Result<Grid, WorldInitError> {
     validate_config(init_config)?;
 
@@ -215,16 +288,18 @@ pub fn initialize(
         heat: 0.0,
     };
 
-    let mut grid = Grid::new(grid_config, defaults, None)?;
+    let mut grid = Grid::new(grid_config, defaults, actor_config)?;
 
     // Deterministic RNG forking: each phase draws from an independent stream,
     // so changes to one phase cannot perturb the other.
     let mut master_rng = ChaCha8Rng::seed_from_u64(seed);
     let mut source_rng = ChaCha8Rng::from_rng(&mut master_rng);
     let mut field_rng = ChaCha8Rng::from_rng(&mut master_rng);
+    let mut actor_rng = ChaCha8Rng::from_rng(&mut master_rng);
 
     generate_sources(&mut grid, &mut source_rng, init_config, num_chemicals)?;
     populate_fields(&mut grid, &mut field_rng, init_config, num_chemicals);
+    generate_actors(&mut grid, &mut actor_rng, init_config)?;
 
     Ok(grid)
 }

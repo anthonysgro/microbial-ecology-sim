@@ -8,6 +8,7 @@
 use bevy::prelude::{Component, Resource};
 
 use crate::grid::Grid;
+use crate::grid::actor_config::ActorConfig;
 use crate::grid::config::GridConfig;
 use crate::grid::world_init::WorldInitConfig;
 
@@ -52,6 +53,7 @@ pub struct BevyVizConfig {
     pub seed: u64,
     pub grid_config: GridConfig,
     pub init_config: WorldInitConfig,
+    pub actor_config: Option<ActorConfig>,
     pub initial_overlay: ActiveOverlay,
     /// Simulation ticks per second (drives FixedUpdate timestep).
     pub tick_hz: f64,

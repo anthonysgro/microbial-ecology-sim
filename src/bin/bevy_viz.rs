@@ -5,6 +5,7 @@
 
 use bevy::prelude::*;
 
+use emergent_sovereignty::grid::actor_config::ActorConfig;
 use emergent_sovereignty::grid::config::GridConfig;
 use emergent_sovereignty::grid::world_init::WorldInitConfig;
 use emergent_sovereignty::viz_bevy::resources::{ActiveOverlay, BevyVizConfig};
@@ -28,10 +29,25 @@ fn main() {
         num_threads: 4,
     };
 
+    let actor_config = ActorConfig {
+        consumption_rate: 0.1,
+        energy_conversion_factor: 2.0,
+        base_energy_decay: 0.05,
+        initial_energy: 10.0,
+        initial_actor_capacity: 64,
+    };
+
+    let init_config = WorldInitConfig {
+        min_actors: 5,
+        max_actors: 10,
+        ..WorldInitConfig::default()
+    };
+
     let config = BevyVizConfig {
         seed,
         grid_config,
-        init_config: WorldInitConfig::default(),
+        init_config,
+        actor_config: Some(actor_config),
         initial_overlay: ActiveOverlay::Chemical(0),
         tick_hz: 10.0,
         zoom_min: 0.1,

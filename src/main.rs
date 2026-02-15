@@ -5,6 +5,7 @@ use std::thread;
 use std::time::Duration;
 
 use emergent_sovereignty::grid::config::GridConfig;
+use emergent_sovereignty::grid::actor_config::ActorConfig;
 use emergent_sovereignty::grid::tick::TickOrchestrator;
 use emergent_sovereignty::grid::world_init::{self, WorldInitConfig};
 use emergent_sovereignty::grid::Grid;
@@ -29,14 +30,26 @@ fn main() {
         num_threads: 4,
     };
 
-    let init_config = WorldInitConfig::default();
+    let init_config = WorldInitConfig {
+        min_actors: 5,
+        max_actors: 10,
+        ..WorldInitConfig::default()
+    };
+
+    let actor_config = ActorConfig {
+        consumption_rate: 0.1,
+        energy_conversion_factor: 2.0,
+        base_energy_decay: 0.05,
+        initial_energy: 10.0,
+        initial_actor_capacity: 64,
+    };
 
     let viz_config = RendererConfig {
         frame_delay_ms: 50,
         initial_overlay: OverlayMode::Chemical(0),
     };
 
-    let grid = match world_init::initialize(seed, grid_config.clone(), &init_config) {
+    let grid = match world_init::initialize(seed, grid_config.clone(), &init_config, Some(actor_config)) {
         Ok(g) => g,
         Err(e) => {
             eprintln!("Fatal: world initialization failed: {e}");

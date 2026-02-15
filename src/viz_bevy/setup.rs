@@ -80,6 +80,7 @@ pub fn setup(
         config.seed,
         config.grid_config.clone(),
         &config.init_config,
+        config.actor_config.clone(),
     )
     .expect("world initialization failed during Bevy setup");
 

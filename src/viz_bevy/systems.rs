@@ -80,6 +80,20 @@ pub fn update_texture(
     // Color-map normalized values into the pre-allocated pixel buffer.
     color::fill_pixel_buffer(&render.norm_buffer, &mut render.pixel_buffer, color_fn);
 
+    // Overlay actors as white pixels on occupied cells.
+    let occupancy = sim.grid.occupancy();
+    for (cell_index, slot) in occupancy.iter().enumerate() {
+        if slot.is_some() {
+            let offset = cell_index * 4;
+            if offset + 3 < render.pixel_buffer.len() {
+                render.pixel_buffer[offset] = 255;     // R
+                render.pixel_buffer[offset + 1] = 255; // G
+                render.pixel_buffer[offset + 2] = 255; // B
+                render.pixel_buffer[offset + 3] = 255; // A
+            }
+        }
+    }
+
     // Upload pixel buffer into the Bevy Image asset.
     let Ok(sprite) = query.single() else {
         return;
@@ -294,7 +308,23 @@ pub fn update_hover_tooltip(
     };
 
     let label = match raw_value {
-        Some(v) => format!("({gx}, {gy}): {v:.4}"),
+        Some(v) => {
+            let mut s = format!("({gx}, {gy}): {v:.4}");
+            // If an actor occupies this cell, append its energy.
+            if let Some(slot_index) = sim.grid.occupancy().get(cell_index).copied().flatten() {
+                // Find the actor by scanning — slot_index maps to the registry slot.
+                let energy = sim
+                    .grid
+                    .actors()
+                    .iter()
+                    .find(|(si, _)| *si == slot_index)
+                    .map(|(_, actor)| actor.energy);
+                if let Some(e) = energy {
+                    s.push_str(&format!("  |  actor energy: {e:.2}"));
+                }
+            }
+            s
+        }
         None => String::new(),
     };
 
