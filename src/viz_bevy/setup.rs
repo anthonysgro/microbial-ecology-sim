@@ -112,6 +112,11 @@ pub(super) fn format_config_info(
             writeln!(out, "reproduction_threshold: {:.4}", ac.reproduction_threshold).ok();
             writeln!(out, "reproduction_cost: {:.4}", ac.reproduction_cost).ok();
             writeln!(out, "offspring_energy: {:.4}", ac.offspring_energy).ok();
+            writeln!(out, "mutation_stddev: {:.4}", ac.mutation_stddev).ok();
+            writeln!(out, "trait_consumption_rate: {:.4}..{:.4}", ac.trait_consumption_rate_min, ac.trait_consumption_rate_max).ok();
+            writeln!(out, "trait_base_energy_decay: {:.4}..{:.4}", ac.trait_base_energy_decay_min, ac.trait_base_energy_decay_max).ok();
+            writeln!(out, "trait_levy_exponent: {:.4}..{:.4}", ac.trait_levy_exponent_min, ac.trait_levy_exponent_max).ok();
+            writeln!(out, "trait_reproduction_threshold: {:.4}..{:.4}", ac.trait_reproduction_threshold_min, ac.trait_reproduction_threshold_max).ok();
         }
         None => {
             writeln!(out, "Actors: disabled").ok();

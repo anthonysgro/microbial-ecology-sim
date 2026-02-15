@@ -5,14 +5,69 @@
 /// internal energy reserve. This module defines only the data model;
 /// the registry and system functions live in separate modules.
 
+use crate::grid::actor_config::ActorConfig;
+use rand::Rng;
+use rand_distr::{Distribution, Normal};
+
+/// Per-actor heritable trait values. Inherited from parent during fission
+/// with gaussian mutation. 16 bytes, no padding.
+///
+/// Plain data struct — no methods beyond construction and mutation.
+/// Stored inline in `Actor`.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct HeritableTraits {
+    pub consumption_rate: f32,
+    pub base_energy_decay: f32,
+    pub levy_exponent: f32,
+    pub reproduction_threshold: f32,
+}
+
+const _: () = assert!(std::mem::size_of::<HeritableTraits>() == 16);
+
+impl HeritableTraits {
+    /// Create traits from global config defaults (seed genome).
+    pub fn from_config(config: &ActorConfig) -> Self {
+        Self {
+            consumption_rate: config.consumption_rate,
+            base_energy_decay: config.base_energy_decay,
+            levy_exponent: config.levy_exponent,
+            reproduction_threshold: config.reproduction_threshold,
+        }
+    }
+
+    /// Apply independent gaussian mutation to all four trait fields, then
+    /// clamp each to its configured range. No-op when `mutation_stddev == 0.0`.
+    ///
+    /// The caller is responsible for providing a deterministically-seeded RNG
+    /// derived from the simulation master seed, tick, and spawn index.
+    pub fn mutate(&mut self, config: &ActorConfig, rng: &mut impl Rng) {
+        if config.mutation_stddev == 0.0 {
+            return;
+        }
+
+        // SAFETY of expect: mutation_stddev is validated >= 0.0 at config load.
+        let normal = Normal::new(0.0_f64, config.mutation_stddev as f64)
+            .expect("mutation_stddev validated non-negative at config load");
+
+        self.consumption_rate = (self.consumption_rate + normal.sample(rng) as f32)
+            .clamp(config.trait_consumption_rate_min, config.trait_consumption_rate_max);
+
+        self.base_energy_decay = (self.base_energy_decay + normal.sample(rng) as f32)
+            .clamp(config.trait_base_energy_decay_min, config.trait_base_energy_decay_max);
+
+        self.levy_exponent = (self.levy_exponent + normal.sample(rng) as f32)
+            .clamp(config.trait_levy_exponent_min, config.trait_levy_exponent_max);
+
+        self.reproduction_threshold = (self.reproduction_threshold + normal.sample(rng) as f32)
+            .clamp(config.trait_reproduction_threshold_min, config.trait_reproduction_threshold_max);
+    }
+}
+
 /// A mobile biological agent occupying one grid cell.
 ///
-/// Plain data struct — no methods beyond construction. Carries only the
-/// physical state needed for v1: position and energy.
-/// A mobile biological agent occupying one grid cell.
-///
-/// Plain data struct — no methods beyond construction. Carries only the
-/// physical state needed for v1: position and energy.
+/// Plain data struct — no methods beyond construction. Carries the
+/// physical state needed for simulation: position, energy, tumble state,
+/// and heritable traits for per-actor behavioral variation.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Actor {
     pub cell_index: usize,
@@ -23,6 +78,8 @@ pub struct Actor {
     pub tumble_direction: u8,
     /// Steps remaining in current Lévy flight tumble run. 0 = not tumbling.
     pub tumble_remaining: u16,
+    /// Per-actor heritable traits for behavioral variation.
+    pub traits: HeritableTraits,
 }
 
 /// Opaque handle for a registered Actor.

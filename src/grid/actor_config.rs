@@ -1,5 +1,16 @@
 use serde::{Deserialize, Serialize};
 
+// ── Serde default functions for heritable trait mutation fields ─────
+fn default_mutation_stddev() -> f32 { 0.05 }
+fn default_trait_consumption_rate_min() -> f32 { 0.1 }
+fn default_trait_consumption_rate_max() -> f32 { 10.0 }
+fn default_trait_base_energy_decay_min() -> f32 { 0.001 }
+fn default_trait_base_energy_decay_max() -> f32 { 1.0 }
+fn default_trait_levy_exponent_min() -> f32 { 1.01 }
+fn default_trait_levy_exponent_max() -> f32 { 3.0 }
+fn default_trait_reproduction_threshold_min() -> f32 { 1.0 }
+fn default_trait_reproduction_threshold_max() -> f32 { 100.0 }
+
 /// Configuration parameters for Actor metabolism, sensing, and spawning.
 ///
 /// Plain data struct — immutable after construction. All rates are per-tick.
@@ -43,6 +54,41 @@ pub struct ActorConfig {
     /// Energy assigned to the offspring Actor at creation.
     /// Must be > 0.0 and <= max_energy. Default: 10.0.
     pub offspring_energy: f32,
+
+    // ── Heritable trait mutation config ─────────────────────────────
+    /// Standard deviation of gaussian noise applied to each heritable trait
+    /// during binary fission. Set to 0.0 to disable mutation. Must be >= 0.0.
+    /// Default: 0.05.
+    #[serde(default = "default_mutation_stddev")]
+    pub mutation_stddev: f32,
+
+    /// Minimum clamp bound for heritable `consumption_rate`. Must be > 0.0.
+    #[serde(default = "default_trait_consumption_rate_min")]
+    pub trait_consumption_rate_min: f32,
+    /// Maximum clamp bound for heritable `consumption_rate`.
+    #[serde(default = "default_trait_consumption_rate_max")]
+    pub trait_consumption_rate_max: f32,
+
+    /// Minimum clamp bound for heritable `base_energy_decay`. Must be > 0.0.
+    #[serde(default = "default_trait_base_energy_decay_min")]
+    pub trait_base_energy_decay_min: f32,
+    /// Maximum clamp bound for heritable `base_energy_decay`.
+    #[serde(default = "default_trait_base_energy_decay_max")]
+    pub trait_base_energy_decay_max: f32,
+
+    /// Minimum clamp bound for heritable `levy_exponent`. Must be > 1.0.
+    #[serde(default = "default_trait_levy_exponent_min")]
+    pub trait_levy_exponent_min: f32,
+    /// Maximum clamp bound for heritable `levy_exponent`.
+    #[serde(default = "default_trait_levy_exponent_max")]
+    pub trait_levy_exponent_max: f32,
+
+    /// Minimum clamp bound for heritable `reproduction_threshold`. Must be > 0.0.
+    #[serde(default = "default_trait_reproduction_threshold_min")]
+    pub trait_reproduction_threshold_min: f32,
+    /// Maximum clamp bound for heritable `reproduction_threshold`.
+    #[serde(default = "default_trait_reproduction_threshold_max")]
+    pub trait_reproduction_threshold_max: f32,
 }
 
 impl Default for ActorConfig {
@@ -62,6 +108,15 @@ impl Default for ActorConfig {
             reproduction_threshold: 20.0,
             reproduction_cost: 12.0,
             offspring_energy: 10.0,
+            mutation_stddev: default_mutation_stddev(),
+            trait_consumption_rate_min: default_trait_consumption_rate_min(),
+            trait_consumption_rate_max: default_trait_consumption_rate_max(),
+            trait_base_energy_decay_min: default_trait_base_energy_decay_min(),
+            trait_base_energy_decay_max: default_trait_base_energy_decay_max(),
+            trait_levy_exponent_min: default_trait_levy_exponent_min(),
+            trait_levy_exponent_max: default_trait_levy_exponent_max(),
+            trait_reproduction_threshold_min: default_trait_reproduction_threshold_min(),
+            trait_reproduction_threshold_max: default_trait_reproduction_threshold_max(),
         }
     }
 }

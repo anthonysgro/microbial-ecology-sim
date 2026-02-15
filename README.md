@@ -140,6 +140,15 @@ Optional — pass `None` to `initialize()` to skip actor systems entirely.
 | `reproduction_threshold` | `f32` | Minimum energy for binary fission. Must be > 0 and ≥ `reproduction_cost`. Default: 20.0 |
 | `reproduction_cost` | `f32` | Energy deducted from parent upon fission. Must be > 0 and ≥ `offspring_energy`. Default: 12.0 |
 | `offspring_energy` | `f32` | Energy assigned to offspring at creation. Must be > 0 and ≤ `max_energy`. Default: 10.0 |
+| `mutation_stddev` | `f32` | Std-dev of gaussian noise applied to each heritable trait during fission. 0.0 disables mutation. Must be ≥ 0.0. Default: 0.05 |
+| `trait_consumption_rate_min` | `f32` | Minimum clamp bound for heritable `consumption_rate`. Must be > 0.0. Default: 0.1 |
+| `trait_consumption_rate_max` | `f32` | Maximum clamp bound for heritable `consumption_rate`. Default: 10.0 |
+| `trait_base_energy_decay_min` | `f32` | Minimum clamp bound for heritable `base_energy_decay`. Must be > 0.0. Default: 0.001 |
+| `trait_base_energy_decay_max` | `f32` | Maximum clamp bound for heritable `base_energy_decay`. Default: 1.0 |
+| `trait_levy_exponent_min` | `f32` | Minimum clamp bound for heritable `levy_exponent`. Must be > 1.0. Default: 1.01 |
+| `trait_levy_exponent_max` | `f32` | Maximum clamp bound for heritable `levy_exponent`. Default: 3.0 |
+| `trait_reproduction_threshold_min` | `f32` | Minimum clamp bound for heritable `reproduction_threshold`. Must be > 0.0. Default: 1.0 |
+| `trait_reproduction_threshold_max` | `f32` | Maximum clamp bound for heritable `reproduction_threshold`. Default: 100.0 |
 
 ### BevyExtras — Visualization Settings
 

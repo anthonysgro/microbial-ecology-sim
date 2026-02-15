@@ -102,10 +102,6 @@ pub fn run_actor_sensing(
     let w = grid_width as usize;
     let h = grid_height as usize;
 
-    // Break-even concentration: below this, consumption costs more energy than it yields.
-    // Precondition: energy_conversion_factor > extraction_cost (enforced by config validation).
-    let break_even = config.base_energy_decay / (config.energy_conversion_factor - config.extraction_cost);
-
     for (slot_index, actor) in actors.iter_mut() {
         if actor.inert {
             movement_targets[slot_index] = None;
@@ -115,6 +111,11 @@ pub fn run_actor_sensing(
         let x = ci % w;
         let y = ci / w;
         let current_val = chemical_read[ci];
+
+        // Break-even concentration: below this, consumption costs more energy than it yields.
+        // Per-actor: uses the actor's heritable base_energy_decay trait.
+        // Precondition: energy_conversion_factor > extraction_cost (enforced by config validation).
+        let break_even = actor.traits.base_energy_decay / (config.energy_conversion_factor - config.extraction_cost);
 
         // Scan Von Neumann neighbors for the best above-threshold positive gradient.
         // Direction priority: N, S, W, E (first wins ties via strict `>`).
@@ -189,7 +190,7 @@ pub fn run_actor_sensing(
         } else {
             // No gradient, not tumbling — initiate new Lévy flight tumble.
             actor.tumble_direction = rng.random_range(0u8..4u8);
-            actor.tumble_remaining = sample_tumble_steps(rng, config.levy_exponent, config.max_tumble_steps);
+            actor.tumble_remaining = sample_tumble_steps(rng, actor.traits.levy_exponent, config.max_tumble_steps);
             let target = direction_to_target(ci, actor.tumble_direction, w, h);
             if target.is_none() {
                 // Facing a boundary — end tumble immediately.
@@ -238,7 +239,7 @@ pub fn run_actor_metabolism(
 
         if actor.inert {
             // Inert actors: no chemical consumption, only basal decay.
-            actor.energy -= config.base_energy_decay;
+            actor.energy -= actor.traits.base_energy_decay;
 
             if actor.energy.is_nan() || actor.energy.is_infinite() {
                 return Err(TickError::NumericalError {
@@ -258,14 +259,14 @@ pub fn run_actor_metabolism(
             let available = chemical_read[ci];
             let headroom = (config.max_energy - actor.energy).max(0.0);
             let max_useful = headroom / (config.energy_conversion_factor - config.extraction_cost);
-            let consumed = config.consumption_rate.min(available).min(max_useful);
+            let consumed = actor.traits.consumption_rate.min(available).min(max_useful);
 
             chemical_write[ci] -= consumed;
             if chemical_write[ci] < 0.0 {
                 chemical_write[ci] = 0.0;
             }
 
-            actor.energy += consumed * (config.energy_conversion_factor - config.extraction_cost) - config.base_energy_decay;
+            actor.energy += consumed * (config.energy_conversion_factor - config.extraction_cost) - actor.traits.base_energy_decay;
 
             if actor.energy.is_nan() || actor.energy.is_infinite() {
                 return Err(TickError::NumericalError {
@@ -419,7 +420,7 @@ pub fn run_actor_reproduction(
     actors: &mut ActorRegistry,
     occupancy: &[Option<usize>],
     config: &ActorConfig,
-    spawn_buffer: &mut Vec<(usize, f32)>,
+    spawn_buffer: &mut Vec<(usize, f32, crate::grid::actor::HeritableTraits)>,
     w: usize,
     h: usize,
 ) -> Result<(), TickError> {
@@ -430,8 +431,8 @@ pub fn run_actor_reproduction(
         if actor.inert {
             continue;
         }
-        // Skip actors below reproduction threshold.
-        if actor.energy < config.reproduction_threshold {
+        // Skip actors below per-actor reproduction threshold.
+        if actor.energy < actor.traits.reproduction_threshold {
             continue;
         }
 
@@ -444,7 +445,7 @@ pub fn run_actor_reproduction(
                     continue;
                 }
                 // Check spawn buffer for collisions with earlier spawns this tick.
-                if spawn_buffer.iter().any(|&(cell, _)| cell == candidate) {
+                if spawn_buffer.iter().any(|&(cell, _, _)| cell == candidate) {
                     continue;
                 }
                 target_cell = Some(candidate);
@@ -470,7 +471,7 @@ pub fn run_actor_reproduction(
             });
         }
 
-        spawn_buffer.push((cell, config.offspring_energy));
+        spawn_buffer.push((cell, config.offspring_energy, actor.traits));
     }
 
     Ok(())
@@ -482,26 +483,49 @@ pub fn run_actor_reproduction(
 /// Iterates the spawn buffer in insertion order (deterministic — matches
 /// the slot-index order from `run_actor_reproduction`). Each offspring is
 /// constructed with a clean initial state: not inert, no tumble.
+/// Parent traits are cloned and mutated with a deterministic per-offspring
+/// RNG derived from `seed`, `tick`, and spawn buffer index.
 ///
 /// # Arguments
 ///
 /// * `actors` — mutable reference to the actor registry.
 /// * `occupancy` — mutable occupancy map, length = cell_count.
-/// * `spawn_buffer` — buffer of (cell_index, energy) pairs. Cleared after processing.
+/// * `spawn_buffer` — buffer of (cell_index, energy, parent_traits) tuples. Cleared after processing.
 /// * `cell_count` — total number of grid cells (for bounds validation).
+/// * `config` — actor configuration (mutation parameters and clamp ranges).
+/// * `seed` — simulation master seed for deterministic mutation RNG derivation.
+/// * `tick` — current tick number for deterministic mutation RNG derivation.
 pub fn run_deferred_spawn(
     actors: &mut ActorRegistry,
     occupancy: &mut [Option<usize>],
-    spawn_buffer: &mut Vec<(usize, f32)>,
+    spawn_buffer: &mut Vec<(usize, f32, crate::grid::actor::HeritableTraits)>,
     cell_count: usize,
+    config: &ActorConfig,
+    seed: u64,
+    tick: u64,
 ) -> Result<(), TickError> {
-    for &(cell_index, energy) in spawn_buffer.iter() {
+    use rand::SeedableRng;
+    use rand_chacha::ChaCha8Rng;
+
+    for (i, &(cell_index, energy, parent_traits)) in spawn_buffer.iter().enumerate() {
+        let mut offspring_traits = parent_traits;
+        // Deterministic per-offspring seed: combines master seed, tick, and
+        // spawn buffer index. The wrapping_mul constant is the LCG multiplier
+        // from Knuth's MMIX, providing good bit mixing.
+        let offspring_seed = seed
+            .wrapping_mul(6_364_136_223_846_793_005)
+            .wrapping_add(tick)
+            .wrapping_add(i as u64);
+        let mut mutation_rng = ChaCha8Rng::seed_from_u64(offspring_seed);
+        offspring_traits.mutate(config, &mut mutation_rng);
+
         let offspring = crate::grid::actor::Actor {
             cell_index,
             energy,
             inert: false,
             tumble_direction: 0,
             tumble_remaining: 0,
+            traits: offspring_traits,
         };
         actors.add(offspring, cell_count, occupancy).map_err(|e| {
             TickError::NumericalError {
@@ -526,7 +550,7 @@ pub fn run_deferred_spawn(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::grid::actor::{Actor, ActorRegistry};
+    use crate::grid::actor::{Actor, ActorRegistry, HeritableTraits};
     use crate::grid::actor_config::ActorConfig;
     use rand::SeedableRng;
     use rand_chacha::ChaCha8Rng;
@@ -537,8 +561,7 @@ mod tests {
     fn sensing_selects_max_gradient_neighbor() {
         let mut occupancy = vec![None; 9];
         let mut registry = ActorRegistry::with_capacity(4);
-        // Actor at center cell (index 4 on a 3×3 grid: x=1, y=1)
-        let actor = Actor { cell_index: 4, energy: 10.0, inert: false, tumble_direction: 0, tumble_remaining: 0 };
+        let actor = Actor { cell_index: 4, energy: 10.0, inert: false, tumble_direction: 0, tumble_remaining: 0, traits: HeritableTraits::from_config(&default_config()) };
         let _id = registry.add(actor, 9, &mut occupancy).unwrap();
 
         let config = default_config();
@@ -566,7 +589,7 @@ mod tests {
     fn sensing_boundary_cell_treats_oob_as_zero() {
         let mut occupancy = vec![None; 9];
         let mut registry = ActorRegistry::with_capacity(4);
-        let actor = Actor { cell_index: 0, energy: 10.0, inert: false, tumble_direction: 0, tumble_remaining: 0 };
+        let actor = Actor { cell_index: 0, energy: 10.0, inert: false, tumble_direction: 0, tumble_remaining: 0, traits: HeritableTraits::from_config(&default_config()) };
         let _id = registry.add(actor, 9, &mut occupancy).unwrap();
 
         let config = default_config();
@@ -591,7 +614,7 @@ mod tests {
     fn sensing_no_positive_gradient_initiates_tumble() {
         let mut occupancy = vec![None; 9];
         let mut registry = ActorRegistry::with_capacity(4);
-        let actor = Actor { cell_index: 4, energy: 10.0, inert: false, tumble_direction: 0, tumble_remaining: 0 };
+        let actor = Actor { cell_index: 4, energy: 10.0, inert: false, tumble_direction: 0, tumble_remaining: 0, traits: HeritableTraits::from_config(&default_config()) };
         let _id = registry.add(actor, 9, &mut occupancy).unwrap();
 
         let config = default_config();
@@ -620,7 +643,7 @@ mod tests {
     fn sensing_tie_breaks_by_direction_priority() {
         let mut occupancy = vec![None; 9];
         let mut registry = ActorRegistry::with_capacity(4);
-        let actor = Actor { cell_index: 4, energy: 10.0, inert: false, tumble_direction: 0, tumble_remaining: 0 };
+        let actor = Actor { cell_index: 4, energy: 10.0, inert: false, tumble_direction: 0, tumble_remaining: 0, traits: HeritableTraits::from_config(&default_config()) };
         let _id = registry.add(actor, 9, &mut occupancy).unwrap();
 
         let config = default_config();
@@ -656,6 +679,7 @@ mod tests {
             reproduction_threshold: 20.0,
             reproduction_cost: 12.0,
             offspring_energy: 10.0,
+            ..ActorConfig::default()
         }
     }
 
@@ -665,10 +689,10 @@ mod tests {
     fn metabolism_basic_energy_balance() {
         let mut occupancy = vec![None; 4];
         let mut registry = ActorRegistry::with_capacity(4);
-        let actor = Actor { cell_index: 1, energy: 10.0, inert: false, tumble_direction: 0, tumble_remaining: 0 };
+        let config = default_config(); // rate=2.0, factor=1.5, decay=0.5
+        let actor = Actor { cell_index: 1, energy: 10.0, inert: false, tumble_direction: 0, tumble_remaining: 0, traits: HeritableTraits::from_config(&config) };
         let _id = registry.add(actor, 4, &mut occupancy).unwrap();
 
-        let config = default_config(); // rate=2.0, factor=1.5, decay=0.5
         let chemical_read = vec![0.0, 5.0, 0.0, 0.0]; // 5.0 at cell 1
         let mut chemical_write = chemical_read.clone();
         let mut removal_buffer = Vec::new();
@@ -693,8 +717,6 @@ mod tests {
     fn metabolism_partial_consumption() {
         let mut occupancy = vec![None; 4];
         let mut registry = ActorRegistry::with_capacity(4);
-        let actor = Actor { cell_index: 0, energy: 10.0, inert: false, tumble_direction: 0, tumble_remaining: 0 };
-        let _id = registry.add(actor, 4, &mut occupancy).unwrap();
 
         let config = ActorConfig {
             consumption_rate: 5.0,
@@ -711,7 +733,11 @@ mod tests {
             reproduction_threshold: 20.0,
             reproduction_cost: 12.0,
             offspring_energy: 10.0,
+            ..ActorConfig::default()
         };
+        let actor = Actor { cell_index: 0, energy: 10.0, inert: false, tumble_direction: 0, tumble_remaining: 0, traits: HeritableTraits::from_config(&config) };
+        let _id = registry.add(actor, 4, &mut occupancy).unwrap();
+
         let chemical_read = vec![1.5, 0.0, 0.0, 0.0]; // only 1.5 available
         let mut chemical_write = chemical_read.clone();
         let mut removal_buffer = Vec::new();
@@ -732,9 +758,6 @@ mod tests {
     fn metabolism_dead_actor_becomes_inert() {
         let mut occupancy = vec![None; 4];
         let mut registry = ActorRegistry::with_capacity(4);
-        // Low energy actor — decay will push it to zero.
-        let actor = Actor { cell_index: 0, energy: 0.1, inert: false, tumble_direction: 0, tumble_remaining: 0 };
-        let _id = registry.add(actor, 4, &mut occupancy).unwrap();
 
         let config = ActorConfig {
             consumption_rate: 1.0,
@@ -751,7 +774,11 @@ mod tests {
             reproduction_threshold: 20.0,
             reproduction_cost: 12.0,
             offspring_energy: 10.0,
+            ..ActorConfig::default()
         };
+        // Low energy actor — decay will push it to zero.
+        let actor = Actor { cell_index: 0, energy: 0.1, inert: false, tumble_direction: 0, tumble_remaining: 0, traits: HeritableTraits::from_config(&config) };
+        let _id = registry.add(actor, 4, &mut occupancy).unwrap();
         let chemical_read = vec![0.0; 4]; // nothing to eat
         let mut chemical_write = chemical_read.clone();
         let mut removal_buffer = Vec::new();
@@ -772,7 +799,7 @@ mod tests {
     fn metabolism_nan_energy_returns_error() {
         let mut occupancy = vec![None; 4];
         let mut registry = ActorRegistry::with_capacity(4);
-        let actor = Actor { cell_index: 0, energy: f32::NAN, inert: false, tumble_direction: 0, tumble_remaining: 0 };
+        let actor = Actor { cell_index: 0, energy: f32::NAN, inert: false, tumble_direction: 0, tumble_remaining: 0, traits: HeritableTraits::from_config(&default_config()) };
         let _id = registry.add(actor, 4, &mut occupancy).unwrap();
 
         let config = default_config();

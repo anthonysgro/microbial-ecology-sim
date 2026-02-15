@@ -340,10 +340,20 @@ fn run_actor_phases(grid: &mut Grid, _config: &GridConfig, tick: u64) -> Result<
     }
 
     // Phase 4.5: Deferred spawn — insert offspring into the registry and
-    // update occupancy before movement executes.
+    // update occupancy before movement executes. Applies gaussian mutation
+    // to parent traits using a deterministic per-offspring RNG.
     if !spawn_buffer.is_empty() {
         let cell_count = grid.cell_count();
-        run_deferred_spawn(&mut actors, &mut occupancy, &mut spawn_buffer, cell_count)?;
+        let seed = grid.seed();
+        run_deferred_spawn(
+            &mut actors,
+            &mut occupancy,
+            &mut spawn_buffer,
+            cell_count,
+            &actor_config,
+            seed,
+            tick,
+        )?;
     }
 
     // Phase 5: Movement (WARM) — relocate actors toward sensed gradients.

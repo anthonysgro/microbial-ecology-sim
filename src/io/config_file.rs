@@ -249,6 +249,117 @@ pub fn validate_world_config(config: &WorldConfig) -> Result<(), ConfigError> {
                 reason: "max_tumble_steps must be >= 1".to_string(),
             });
         }
+
+        // 3g. mutation_stddev must be non-negative.
+        if actor.mutation_stddev < 0.0 {
+            return Err(ConfigError::Validation {
+                reason: format!(
+                    "mutation_stddev ({}) must be >= 0.0",
+                    actor.mutation_stddev,
+                ),
+            });
+        }
+
+        // 3h. Trait clamp ranges: min must be strictly less than max.
+        let clamp_ranges: [(&str, f32, f32); 4] = [
+            ("trait_consumption_rate", actor.trait_consumption_rate_min, actor.trait_consumption_rate_max),
+            ("trait_base_energy_decay", actor.trait_base_energy_decay_min, actor.trait_base_energy_decay_max),
+            ("trait_levy_exponent", actor.trait_levy_exponent_min, actor.trait_levy_exponent_max),
+            ("trait_reproduction_threshold", actor.trait_reproduction_threshold_min, actor.trait_reproduction_threshold_max),
+        ];
+        for (name, min, max) in &clamp_ranges {
+            if min >= max {
+                return Err(ConfigError::Validation {
+                    reason: format!(
+                        "{name}_min ({min}) must be < {name}_max ({max})",
+                    ),
+                });
+            }
+        }
+
+        // 3i. Trait-specific lower-bound constraints.
+        if actor.trait_consumption_rate_min <= 0.0 {
+            return Err(ConfigError::Validation {
+                reason: format!(
+                    "trait_consumption_rate_min ({}) must be > 0.0",
+                    actor.trait_consumption_rate_min,
+                ),
+            });
+        }
+        if actor.trait_base_energy_decay_min <= 0.0 {
+            return Err(ConfigError::Validation {
+                reason: format!(
+                    "trait_base_energy_decay_min ({}) must be > 0.0",
+                    actor.trait_base_energy_decay_min,
+                ),
+            });
+        }
+        if actor.trait_levy_exponent_min <= 1.0 {
+            return Err(ConfigError::Validation {
+                reason: format!(
+                    "trait_levy_exponent_min ({}) must be > 1.0",
+                    actor.trait_levy_exponent_min,
+                ),
+            });
+        }
+        if actor.trait_reproduction_threshold_min <= 0.0 {
+            return Err(ConfigError::Validation {
+                reason: format!(
+                    "trait_reproduction_threshold_min ({}) must be > 0.0",
+                    actor.trait_reproduction_threshold_min,
+                ),
+            });
+        }
+
+        // 3j. Default heritable field values must fall within their clamp ranges.
+        if actor.consumption_rate < actor.trait_consumption_rate_min
+            || actor.consumption_rate > actor.trait_consumption_rate_max
+        {
+            return Err(ConfigError::Validation {
+                reason: format!(
+                    "consumption_rate ({}) must be within trait clamp range [{}, {}]",
+                    actor.consumption_rate,
+                    actor.trait_consumption_rate_min,
+                    actor.trait_consumption_rate_max,
+                ),
+            });
+        }
+        if actor.base_energy_decay < actor.trait_base_energy_decay_min
+            || actor.base_energy_decay > actor.trait_base_energy_decay_max
+        {
+            return Err(ConfigError::Validation {
+                reason: format!(
+                    "base_energy_decay ({}) must be within trait clamp range [{}, {}]",
+                    actor.base_energy_decay,
+                    actor.trait_base_energy_decay_min,
+                    actor.trait_base_energy_decay_max,
+                ),
+            });
+        }
+        if actor.levy_exponent < actor.trait_levy_exponent_min
+            || actor.levy_exponent > actor.trait_levy_exponent_max
+        {
+            return Err(ConfigError::Validation {
+                reason: format!(
+                    "levy_exponent ({}) must be within trait clamp range [{}, {}]",
+                    actor.levy_exponent,
+                    actor.trait_levy_exponent_min,
+                    actor.trait_levy_exponent_max,
+                ),
+            });
+        }
+        if actor.reproduction_threshold < actor.trait_reproduction_threshold_min
+            || actor.reproduction_threshold > actor.trait_reproduction_threshold_max
+        {
+            return Err(ConfigError::Validation {
+                reason: format!(
+                    "reproduction_threshold ({}) must be within trait clamp range [{}, {}]",
+                    actor.reproduction_threshold,
+                    actor.trait_reproduction_threshold_min,
+                    actor.trait_reproduction_threshold_max,
+                ),
+            });
+        }
     }
 
     Ok(())

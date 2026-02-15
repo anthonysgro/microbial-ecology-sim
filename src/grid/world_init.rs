@@ -7,7 +7,7 @@ use rand_chacha::ChaCha8Rng;
 use serde::{Deserialize, Serialize};
 
 use crate::grid::Grid;
-use crate::grid::actor::{Actor, ActorError};
+use crate::grid::actor::{Actor, ActorError, HeritableTraits};
 use crate::grid::actor_config::ActorConfig;
 use crate::grid::config::{CellDefaults, GridConfig};
 use crate::grid::error::GridError;
@@ -387,6 +387,7 @@ pub(crate) fn generate_actors(
                 inert: false,
                 tumble_direction: 0,
                 tumble_remaining: 0,
+                traits: HeritableTraits::from_config(&actor_config),
             };
             match grid.add_actor(actor) {
                 Ok(_) => {

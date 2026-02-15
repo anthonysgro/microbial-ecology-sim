@@ -97,6 +97,23 @@ reproduction_threshold = 20.0        # Minimum energy for binary fission. Must b
 reproduction_cost = 12.0             # Energy deducted from parent upon fission. Must be > 0 and >= offspring_energy.
 offspring_energy = 10.0              # Energy assigned to offspring at creation. Must be > 0 and <= max_energy.
 
+# ── Heritable Trait Mutation ────────────────────────────────────
+# Offspring inherit parent traits with gaussian mutation during fission.
+# Four traits are heritable: consumption_rate, base_energy_decay,
+# levy_exponent, reproduction_threshold. Each is clamped to its range.
+
+mutation_stddev = 0.05               # Std-dev of gaussian noise per trait per fission.
+                                     # Set to 0.0 to disable mutation entirely. Must be >= 0.0.
+
+trait_consumption_rate_min = 0.1     # Minimum heritable consumption_rate. Must be > 0.0.
+trait_consumption_rate_max = 10.0    # Maximum heritable consumption_rate. Must be > min.
+trait_base_energy_decay_min = 0.001  # Minimum heritable base_energy_decay. Must be > 0.0.
+trait_base_energy_decay_max = 1.0    # Maximum heritable base_energy_decay. Must be > min.
+trait_levy_exponent_min = 1.01       # Minimum heritable levy_exponent. Must be > 1.0.
+trait_levy_exponent_max = 3.0        # Maximum heritable levy_exponent. Must be > min.
+trait_reproduction_threshold_min = 1.0   # Minimum heritable reproduction_threshold. Must be > 0.0.
+trait_reproduction_threshold_max = 100.0 # Maximum heritable reproduction_threshold. Must be > min.
+
 # ─── Bevy Visualization ────────────────────────────────────────────
 
 [bevy]

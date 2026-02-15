@@ -12,7 +12,7 @@ pub mod source;
 pub mod tick;
 pub mod world_init;
 
-use actor::{Actor, ActorError, ActorId, ActorRegistry};
+use actor::{Actor, ActorError, ActorId, ActorRegistry, HeritableTraits};
 use actor_config::ActorConfig;
 use config::{CellDefaults, GridConfig};
 use error::GridError;
@@ -40,7 +40,8 @@ pub struct Grid {
     /// Pre-allocated buffer for deferred Actor removal during metabolism.
     removal_buffer: Vec<ActorId>,
     /// Pre-allocated buffer for deferred Actor spawning during reproduction.
-    spawn_buffer: Vec<(usize, f32)>,
+    /// Carries (cell_index, energy, parent_traits) so offspring inherit traits.
+    spawn_buffer: Vec<(usize, f32, HeritableTraits)>,
     /// Pre-allocated buffer: slot index → target cell index for movement.
     movement_targets: Vec<Option<usize>>,
     /// Master simulation seed, stored for per-tick RNG derivation.
@@ -141,6 +142,113 @@ impl Grid {
                     field: "reproduction_threshold",
                     value: ac.reproduction_threshold,
                     reason: "must be >= reproduction_cost so parent retains non-negative energy",
+                });
+            }
+
+            // Mutation stddev must be non-negative.
+            if ac.mutation_stddev < 0.0 {
+                return Err(GridError::InvalidActorConfig {
+                    field: "mutation_stddev",
+                    value: ac.mutation_stddev,
+                    reason: "must be >= 0.0",
+                });
+            }
+
+            // Trait clamp ranges: min must be strictly less than max.
+            if ac.trait_consumption_rate_min >= ac.trait_consumption_rate_max {
+                return Err(GridError::InvalidActorConfig {
+                    field: "trait_consumption_rate_min",
+                    value: ac.trait_consumption_rate_min,
+                    reason: "must be < trait_consumption_rate_max",
+                });
+            }
+            if ac.trait_base_energy_decay_min >= ac.trait_base_energy_decay_max {
+                return Err(GridError::InvalidActorConfig {
+                    field: "trait_base_energy_decay_min",
+                    value: ac.trait_base_energy_decay_min,
+                    reason: "must be < trait_base_energy_decay_max",
+                });
+            }
+            if ac.trait_levy_exponent_min >= ac.trait_levy_exponent_max {
+                return Err(GridError::InvalidActorConfig {
+                    field: "trait_levy_exponent_min",
+                    value: ac.trait_levy_exponent_min,
+                    reason: "must be < trait_levy_exponent_max",
+                });
+            }
+            if ac.trait_reproduction_threshold_min >= ac.trait_reproduction_threshold_max {
+                return Err(GridError::InvalidActorConfig {
+                    field: "trait_reproduction_threshold_min",
+                    value: ac.trait_reproduction_threshold_min,
+                    reason: "must be < trait_reproduction_threshold_max",
+                });
+            }
+
+            // Trait-specific lower-bound constraints.
+            if ac.trait_consumption_rate_min <= 0.0 {
+                return Err(GridError::InvalidActorConfig {
+                    field: "trait_consumption_rate_min",
+                    value: ac.trait_consumption_rate_min,
+                    reason: "must be > 0.0",
+                });
+            }
+            if ac.trait_base_energy_decay_min <= 0.0 {
+                return Err(GridError::InvalidActorConfig {
+                    field: "trait_base_energy_decay_min",
+                    value: ac.trait_base_energy_decay_min,
+                    reason: "must be > 0.0",
+                });
+            }
+            if ac.trait_levy_exponent_min <= 1.0 {
+                return Err(GridError::InvalidActorConfig {
+                    field: "trait_levy_exponent_min",
+                    value: ac.trait_levy_exponent_min,
+                    reason: "must be > 1.0",
+                });
+            }
+            if ac.trait_reproduction_threshold_min <= 0.0 {
+                return Err(GridError::InvalidActorConfig {
+                    field: "trait_reproduction_threshold_min",
+                    value: ac.trait_reproduction_threshold_min,
+                    reason: "must be > 0.0",
+                });
+            }
+
+            // Default heritable field values must fall within their clamp ranges.
+            if ac.consumption_rate < ac.trait_consumption_rate_min
+                || ac.consumption_rate > ac.trait_consumption_rate_max
+            {
+                return Err(GridError::InvalidActorConfig {
+                    field: "consumption_rate",
+                    value: ac.consumption_rate,
+                    reason: "must be within trait_consumption_rate clamp range",
+                });
+            }
+            if ac.base_energy_decay < ac.trait_base_energy_decay_min
+                || ac.base_energy_decay > ac.trait_base_energy_decay_max
+            {
+                return Err(GridError::InvalidActorConfig {
+                    field: "base_energy_decay",
+                    value: ac.base_energy_decay,
+                    reason: "must be within trait_base_energy_decay clamp range",
+                });
+            }
+            if ac.levy_exponent < ac.trait_levy_exponent_min
+                || ac.levy_exponent > ac.trait_levy_exponent_max
+            {
+                return Err(GridError::InvalidActorConfig {
+                    field: "levy_exponent",
+                    value: ac.levy_exponent,
+                    reason: "must be within trait_levy_exponent clamp range",
+                });
+            }
+            if ac.reproduction_threshold < ac.trait_reproduction_threshold_min
+                || ac.reproduction_threshold > ac.trait_reproduction_threshold_max
+            {
+                return Err(GridError::InvalidActorConfig {
+                    field: "reproduction_threshold",
+                    value: ac.reproduction_threshold,
+                    reason: "must be within trait_reproduction_threshold clamp range",
                 });
             }
         }
@@ -374,11 +482,11 @@ impl Grid {
     /// Temporarily extract the actor registry and occupancy map for
     /// split-borrow patterns in actor system phases.
     ///
-    /// Returns `(ActorRegistry, Vec<Option<usize>>, Vec<ActorId>, Vec<(usize, f32)>, Vec<Option<usize>>)`
+    /// Returns `(ActorRegistry, Vec<Option<usize>>, Vec<ActorId>, Vec<(usize, f32, HeritableTraits)>, Vec<Option<usize>>)`
     /// — the registry, occupancy map, removal buffer, spawn buffer, and movement targets.
     pub(crate) fn take_actors(
         &mut self,
-    ) -> (ActorRegistry, Vec<Option<usize>>, Vec<ActorId>, Vec<(usize, f32)>, Vec<Option<usize>>) {
+    ) -> (ActorRegistry, Vec<Option<usize>>, Vec<ActorId>, Vec<(usize, f32, HeritableTraits)>, Vec<Option<usize>>) {
         let actors = std::mem::replace(&mut self.actors, ActorRegistry::new());
         let occupancy = std::mem::take(&mut self.occupancy);
         let removal_buffer = std::mem::take(&mut self.removal_buffer);
@@ -393,7 +501,7 @@ impl Grid {
         actors: ActorRegistry,
         occupancy: Vec<Option<usize>>,
         removal_buffer: Vec<ActorId>,
-        spawn_buffer: Vec<(usize, f32)>,
+        spawn_buffer: Vec<(usize, f32, HeritableTraits)>,
         movement_targets: Vec<Option<usize>>,
     ) {
         self.actors = actors;
