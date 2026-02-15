@@ -3,7 +3,8 @@
 // Deterministic execution required.
 
 use crate::grid::actor_systems::{
-    run_actor_metabolism, run_actor_movement, run_actor_sensing, run_deferred_removal,
+    run_actor_metabolism, run_actor_movement, run_actor_reproduction, run_actor_sensing,
+    run_deferred_removal, run_deferred_spawn,
 };
 use crate::grid::config::GridConfig;
 use crate::grid::decay::run_decay;
@@ -262,7 +263,7 @@ fn run_actor_phases(grid: &mut Grid, _config: &GridConfig, tick: u64) -> Result<
         .clone();
 
     // Extract actor data to split borrows with field buffers.
-    let (mut actors, mut occupancy, mut removal_buffer, mut movement_targets) =
+    let (mut actors, mut occupancy, mut removal_buffer, mut spawn_buffer, mut movement_targets) =
         grid.take_actors();
 
     // Ensure movement_targets covers all registry slots.
@@ -322,7 +323,30 @@ fn run_actor_phases(grid: &mut Grid, _config: &GridConfig, tick: u64) -> Result<
             })?;
     }
 
-    // Phase 4: Movement (WARM) — relocate actors toward sensed gradients.
+    // Phase 4: Reproduction (WARM) — eligible actors undergo binary fission.
+    // Runs after deferred removal so dead actors are gone, before movement so
+    // offspring occupy cells before anyone relocates.
+    {
+        let w = grid.width() as usize;
+        let h = grid.height() as usize;
+        run_actor_reproduction(
+            &mut actors,
+            &occupancy,
+            &actor_config,
+            &mut spawn_buffer,
+            w,
+            h,
+        )?;
+    }
+
+    // Phase 4.5: Deferred spawn — insert offspring into the registry and
+    // update occupancy before movement executes.
+    if !spawn_buffer.is_empty() {
+        let cell_count = grid.cell_count();
+        run_deferred_spawn(&mut actors, &mut occupancy, &mut spawn_buffer, cell_count)?;
+    }
+
+    // Phase 5: Movement (WARM) — relocate actors toward sensed gradients.
     run_actor_movement(
         &mut actors,
         &mut occupancy,
@@ -331,7 +355,7 @@ fn run_actor_phases(grid: &mut Grid, _config: &GridConfig, tick: u64) -> Result<
     )?;
 
     // Return actor data to the grid.
-    grid.put_actors(actors, occupancy, removal_buffer, movement_targets);
+    grid.put_actors(actors, occupancy, removal_buffer, spawn_buffer, movement_targets);
 
     // Validate chemical write buffer after actor consumption (NaN/Inf check).
     {

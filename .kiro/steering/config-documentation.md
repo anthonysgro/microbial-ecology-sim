@@ -91,6 +91,9 @@ Present as `Option<ActorConfig>`. Omitting the entire `[actor]` section disables
 | `removal_threshold` | `f32` | `-5.0` | Energy level below which an inert actor is permanently removed. Must be `<= 0.0`. |
 | `levy_exponent` | `f32` | `1.5` | Power-law exponent α for Lévy flight step distribution. Controls the mix of short vs long tumble runs during random foraging. Must be `> 1.0`. |
 | `max_tumble_steps` | `u16` | `20` | Maximum steps in a single tumble run. Clamps the power-law sample. Must be `>= 1`. |
+| `reproduction_threshold` | `f32` | `20.0` | Minimum energy for binary fission. Must be `> 0.0` and `>= reproduction_cost`. |
+| `reproduction_cost` | `f32` | `12.0` | Energy deducted from parent upon fission. Must be `> 0.0` and `>= offspring_energy`. |
+| `offspring_energy` | `f32` | `10.0` | Energy assigned to offspring at creation. Must be `> 0.0` and `<= max_energy`. |
 
 ### `[bevy]` — `BevyExtras`
 

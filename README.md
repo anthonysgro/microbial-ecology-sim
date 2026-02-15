@@ -137,6 +137,9 @@ Optional — pass `None` to `initialize()` to skip actor systems entirely.
 | `max_energy` | `f32` | Maximum energy an actor can hold. Caps reserves after each metabolic tick and makes consumption demand-driven — saturated actors extract zero chemical. Must be > 0.0, finite, and ≥ `initial_energy` |
 | `levy_exponent` | `f32` | Power-law exponent α for Lévy flight step distribution. Controls the mix of short vs long tumble runs during random foraging. Must be > 1.0. Default: 1.5 |
 | `max_tumble_steps` | `u16` | Maximum steps in a single tumble run. Clamps the power-law sample. Must be ≥ 1. Default: 20 |
+| `reproduction_threshold` | `f32` | Minimum energy for binary fission. Must be > 0 and ≥ `reproduction_cost`. Default: 20.0 |
+| `reproduction_cost` | `f32` | Energy deducted from parent upon fission. Must be > 0 and ≥ `offspring_energy`. Default: 12.0 |
+| `offspring_energy` | `f32` | Energy assigned to offspring at creation. Must be > 0 and ≤ `max_energy`. Default: 10.0 |
 
 ### BevyExtras — Visualization Settings
 

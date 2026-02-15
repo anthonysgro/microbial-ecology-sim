@@ -34,6 +34,15 @@ pub struct ActorConfig {
     /// Maximum steps in a single tumble run. Clamps the power-law sample.
     /// Must be >= 1. Default: 20.
     pub max_tumble_steps: u16,
+    /// Energy threshold for binary fission. Actor must have energy >= this value.
+    /// Must be > 0.0. Default: 20.0.
+    pub reproduction_threshold: f32,
+    /// Total energy deducted from the parent upon fission.
+    /// Must be > 0.0 and >= offspring_energy. Default: 12.0.
+    pub reproduction_cost: f32,
+    /// Energy assigned to the offspring Actor at creation.
+    /// Must be > 0.0 and <= max_energy. Default: 10.0.
+    pub offspring_energy: f32,
 }
 
 impl Default for ActorConfig {
@@ -50,6 +59,9 @@ impl Default for ActorConfig {
             extraction_cost: 0.2,
             levy_exponent: 1.5,
             max_tumble_steps: 20,
+            reproduction_threshold: 20.0,
+            reproduction_cost: 12.0,
+            offspring_energy: 10.0,
         }
     }
 }

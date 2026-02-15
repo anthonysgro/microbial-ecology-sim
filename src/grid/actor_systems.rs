@@ -392,6 +392,135 @@ pub fn run_deferred_removal(
     Ok(())
 }
 
+// WARM PATH: Executes once per tick over the actor list.
+// No heap allocation (spawn_buffer pre-allocated). No dynamic dispatch.
+
+/// Execute the reproduction phase for all active Actors (binary fission).
+///
+/// For each Actor in deterministic slot-index order:
+/// 1. Skip if inert or energy < reproduction_threshold.
+/// 2. Scan Von Neumann neighbors (N, S, W, E) for the first unoccupied cell
+///    that is also not already claimed in the spawn buffer.
+/// 3. Deduct reproduction_cost from parent energy.
+/// 4. Push (target_cell, offspring_energy) to spawn_buffer.
+///
+/// The spawn buffer is cleared at the start. Offspring are not inserted into
+/// the registry until `run_deferred_spawn` processes the buffer.
+///
+/// # Arguments
+///
+/// * `actors` — mutable reference to the actor registry (parent energy updated in-place).
+/// * `occupancy` — read-only occupancy map, length = cell_count.
+/// * `config` — actor configuration (reproduction_threshold, reproduction_cost, offspring_energy).
+/// * `spawn_buffer` — pre-allocated buffer for deferred spawn requests. Cleared before use.
+/// * `w` — grid width in cells.
+/// * `h` — grid height in cells.
+pub fn run_actor_reproduction(
+    actors: &mut ActorRegistry,
+    occupancy: &[Option<usize>],
+    config: &ActorConfig,
+    spawn_buffer: &mut Vec<(usize, f32)>,
+    w: usize,
+    h: usize,
+) -> Result<(), TickError> {
+    spawn_buffer.clear();
+
+    for (_id, actor) in actors.iter_mut_with_ids() {
+        // Skip inert actors regardless of energy.
+        if actor.inert {
+            continue;
+        }
+        // Skip actors below reproduction threshold.
+        if actor.energy < config.reproduction_threshold {
+            continue;
+        }
+
+        // Scan N(0), S(1), W(2), E(3) for the first available cell.
+        let mut target_cell: Option<usize> = None;
+        for dir in 0..4u8 {
+            if let Some(candidate) = direction_to_target(actor.cell_index, dir, w, h) {
+                // Check occupancy map (read-only snapshot from before reproduction).
+                if occupancy[candidate].is_some() {
+                    continue;
+                }
+                // Check spawn buffer for collisions with earlier spawns this tick.
+                if spawn_buffer.iter().any(|&(cell, _)| cell == candidate) {
+                    continue;
+                }
+                target_cell = Some(candidate);
+                break;
+            }
+        }
+
+        let Some(cell) = target_cell else {
+            // All neighbors occupied or out of bounds — reproduction blocked.
+            continue;
+        };
+
+        // Deduct reproduction cost from parent.
+        actor.energy -= config.reproduction_cost;
+
+        // NaN/Inf check on parent energy after deduction.
+        if actor.energy.is_nan() || actor.energy.is_infinite() {
+            return Err(TickError::NumericalError {
+                system: "actor_reproduction",
+                cell_index: actor.cell_index,
+                field: "energy",
+                value: actor.energy,
+            });
+        }
+
+        spawn_buffer.push((cell, config.offspring_energy));
+    }
+
+    Ok(())
+}
+
+/// Process the spawn buffer: insert offspring Actors into the registry
+/// and update the occupancy map.
+///
+/// Iterates the spawn buffer in insertion order (deterministic — matches
+/// the slot-index order from `run_actor_reproduction`). Each offspring is
+/// constructed with a clean initial state: not inert, no tumble.
+///
+/// # Arguments
+///
+/// * `actors` — mutable reference to the actor registry.
+/// * `occupancy` — mutable occupancy map, length = cell_count.
+/// * `spawn_buffer` — buffer of (cell_index, energy) pairs. Cleared after processing.
+/// * `cell_count` — total number of grid cells (for bounds validation).
+pub fn run_deferred_spawn(
+    actors: &mut ActorRegistry,
+    occupancy: &mut [Option<usize>],
+    spawn_buffer: &mut Vec<(usize, f32)>,
+    cell_count: usize,
+) -> Result<(), TickError> {
+    for &(cell_index, energy) in spawn_buffer.iter() {
+        let offspring = crate::grid::actor::Actor {
+            cell_index,
+            energy,
+            inert: false,
+            tumble_direction: 0,
+            tumble_remaining: 0,
+        };
+        actors.add(offspring, cell_count, occupancy).map_err(|e| {
+            TickError::NumericalError {
+                system: "actor_deferred_spawn",
+                cell_index,
+                field: "occupancy",
+                value: match e {
+                    crate::grid::actor::ActorError::CellOccupied { .. } => f32::NAN,
+                    crate::grid::actor::ActorError::CellOutOfBounds { .. } => f32::INFINITY,
+                    crate::grid::actor::ActorError::InvalidActorId { .. } => f32::NAN,
+                },
+            }
+        })?;
+    }
+    spawn_buffer.clear();
+    Ok(())
+}
+
+
 
 
 #[cfg(test)]
@@ -524,6 +653,9 @@ mod tests {
             extraction_cost: 0.0,
             levy_exponent: 1.5,
             max_tumble_steps: 20,
+            reproduction_threshold: 20.0,
+            reproduction_cost: 12.0,
+            offspring_energy: 10.0,
         }
     }
 
@@ -576,6 +708,9 @@ mod tests {
             extraction_cost: 0.0,
             levy_exponent: 1.5,
             max_tumble_steps: 20,
+            reproduction_threshold: 20.0,
+            reproduction_cost: 12.0,
+            offspring_energy: 10.0,
         };
         let chemical_read = vec![1.5, 0.0, 0.0, 0.0]; // only 1.5 available
         let mut chemical_write = chemical_read.clone();
@@ -613,6 +748,9 @@ mod tests {
             extraction_cost: 0.0,
             levy_exponent: 1.5,
             max_tumble_steps: 20,
+            reproduction_threshold: 20.0,
+            reproduction_cost: 12.0,
+            offspring_energy: 10.0,
         };
         let chemical_read = vec![0.0; 4]; // nothing to eat
         let mut chemical_write = chemical_read.clone();

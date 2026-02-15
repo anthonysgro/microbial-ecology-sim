@@ -109,6 +109,9 @@ pub(super) fn format_config_info(
             writeln!(out, "max_energy: {:.4}", ac.max_energy).ok();
             writeln!(out, "levy_exponent: {:.4}", ac.levy_exponent).ok();
             writeln!(out, "max_tumble_steps: {}", ac.max_tumble_steps).ok();
+            writeln!(out, "reproduction_threshold: {:.4}", ac.reproduction_threshold).ok();
+            writeln!(out, "reproduction_cost: {:.4}", ac.reproduction_cost).ok();
+            writeln!(out, "offspring_energy: {:.4}", ac.offspring_energy).ok();
         }
         None => {
             writeln!(out, "Actors: disabled").ok();

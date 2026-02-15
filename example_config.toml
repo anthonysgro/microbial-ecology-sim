@@ -93,6 +93,9 @@ levy_exponent = 1.5                  # Power-law exponent α for Lévy flight st
                                      # Lower values (closer to 1.0) → more long runs. Higher → shorter runs.
 max_tumble_steps = 20                # Maximum steps in a single tumble run. Clamps the power-law sample.
                                      # Must be >= 1. Larger values allow longer ballistic exploration runs.
+reproduction_threshold = 20.0        # Minimum energy for binary fission. Must be > 0 and >= reproduction_cost.
+reproduction_cost = 12.0             # Energy deducted from parent upon fission. Must be > 0 and >= offspring_energy.
+offspring_energy = 10.0              # Energy assigned to offspring at creation. Must be > 0 and <= max_energy.
 
 # ─── Bevy Visualization ────────────────────────────────────────────
 

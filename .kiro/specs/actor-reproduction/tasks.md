@@ -6,13 +6,13 @@ Add binary fission reproduction to the actor simulation. Extend `ActorConfig` wi
 
 ## Tasks
 
-- [-] 1. Extend ActorConfig with reproduction fields
-  - [ ] 1.1 Add `reproduction_threshold`, `reproduction_cost`, and `offspring_energy` fields to `ActorConfig` in `src/grid/actor_config.rs`
+- [x] 1. Extend ActorConfig with reproduction fields
+  - [x] 1.1 Add `reproduction_threshold`, `reproduction_cost`, and `offspring_energy` fields to `ActorConfig` in `src/grid/actor_config.rs`
     - Add fields with `pub` visibility, serde defaults, and doc comments
     - Update `Default` impl: `reproduction_threshold: 20.0`, `reproduction_cost: 12.0`, `offspring_energy: 10.0`
     - _Requirements: 3.3, 3.4, 3.5_
 
-  - [ ] 1.2 Add reproduction config validation to `Grid::new` in `src/grid/mod.rs`
+  - [x] 1.2 Add reproduction config validation to `Grid::new` in `src/grid/mod.rs`
     - Validate: threshold > 0, cost > 0, offspring_energy > 0, cost >= offspring_energy, offspring_energy <= max_energy, threshold >= cost
     - Use existing `GridError::InvalidActorConfig` variant for all errors
     - _Requirements: 9.1, 9.2, 9.3, 9.4, 9.5, 9.6_
@@ -21,14 +21,14 @@ Add binary fission reproduction to the actor simulation. Extend `ActorConfig` wi
     - **Property 7: Config validation rejects invalid reproduction parameters**
     - **Validates: Requirements 3.3, 3.4, 3.5, 9.1, 9.2, 9.3, 9.4, 9.5, 9.6**
 
-- [ ] 2. Add spawn buffer to Grid
-  - [ ] 2.1 Add `spawn_buffer: Vec<(usize, f32)>` field to `Grid` struct in `src/grid/mod.rs`
+- [x] 2. Add spawn buffer to Grid
+  - [x] 2.1 Add `spawn_buffer: Vec<(usize, f32)>` field to `Grid` struct in `src/grid/mod.rs`
     - Pre-allocate to `initial_actor_capacity` in `Grid::new`
     - Extend `take_actors` return tuple and `put_actors` parameters to include `spawn_buffer`
     - _Requirements: 5.3_
 
-- [ ] 3. Implement reproduction and deferred spawn systems
-  - [ ] 3.1 Implement `run_actor_reproduction` in `src/grid/actor_systems.rs`
+- [x] 3. Implement reproduction and deferred spawn systems
+  - [x] 3.1 Implement `run_actor_reproduction` in `src/grid/actor_systems.rs`
     - Iterate actors in slot-index order via `iter_mut_with_ids()`
     - Check eligibility: not inert, energy >= threshold
     - Scan N/S/W/E via `direction_to_target`, check occupancy and spawn buffer for collisions
@@ -36,7 +36,7 @@ Add binary fission reproduction to the actor simulation. Extend `ActorConfig` wi
     - NaN/Inf check on parent energy after deduction
     - _Requirements: 1.1, 1.2, 1.3, 2.1, 2.2, 2.3, 3.1, 3.2, 7.1, 7.2, 7.3_
 
-  - [ ] 3.2 Implement `run_deferred_spawn` in `src/grid/actor_systems.rs`
+  - [x] 3.2 Implement `run_deferred_spawn` in `src/grid/actor_systems.rs`
     - Iterate spawn buffer in insertion order
     - Construct offspring Actor with `inert: false`, `tumble_remaining: 0`, `tumble_direction: 0`
     - Call `actors.add(actor, cell_count, occupancy)`, map errors to `TickError`
@@ -74,35 +74,35 @@ Add binary fission reproduction to the actor simulation. Extend `ActorConfig` wi
     - Inert actor with high energy: skipped
     - _Requirements: 1.3, 2.2, 2.3_
 
-- [ ] 4. Checkpoint - Ensure all tests pass
+- [x] 4. Checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 5. Wire reproduction into the tick pipeline
-  - [ ] 5.1 Insert reproduction and deferred spawn calls into `run_actor_phases` in `src/grid/tick.rs`
+- [x] 5. Wire reproduction into the tick pipeline
+  - [x] 5.1 Insert reproduction and deferred spawn calls into `run_actor_phases` in `src/grid/tick.rs`
     - Call `run_actor_reproduction` after deferred removal, before movement
     - Call `run_deferred_spawn` immediately after reproduction
     - Pass spawn_buffer through the take/put_actors flow
     - _Requirements: 6.1, 6.2_
 
-- [ ] 6. Update configuration documentation
-  - [ ] 6.1 Update `example_config.toml` with new reproduction fields and comments
+- [x] 6. Update configuration documentation
+  - [x] 6.1 Update `example_config.toml` with new reproduction fields and comments
     - Add `reproduction_threshold`, `reproduction_cost`, `offspring_energy` under `[actor]`
     - Include comments explaining purpose and valid ranges
     - _Requirements: 10.1_
 
-  - [ ] 6.2 Update `README.md` with new configuration fields
+  - [x] 6.2 Update `README.md` with new configuration fields
     - Add reproduction fields to the `[actor]` configuration reference table
     - _Requirements: 10.2_
 
-  - [ ] 6.3 Update `format_config_info()` in `src/viz_bevy/setup.rs`
+  - [x] 6.3 Update `format_config_info()` in `src/viz_bevy/setup.rs`
     - Display reproduction_threshold, reproduction_cost, offspring_energy in the info panel
     - _Requirements: 10.3_
 
-  - [ ] 6.4 Update `config-documentation.md` steering file
+  - [x] 6.4 Update `config-documentation.md` steering file
     - Add reproduction fields to the `[actor]` — `ActorConfig` table
     - _Requirements: 10.4_
 
-- [ ] 7. Final checkpoint - Ensure all tests pass
+- [x] 7. Final checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Notes

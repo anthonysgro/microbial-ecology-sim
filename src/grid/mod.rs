@@ -39,6 +39,8 @@ pub struct Grid {
     occupancy: Vec<Option<usize>>,
     /// Pre-allocated buffer for deferred Actor removal during metabolism.
     removal_buffer: Vec<ActorId>,
+    /// Pre-allocated buffer for deferred Actor spawning during reproduction.
+    spawn_buffer: Vec<(usize, f32)>,
     /// Pre-allocated buffer: slot index → target cell index for movement.
     movement_targets: Vec<Option<usize>>,
     /// Master simulation seed, stored for per-tick RNG derivation.
@@ -99,6 +101,48 @@ impl Grid {
                     reason: "must be non-negative",
                 });
             }
+            if ac.reproduction_threshold <= 0.0 {
+                return Err(GridError::InvalidActorConfig {
+                    field: "reproduction_threshold",
+                    value: ac.reproduction_threshold,
+                    reason: "must be positive",
+                });
+            }
+            if ac.reproduction_cost <= 0.0 {
+                return Err(GridError::InvalidActorConfig {
+                    field: "reproduction_cost",
+                    value: ac.reproduction_cost,
+                    reason: "must be positive",
+                });
+            }
+            if ac.offspring_energy <= 0.0 {
+                return Err(GridError::InvalidActorConfig {
+                    field: "offspring_energy",
+                    value: ac.offspring_energy,
+                    reason: "must be positive",
+                });
+            }
+            if ac.reproduction_cost < ac.offspring_energy {
+                return Err(GridError::InvalidActorConfig {
+                    field: "reproduction_cost",
+                    value: ac.reproduction_cost,
+                    reason: "must be >= offspring_energy",
+                });
+            }
+            if ac.offspring_energy > ac.max_energy {
+                return Err(GridError::InvalidActorConfig {
+                    field: "offspring_energy",
+                    value: ac.offspring_energy,
+                    reason: "must be <= max_energy",
+                });
+            }
+            if ac.reproduction_threshold < ac.reproduction_cost {
+                return Err(GridError::InvalidActorConfig {
+                    field: "reproduction_threshold",
+                    value: ac.reproduction_threshold,
+                    reason: "must be >= reproduction_cost so parent retains non-negative energy",
+                });
+            }
         }
 
         let cell_count = (config.width as usize) * (config.height as usize);
@@ -132,6 +176,7 @@ impl Grid {
 
         let occupancy = vec![None; cell_count];
         let removal_buffer = Vec::with_capacity(initial_cap);
+        let spawn_buffer = Vec::with_capacity(initial_cap);
         let movement_targets = vec![None; initial_cap];
 
         Ok(Self {
@@ -145,6 +190,7 @@ impl Grid {
             actor_config,
             occupancy,
             removal_buffer,
+            spawn_buffer,
             movement_targets,
             seed,
         })
@@ -328,16 +374,17 @@ impl Grid {
     /// Temporarily extract the actor registry and occupancy map for
     /// split-borrow patterns in actor system phases.
     ///
-    /// Returns `(ActorRegistry, Vec<Option<usize>>, Vec<ActorId>, Vec<Option<usize>>)`
-    /// — the registry, occupancy map, removal buffer, and movement targets.
+    /// Returns `(ActorRegistry, Vec<Option<usize>>, Vec<ActorId>, Vec<(usize, f32)>, Vec<Option<usize>>)`
+    /// — the registry, occupancy map, removal buffer, spawn buffer, and movement targets.
     pub(crate) fn take_actors(
         &mut self,
-    ) -> (ActorRegistry, Vec<Option<usize>>, Vec<ActorId>, Vec<Option<usize>>) {
+    ) -> (ActorRegistry, Vec<Option<usize>>, Vec<ActorId>, Vec<(usize, f32)>, Vec<Option<usize>>) {
         let actors = std::mem::replace(&mut self.actors, ActorRegistry::new());
         let occupancy = std::mem::take(&mut self.occupancy);
         let removal_buffer = std::mem::take(&mut self.removal_buffer);
+        let spawn_buffer = std::mem::take(&mut self.spawn_buffer);
         let movement_targets = std::mem::take(&mut self.movement_targets);
-        (actors, occupancy, removal_buffer, movement_targets)
+        (actors, occupancy, removal_buffer, spawn_buffer, movement_targets)
     }
 
     /// Return previously taken actor subsystem state.
@@ -346,11 +393,13 @@ impl Grid {
         actors: ActorRegistry,
         occupancy: Vec<Option<usize>>,
         removal_buffer: Vec<ActorId>,
+        spawn_buffer: Vec<(usize, f32)>,
         movement_targets: Vec<Option<usize>>,
     ) {
         self.actors = actors;
         self.occupancy = occupancy;
         self.removal_buffer = removal_buffer;
+        self.spawn_buffer = spawn_buffer;
         self.movement_targets = movement_targets;
     }
 
