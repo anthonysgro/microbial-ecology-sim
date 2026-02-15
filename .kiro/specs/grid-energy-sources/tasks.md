@@ -129,8 +129,8 @@ Two-phase implementation: first strip all moisture infrastructure from the codeb
 - [x] 8. Checkpoint
   - Ensure all tests pass, ask the user if questions arise.
 
-- [~] 9. Integrate emission phase into TickOrchestrator
-  - [ ] 9.1 Implement `run_emission_phase` helper in `src/grid/tick.rs`
+- [x] 9. Integrate emission phase into TickOrchestrator
+  - [x] 9.1 Implement `run_emission_phase` helper in `src/grid/tick.rs`
     - Scan source registry to determine which field types have active sources
     - For each affected field: copy_read_to_write, run_emission
     - Clamp chemical write buffers to ≥ 0.0
@@ -139,7 +139,7 @@ Two-phase implementation: first strip all moisture infrastructure from the codeb
     - No-op if source registry is empty
     - _Requirements: 8.1, 8.2, 8.3, 9.1, 9.2_
 
-  - [ ] 9.2 Update `TickOrchestrator::step` to call `run_emission_phase` before existing systems
+  - [x] 9.2 Update `TickOrchestrator::step` to call `run_emission_phase` before existing systems
     - Add `run_emission_phase(grid, config)?;` as the first call in `step()`
     - _Requirements: 8.1_
 

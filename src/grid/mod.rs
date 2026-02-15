@@ -11,6 +11,7 @@ use config::{CellDefaults, GridConfig};
 use error::GridError;
 use field_buffer::FieldBuffer;
 use partition::{compute_partitions, Partition};
+use source::SourceRegistry;
 
 /// Top-level environment grid.
 ///
@@ -22,6 +23,7 @@ pub struct Grid {
     chemicals: Vec<FieldBuffer<f32>>,
     heat: FieldBuffer<f32>,
     partitions: Vec<Partition>,
+    sources: SourceRegistry,
 }
 
 impl Grid {
@@ -59,6 +61,7 @@ impl Grid {
             chemicals,
             heat,
             partitions,
+            sources: SourceRegistry::new(),
         })
     }
 
@@ -168,5 +171,48 @@ impl Grid {
 
     pub fn partitions(&self) -> &[Partition] {
         &self.partitions
+    }
+
+    // ── Source registry access ─────────────────────────────────────
+
+    pub fn sources(&self) -> &SourceRegistry {
+        &self.sources
+    }
+
+    pub fn sources_mut(&mut self) -> &mut SourceRegistry {
+        &mut self.sources
+    }
+
+    /// Temporarily take the source registry out of the grid.
+    ///
+    /// Used by the emission phase to split the borrow: the registry is
+    /// extracted, emission runs against `&mut Grid` + `&SourceRegistry`,
+    /// then the registry is returned via `put_sources`.
+    pub(crate) fn take_sources(&mut self) -> SourceRegistry {
+        std::mem::replace(&mut self.sources, SourceRegistry::new())
+    }
+
+    /// Return a previously taken source registry.
+    pub(crate) fn put_sources(&mut self, sources: SourceRegistry) {
+        self.sources = sources;
+    }
+
+    // ── Internal field buffer access for emission phase ────────────
+
+    /// Direct mutable access to the heat `FieldBuffer`.
+    pub(crate) fn heat_buffer_mut(&mut self) -> &mut FieldBuffer<f32> {
+        &mut self.heat
+    }
+
+    /// Direct mutable access to a chemical species `FieldBuffer`.
+    ///
+    /// Returns `None` if species is out of range.
+    pub(crate) fn chemical_buffer_mut(&mut self, species: usize) -> Option<&mut FieldBuffer<f32>> {
+        self.chemicals.get_mut(species)
+    }
+
+    /// Number of chemical species in this grid.
+    pub fn num_chemicals(&self) -> usize {
+        self.chemicals.len()
     }
 }
