@@ -33,7 +33,7 @@ Add movement energy costs and an inert actor state to the simulation. Modifies `
     - _Requirements: 4.1, 4.2, 4.3_
 
 - [-] 2. Modify metabolism system for inert state transitions
-  - [-] 2.1 Update `run_actor_metabolism` in `src/grid/actor_systems.rs`
+  - [x] 2.1 Update `run_actor_metabolism` in `src/grid/actor_systems.rs`
     - For active actors: existing consumption + energy balance logic, but instead of pushing to `removal_buffer` when `energy <= 0`, set `actor.inert = true`
     - For inert actors: skip chemical consumption, subtract only `base_energy_decay`, push to `removal_buffer` when `energy <= removal_threshold`
     - Pass `removal_threshold` from `ActorConfig` (add parameter or pass full config — config ref is already a parameter)
@@ -55,8 +55,8 @@ Add movement energy costs and an inert actor state to the simulation. Modifies `
     - Generate inert actors with energy near `removal_threshold`, run metabolism, verify removal buffer contains the actor
     - **Validates: Requirements 2.5**
 
-- [~] 3. Modify sensing system to skip inert actors
-  - [ ] 3.1 Update `run_actor_sensing` in `src/grid/actor_systems.rs`
+- [x] 3. Modify sensing system to skip inert actors
+  - [x] 3.1 Update `run_actor_sensing` in `src/grid/actor_systems.rs`
     - Add `if actor.inert { movement_targets[slot_index] = None; continue; }` at the top of the iteration loop
     - _Requirements: 2.2_
 
@@ -65,8 +65,8 @@ Add movement energy costs and an inert actor state to the simulation. Modifies `
     - Generate a mix of inert and active actors, run sensing, verify all inert actors have `movement_targets[slot] == None`
     - **Validates: Requirements 2.2, 2.4**
 
-- [~] 4. Modify movement system to deduct energy and handle inert transition
-  - [ ] 4.1 Update `run_actor_movement` in `src/grid/actor_systems.rs`
+- [-] 4. Modify movement system to deduct energy and handle inert transition
+  - [x] 4.1 Update `run_actor_movement` in `src/grid/actor_systems.rs`
     - Add `movement_cost: f32` parameter
     - Skip inert actors (`if actor.inert { continue; }`)
     - After successful move, subtract `movement_cost` from `actor.energy`

@@ -45,6 +45,10 @@ pub fn run_actor_sensing(
     let h = grid_height as usize;
 
     for (slot_index, actor) in actors.iter() {
+        if actor.inert {
+            movement_targets[slot_index] = None;
+            continue;
+        }
         let ci = actor.cell_index;
         let x = ci % w;
         let y = ci / w;
@@ -130,33 +134,49 @@ pub fn run_actor_metabolism(
 
     for (id, actor) in actors.iter_mut_with_ids() {
         let ci = actor.cell_index;
-        let available = chemical_read[ci];
 
-        // Consume the lesser of the configured rate and what's available.
-        let consumed = config.consumption_rate.min(available);
+        if actor.inert {
+            // Inert actors: no chemical consumption, only basal decay.
+            actor.energy -= config.base_energy_decay;
 
-        // Subtract from write buffer, clamp to non-negative.
-        chemical_write[ci] -= consumed;
-        if chemical_write[ci] < 0.0 {
-            chemical_write[ci] = 0.0;
-        }
+            if actor.energy.is_nan() || actor.energy.is_infinite() {
+                return Err(TickError::NumericalError {
+                    system: "actor_metabolism",
+                    cell_index: ci,
+                    field: "energy",
+                    value: actor.energy,
+                });
+            }
 
-        // Energy balance: gain from consumption, lose basal decay.
-        actor.energy += consumed * config.energy_conversion_factor - config.base_energy_decay;
+            // Schedule removal when energy falls to or below removal_threshold.
+            if actor.energy <= config.removal_threshold {
+                removal_buffer.push(id);
+            }
+        } else {
+            // Active actors: consume chemicals and apply energy balance.
+            let available = chemical_read[ci];
+            let consumed = config.consumption_rate.min(available);
 
-        // Validate for NaN/Inf before death check.
-        if actor.energy.is_nan() || actor.energy.is_infinite() {
-            return Err(TickError::NumericalError {
-                system: "actor_metabolism",
-                cell_index: ci,
-                field: "energy",
-                value: actor.energy,
-            });
-        }
+            chemical_write[ci] -= consumed;
+            if chemical_write[ci] < 0.0 {
+                chemical_write[ci] = 0.0;
+            }
 
-        // Mark for deferred removal if energy depleted.
-        if actor.energy <= 0.0 {
-            removal_buffer.push(id);
+            actor.energy += consumed * config.energy_conversion_factor - config.base_energy_decay;
+
+            if actor.energy.is_nan() || actor.energy.is_infinite() {
+                return Err(TickError::NumericalError {
+                    system: "actor_metabolism",
+                    cell_index: ci,
+                    field: "energy",
+                    value: actor.energy,
+                });
+            }
+
+            // Transition to inert instead of immediate removal.
+            if actor.energy <= 0.0 {
+                actor.inert = true;
+            }
         }
     }
 
@@ -188,8 +208,14 @@ pub fn run_actor_movement(
     actors: &mut ActorRegistry,
     occupancy: &mut [Option<usize>],
     movement_targets: &[Option<usize>],
-) {
+    movement_cost: f32,
+) -> Result<(), TickError> {
     for (slot_index, actor) in actors.iter_mut() {
+        // Inert actors do not move.
+        if actor.inert {
+            continue;
+        }
+
         let target = match movement_targets.get(slot_index).copied().flatten() {
             Some(t) => t,
             None => continue,
@@ -205,7 +231,26 @@ pub fn run_actor_movement(
         occupancy[old_cell] = None;
         occupancy[target] = Some(slot_index);
         actor.cell_index = target;
+
+        // Deduct movement energy cost after successful move.
+        actor.energy -= movement_cost;
+
+        if actor.energy.is_nan() || actor.energy.is_infinite() {
+            return Err(TickError::NumericalError {
+                system: "actor_movement",
+                cell_index: actor.cell_index,
+                field: "energy",
+                value: actor.energy,
+            });
+        }
+
+        // Movement-induced energy depletion → inert transition.
+        if actor.energy <= 0.0 {
+            actor.inert = true;
+        }
     }
+
+    Ok(())
 }
 
 // WARM PATH: Executes once per tick after metabolism completes.
@@ -418,12 +463,12 @@ mod tests {
         assert!(chemical_write[0] < f32::EPSILON); // clamped to 0.0
     }
 
-    /// Actor with insufficient energy after metabolism is marked for removal.
+    /// Actor with insufficient energy after metabolism becomes inert (not removed).
     #[test]
-    fn metabolism_dead_actor_pushed_to_removal() {
+    fn metabolism_dead_actor_becomes_inert() {
         let mut occupancy = vec![None; 4];
         let mut registry = ActorRegistry::with_capacity(4);
-        // Low energy actor — decay will kill it.
+        // Low energy actor — decay will push it to zero.
         let actor = Actor { cell_index: 0, energy: 0.1, inert: false };
         let _id = registry.add(actor, 4, &mut occupancy).unwrap();
 
@@ -445,8 +490,10 @@ mod tests {
             &config, &mut removal_buffer,
         ).unwrap();
 
-        // energy = 0.1 + 0.0 * 0.0 - 1.0 = -0.9 → dead
-        assert_eq!(removal_buffer.len(), 1);
+        // energy = 0.1 + 0.0 * 0.0 - 1.0 = -0.9 → inert, not removed
+        let actor = registry.iter().next().unwrap().1;
+        assert!(actor.inert);
+        assert!(removal_buffer.is_empty());
     }
 
     /// NaN energy triggers TickError::NumericalError.

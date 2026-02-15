@@ -254,7 +254,12 @@ fn run_actor_phases(grid: &mut Grid, _config: &GridConfig) -> Result<(), TickErr
     }
 
     // Phase 4: Movement (WARM) — relocate actors toward sensed gradients.
-    run_actor_movement(&mut actors, &mut occupancy, &movement_targets);
+    run_actor_movement(
+        &mut actors,
+        &mut occupancy,
+        &movement_targets,
+        actor_config.movement_cost,
+    )?;
 
     // Return actor data to the grid.
     grid.put_actors(actors, occupancy, removal_buffer, movement_targets);
