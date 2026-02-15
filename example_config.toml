@@ -82,6 +82,11 @@ removal_threshold = -3.0
 max_energy = 50.0                    # Maximum energy an actor can hold. Must be > 0, finite, >= initial_energy.
                                      # Caps reserves and makes consumption demand-driven: saturated actors
                                      # stop extracting chemical, preserving it for neighbors and diffusion.
+levy_exponent = 1.5                  # Power-law exponent α for Lévy flight step distribution.
+                                     # Controls the mix of short vs long tumble runs. Must be > 1.0.
+                                     # Lower values (closer to 1.0) → more long runs. Higher → shorter runs.
+max_tumble_steps = 20                # Maximum steps in a single tumble run. Clamps the power-law sample.
+                                     # Must be >= 1. Larger values allow longer ballistic exploration runs.
 
 # ─── Bevy Visualization ────────────────────────────────────────────
 

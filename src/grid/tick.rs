@@ -12,6 +12,8 @@ use crate::grid::error::TickError;
 use crate::grid::heat::run_heat;
 use crate::grid::source::{run_emission, SourceField};
 use crate::grid::Grid;
+use rand::SeedableRng;
+use rand_chacha::ChaCha8Rng;
 
 /// Scan a write buffer for NaN or infinity values.
 ///
@@ -191,7 +193,7 @@ fn run_emission_phase(grid: &mut Grid, _config: &GridConfig) -> Result<(), TickE
 /// 4.2 — read from read buffers, write to write buffers
 /// 4.3 — swap chemical buffers after actor consumption, before diffusion
 /// 4.4 — deterministic slot-index order
-fn run_actor_phases(grid: &mut Grid, _config: &GridConfig) -> Result<(), TickError> {
+fn run_actor_phases(grid: &mut Grid, _config: &GridConfig, tick: u64) -> Result<(), TickError> {
     let actor_config = grid
         .actor_config()
         .expect("actor_config must be set when actors are registered")
@@ -209,16 +211,21 @@ fn run_actor_phases(grid: &mut Grid, _config: &GridConfig) -> Result<(), TickErr
 
     // Phase 1: Sensing (WARM) — read chemical gradients, compute movement targets.
     // Reads from chemical species 0 read buffer only.
+    // Per-tick RNG seeded deterministically from grid seed + tick number.
+    // Requirements 6.1, 6.2: deterministic replay from seed + tick.
+    let mut tick_rng = ChaCha8Rng::seed_from_u64(grid.seed().wrapping_add(tick));
     {
         let chemical_read = grid
             .read_chemical(0)
             .expect("at least one chemical species required for actor sensing");
         run_actor_sensing(
-            &actors,
+            &mut actors,
             chemical_read,
             grid.width(),
             grid.height(),
             &mut movement_targets,
+            &actor_config,
+            &mut tick_rng,
         );
     }
 
@@ -279,7 +286,7 @@ fn run_actor_phases(grid: &mut Grid, _config: &GridConfig) -> Result<(), TickErr
 }
 
 impl TickOrchestrator {
-    pub fn step(grid: &mut Grid, config: &GridConfig) -> Result<(), TickError> {
+    pub fn step(grid: &mut Grid, config: &GridConfig, tick: u64) -> Result<(), TickError> {
         // Phase 0: Emission (WARM) — inject source values before downstream systems
         run_emission_phase(grid, config)?;
 
@@ -289,7 +296,7 @@ impl TickOrchestrator {
         // Requirements: 4.1 (phase ordering), 4.2 (read/write discipline),
         //               4.3 (swap before diffusion), 4.4 (deterministic), 4.5 (zero-actor skip)
         if !grid.actors().is_empty() {
-            run_actor_phases(grid, config)?;
+            run_actor_phases(grid, config, tick)?;
         }
 
         // Phase 5: Chemical diffusion

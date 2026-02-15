@@ -232,6 +232,23 @@ pub fn validate_world_config(config: &WorldConfig) -> Result<(), ConfigError> {
                 ),
             });
         }
+
+        // 3e. levy_exponent must be > 1.0.
+        if actor.levy_exponent <= 1.0 {
+            return Err(ConfigError::Validation {
+                reason: format!(
+                    "levy_exponent ({}) must be > 1.0",
+                    actor.levy_exponent,
+                ),
+            });
+        }
+
+        // 3f. max_tumble_steps must be >= 1.
+        if actor.max_tumble_steps < 1 {
+            return Err(ConfigError::Validation {
+                reason: "max_tumble_steps must be >= 1".to_string(),
+            });
+        }
     }
 
     Ok(())

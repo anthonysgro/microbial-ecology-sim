@@ -31,7 +31,7 @@ pub fn tick_simulation(mut sim: ResMut<SimulationState>, rate: Res<SimRateContro
     }
 
     let sim = &mut *sim;
-    match TickOrchestrator::step(&mut sim.grid, &sim.config) {
+    match TickOrchestrator::step(&mut sim.grid, &sim.config, sim.tick) {
         Ok(()) => {
             sim.tick += 1;
         }

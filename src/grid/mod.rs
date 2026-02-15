@@ -40,6 +40,8 @@ pub struct Grid {
     removal_buffer: Vec<ActorId>,
     /// Pre-allocated buffer: slot index → target cell index for movement.
     movement_targets: Vec<Option<usize>>,
+    /// Master simulation seed, stored for per-tick RNG derivation.
+    seed: u64,
 }
 
 impl Grid {
@@ -51,6 +53,7 @@ impl Grid {
         config: GridConfig,
         defaults: CellDefaults,
         actor_config: Option<ActorConfig>,
+        seed: u64,
     ) -> Result<Self, GridError> {
         if config.width == 0 || config.height == 0 {
             return Err(GridError::InvalidDimensions {
@@ -141,6 +144,7 @@ impl Grid {
             occupancy,
             removal_buffer,
             movement_targets,
+            seed,
         })
     }
 
@@ -150,6 +154,10 @@ impl Grid {
 
     pub fn height(&self) -> u32 {
         self.config.height
+    }
+
+    pub fn seed(&self) -> u64 {
+        self.seed
     }
 
     pub fn cell_count(&self) -> usize {

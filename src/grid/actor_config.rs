@@ -28,6 +28,12 @@ pub struct ActorConfig {
     /// from consumption. Must be in `[0.0, energy_conversion_factor)`.
     /// Default: 0.2
     pub extraction_cost: f32,
+    /// Power-law exponent α for Lévy flight step distribution.
+    /// Higher values → shorter average runs. Must be > 1.0. Default: 1.5.
+    pub levy_exponent: f32,
+    /// Maximum steps in a single tumble run. Clamps the power-law sample.
+    /// Must be >= 1. Default: 20.
+    pub max_tumble_steps: u16,
 }
 
 impl Default for ActorConfig {
@@ -42,6 +48,8 @@ impl Default for ActorConfig {
             movement_cost: 0.5,
             removal_threshold: -5.0,
             extraction_cost: 0.2,
+            levy_exponent: 1.5,
+            max_tumble_steps: 20,
         }
     }
 }

@@ -8,6 +8,37 @@
 use crate::grid::actor::{ActorId, ActorRegistry};
 use crate::grid::actor_config::ActorConfig;
 use crate::grid::error::TickError;
+use rand::Rng;
+
+/// Sample a step count from the discrete power-law distribution.
+/// `P(steps = k) ∝ k^(-α)`, clamped to `[1, max_steps]`.
+/// Uses inverse transform sampling: `steps = floor(u^(-1/(α-1)))`, `u ~ Uniform(0,1)`.
+///
+/// # Preconditions
+/// - `alpha > 1.0` (enforced by config validation)
+/// - `max_steps >= 1` (enforced by config validation)
+pub(crate) fn sample_tumble_steps(rng: &mut impl Rng, alpha: f32, max_steps: u16) -> u16 {
+    let u: f32 = rng.random_range(0.0_f32..1.0_f32);
+    // Floor to EPSILON to avoid 0.0^negative → infinity.
+    let u = u.max(f32::EPSILON);
+    let exponent = -1.0 / (alpha - 1.0);
+    let raw = u.powf(exponent).floor() as u32;
+    raw.clamp(1, max_steps as u32) as u16
+}
+
+/// Convert a tumble direction (0=N, 1=S, 2=W, 3=E) to a target cell index.
+/// Returns `None` if the direction would go out of bounds.
+pub(crate) fn direction_to_target(cell_index: usize, direction: u8, w: usize, h: usize) -> Option<usize> {
+    let x = cell_index % w;
+    let y = cell_index / w;
+    match direction {
+        0 if y > 0 => Some((y - 1) * w + x),      // North
+        1 if y + 1 < h => Some((y + 1) * w + x),   // South
+        2 if x > 0 => Some(y * w + (x - 1)),        // West
+        3 if x + 1 < w => Some(y * w + (x + 1)),    // East
+        _ => None,                                    // Out of bounds or invalid direction
+    }
+}
 
 // WARM PATH: Executes once per tick over the actor list.
 // No heap allocation. No dynamic dispatch. Sequential iteration.
@@ -34,17 +65,48 @@ use crate::grid::error::TickError;
 /// * `grid_height` — number of rows in the grid.
 /// * `movement_targets` — pre-allocated buffer indexed by slot index.
 ///   Entries for inactive slots are left untouched.
+/// Compute movement targets for all active Actors based on local
+/// chemical gradients (Von Neumann neighborhood, species 0) and
+/// Lévy flight tumble state.
+///
+/// For each Actor in deterministic slot-index order:
+/// 1. Compute the metabolic break-even concentration from `config`.
+/// 2. Check Von Neumann neighbors for concentrations above break-even
+///    with a positive gradient relative to the current cell.
+/// 3. If a profitable gradient exists: follow it, reset tumble state.
+/// 4. If no gradient and actor is mid-tumble (`tumble_remaining > 0`):
+///    continue in `tumble_direction`, decrement remaining.
+/// 5. If no gradient and not tumbling: sample a new tumble direction
+///    and step count from the power-law distribution.
+/// 6. Boundary hits (direction_to_target returns None) reset the tumble.
+///
+/// # Arguments
+///
+/// * `actors` — mutable reference to the actor registry (tumble state updated in-place).
+/// * `chemical_read` — read buffer for chemical species 0, length = cell_count.
+/// * `grid_width` — number of columns in the grid.
+/// * `grid_height` — number of rows in the grid.
+/// * `movement_targets` — pre-allocated buffer indexed by slot index.
+///   Entries for inactive slots are left untouched.
+/// * `config` — actor configuration (break-even params, Lévy flight params).
+/// * `rng` — per-tick deterministic RNG for tumble sampling.
 pub fn run_actor_sensing(
-    actors: &ActorRegistry,
+    actors: &mut ActorRegistry,
     chemical_read: &[f32],
     grid_width: u32,
     grid_height: u32,
     movement_targets: &mut [Option<usize>],
+    config: &ActorConfig,
+    rng: &mut impl Rng,
 ) {
     let w = grid_width as usize;
     let h = grid_height as usize;
 
-    for (slot_index, actor) in actors.iter() {
+    // Break-even concentration: below this, consumption costs more energy than it yields.
+    // Precondition: energy_conversion_factor > extraction_cost (enforced by config validation).
+    let break_even = config.base_energy_decay / (config.energy_conversion_factor - config.extraction_cost);
+
+    for (slot_index, actor) in actors.iter_mut() {
         if actor.inert {
             movement_targets[slot_index] = None;
             continue;
@@ -54,50 +116,89 @@ pub fn run_actor_sensing(
         let y = ci / w;
         let current_val = chemical_read[ci];
 
+        // Scan Von Neumann neighbors for the best above-threshold positive gradient.
+        // Direction priority: N, S, W, E (first wins ties via strict `>`).
         let mut best_gradient: f32 = 0.0;
         let mut best_target: Option<usize> = None;
 
         // North (y - 1)
         if y > 0 {
             let ni = (y - 1) * w + x;
-            let gradient = chemical_read[ni] - current_val;
-            if gradient > best_gradient {
-                best_gradient = gradient;
-                best_target = Some(ni);
+            let nval = chemical_read[ni];
+            if nval > break_even {
+                let gradient = nval - current_val;
+                if gradient > best_gradient {
+                    best_gradient = gradient;
+                    best_target = Some(ni);
+                }
             }
         }
 
         // South (y + 1)
         if y + 1 < h {
             let ni = (y + 1) * w + x;
-            let gradient = chemical_read[ni] - current_val;
-            if gradient > best_gradient {
-                best_gradient = gradient;
-                best_target = Some(ni);
+            let nval = chemical_read[ni];
+            if nval > break_even {
+                let gradient = nval - current_val;
+                if gradient > best_gradient {
+                    best_gradient = gradient;
+                    best_target = Some(ni);
+                }
             }
         }
 
         // West (x - 1)
         if x > 0 {
             let ni = y * w + (x - 1);
-            let gradient = chemical_read[ni] - current_val;
-            if gradient > best_gradient {
-                best_gradient = gradient;
-                best_target = Some(ni);
+            let nval = chemical_read[ni];
+            if nval > break_even {
+                let gradient = nval - current_val;
+                if gradient > best_gradient {
+                    best_gradient = gradient;
+                    best_target = Some(ni);
+                }
             }
         }
 
         // East (x + 1)
         if x + 1 < w {
             let ni = y * w + (x + 1);
-            let gradient = chemical_read[ni] - current_val;
-            if gradient > best_gradient {
-                // Final direction — no need to update best_gradient.
-                best_target = Some(ni);
+            let nval = chemical_read[ni];
+            if nval > break_even {
+                let gradient = nval - current_val;
+                if gradient > best_gradient {
+                    best_target = Some(ni);
+                }
             }
         }
 
-        movement_targets[slot_index] = best_target;
+        if best_target.is_some() {
+            // Gradient found — follow it, cancel any active tumble.
+            actor.tumble_remaining = 0;
+            movement_targets[slot_index] = best_target;
+        } else if actor.tumble_remaining > 0 {
+            // Mid-tumble, no gradient — continue in tumble_direction.
+            let target = direction_to_target(ci, actor.tumble_direction, w, h);
+            if target.is_none() {
+                // Hit grid boundary — end tumble.
+                actor.tumble_remaining = 0;
+            } else {
+                actor.tumble_remaining -= 1;
+            }
+            movement_targets[slot_index] = target;
+        } else {
+            // No gradient, not tumbling — initiate new Lévy flight tumble.
+            actor.tumble_direction = rng.random_range(0u8..4u8);
+            actor.tumble_remaining = sample_tumble_steps(rng, config.levy_exponent, config.max_tumble_steps);
+            let target = direction_to_target(ci, actor.tumble_direction, w, h);
+            if target.is_none() {
+                // Facing a boundary — end tumble immediately.
+                actor.tumble_remaining = 0;
+            } else {
+                actor.tumble_remaining -= 1;
+            }
+            movement_targets[slot_index] = target;
+        }
     }
 }
 
@@ -298,6 +399,8 @@ mod tests {
     use super::*;
     use crate::grid::actor::{Actor, ActorRegistry};
     use crate::grid::actor_config::ActorConfig;
+    use rand::SeedableRng;
+    use rand_chacha::ChaCha8Rng;
 
     /// 3×3 grid, actor at center (1,1). Highest concentration at North (0,1).
     /// Expected: movement target = North cell index.
@@ -306,17 +409,14 @@ mod tests {
         let mut occupancy = vec![None; 9];
         let mut registry = ActorRegistry::with_capacity(4);
         // Actor at center cell (index 4 on a 3×3 grid: x=1, y=1)
-        let actor = Actor { cell_index: 4, energy: 10.0, inert: false };
+        let actor = Actor { cell_index: 4, energy: 10.0, inert: false, tumble_direction: 0, tumble_remaining: 0 };
         let _id = registry.add(actor, 9, &mut occupancy).unwrap();
 
+        let config = default_config();
+        let mut rng = ChaCha8Rng::seed_from_u64(42);
+
         // Chemical buffer: center=1.0, north=5.0, south=2.0, west=3.0, east=4.0
-        // Indices: (0,0)=0 (1,0)=1 (2,0)=2
-        //          (0,1)=3 (1,1)=4 (2,1)=5
-        //          (0,2)=6 (1,2)=7 (2,2)=8
-        // North of (1,1) is (1,0) = index 1
-        // South of (1,1) is (1,2) = index 7
-        // West  of (1,1) is (0,1) = index 3
-        // East  of (1,1) is (2,1) = index 5
+        // break_even = 0.5 / (1.5 - 0.0) = 0.333 — all neighbors above threshold.
         let mut chemical = vec![0.0; 9];
         chemical[4] = 1.0; // center
         chemical[1] = 5.0; // north — highest gradient (5.0 - 1.0 = 4.0)
@@ -325,19 +425,23 @@ mod tests {
         chemical[5] = 4.0; // east
 
         let mut targets = vec![None; 1];
-        run_actor_sensing(&registry, &chemical, 3, 3, &mut targets);
+        run_actor_sensing(&mut registry, &chemical, 3, 3, &mut targets, &config, &mut rng);
 
         assert_eq!(targets[0], Some(1), "should select north (index 1) as max gradient");
     }
 
     /// Actor at corner (0,0) on a 3×3 grid. Only South and East are in-bounds.
-    /// Out-of-bounds neighbors treated as 0.0.
+    /// Out-of-bounds neighbors not evaluated. In-bounds neighbors above break-even
+    /// with positive gradient are selected.
     #[test]
     fn sensing_boundary_cell_treats_oob_as_zero() {
         let mut occupancy = vec![None; 9];
         let mut registry = ActorRegistry::with_capacity(4);
-        let actor = Actor { cell_index: 0, energy: 10.0, inert: false };
+        let actor = Actor { cell_index: 0, energy: 10.0, inert: false, tumble_direction: 0, tumble_remaining: 0 };
         let _id = registry.add(actor, 9, &mut occupancy).unwrap();
+
+        let config = default_config();
+        let mut rng = ChaCha8Rng::seed_from_u64(42);
 
         // Center (0,0) = 2.0, South (0,1) = index 3 = 5.0, East (1,0) = index 1 = 3.0
         let mut chemical = vec![0.0; 9];
@@ -346,31 +450,39 @@ mod tests {
         chemical[1] = 3.0; // east
 
         let mut targets = vec![None; 1];
-        run_actor_sensing(&registry, &chemical, 3, 3, &mut targets);
+        run_actor_sensing(&mut registry, &chemical, 3, 3, &mut targets, &config, &mut rng);
 
         assert_eq!(targets[0], Some(3), "should select south (index 3) as max gradient");
     }
 
-    /// No neighbor has a positive gradient → movement target is None.
+    /// No neighbor has concentration above break-even with positive gradient.
+    /// Actor should enter tumble mode and receive a movement target from the
+    /// sampled tumble direction.
     #[test]
-    fn sensing_no_positive_gradient_stays() {
+    fn sensing_no_positive_gradient_initiates_tumble() {
         let mut occupancy = vec![None; 9];
         let mut registry = ActorRegistry::with_capacity(4);
-        let actor = Actor { cell_index: 4, energy: 10.0, inert: false };
+        let actor = Actor { cell_index: 4, energy: 10.0, inert: false, tumble_direction: 0, tumble_remaining: 0 };
         let _id = registry.add(actor, 9, &mut occupancy).unwrap();
 
+        let config = default_config();
+        let mut rng = ChaCha8Rng::seed_from_u64(42);
+
         // Center has the highest value — all gradients are negative.
+        // All neighbors below break-even (0.333) except center.
         let mut chemical = vec![0.0; 9];
         chemical[4] = 10.0;
-        chemical[1] = 2.0;
-        chemical[7] = 3.0;
-        chemical[3] = 1.0;
-        chemical[5] = 4.0;
+        // Neighbors at 0.0 — below break-even, no positive gradient.
 
         let mut targets = vec![None; 1];
-        run_actor_sensing(&registry, &chemical, 3, 3, &mut targets);
+        run_actor_sensing(&mut registry, &chemical, 3, 3, &mut targets, &config, &mut rng);
 
-        assert_eq!(targets[0], None, "no positive gradient → stay in place");
+        // Actor at center of 3×3 grid — all four directions are in-bounds,
+        // so tumble should produce Some(target).
+        assert!(targets[0].is_some(), "tumble should produce a movement target");
+        // Verify tumble state was set on the actor.
+        let actor = registry.iter().next().unwrap().1;
+        assert!(actor.tumble_direction < 4, "tumble direction must be 0..4");
     }
 
     /// Tie-breaking: North and East have equal gradient. North is checked
@@ -379,8 +491,11 @@ mod tests {
     fn sensing_tie_breaks_by_direction_priority() {
         let mut occupancy = vec![None; 9];
         let mut registry = ActorRegistry::with_capacity(4);
-        let actor = Actor { cell_index: 4, energy: 10.0, inert: false };
+        let actor = Actor { cell_index: 4, energy: 10.0, inert: false, tumble_direction: 0, tumble_remaining: 0 };
         let _id = registry.add(actor, 9, &mut occupancy).unwrap();
+
+        let config = default_config();
+        let mut rng = ChaCha8Rng::seed_from_u64(42);
 
         let mut chemical = vec![0.0; 9];
         chemical[4] = 1.0; // center
@@ -388,7 +503,7 @@ mod tests {
         chemical[5] = 5.0; // east  — gradient 4.0 (tie)
 
         let mut targets = vec![None; 1];
-        run_actor_sensing(&registry, &chemical, 3, 3, &mut targets);
+        run_actor_sensing(&mut registry, &chemical, 3, 3, &mut targets, &config, &mut rng);
 
         // North is checked before East, and we use strict `>`, so North wins the tie.
         assert_eq!(targets[0], Some(1), "tie-break: north wins over east");
@@ -407,6 +522,8 @@ mod tests {
             movement_cost: 0.5,
             removal_threshold: -5.0,
             extraction_cost: 0.0,
+            levy_exponent: 1.5,
+            max_tumble_steps: 20,
         }
     }
 
@@ -416,7 +533,7 @@ mod tests {
     fn metabolism_basic_energy_balance() {
         let mut occupancy = vec![None; 4];
         let mut registry = ActorRegistry::with_capacity(4);
-        let actor = Actor { cell_index: 1, energy: 10.0, inert: false };
+        let actor = Actor { cell_index: 1, energy: 10.0, inert: false, tumble_direction: 0, tumble_remaining: 0 };
         let _id = registry.add(actor, 4, &mut occupancy).unwrap();
 
         let config = default_config(); // rate=2.0, factor=1.5, decay=0.5
@@ -444,7 +561,7 @@ mod tests {
     fn metabolism_partial_consumption() {
         let mut occupancy = vec![None; 4];
         let mut registry = ActorRegistry::with_capacity(4);
-        let actor = Actor { cell_index: 0, energy: 10.0, inert: false };
+        let actor = Actor { cell_index: 0, energy: 10.0, inert: false, tumble_direction: 0, tumble_remaining: 0 };
         let _id = registry.add(actor, 4, &mut occupancy).unwrap();
 
         let config = ActorConfig {
@@ -457,6 +574,8 @@ mod tests {
             movement_cost: 0.5,
             removal_threshold: -5.0,
             extraction_cost: 0.0,
+            levy_exponent: 1.5,
+            max_tumble_steps: 20,
         };
         let chemical_read = vec![1.5, 0.0, 0.0, 0.0]; // only 1.5 available
         let mut chemical_write = chemical_read.clone();
@@ -479,7 +598,7 @@ mod tests {
         let mut occupancy = vec![None; 4];
         let mut registry = ActorRegistry::with_capacity(4);
         // Low energy actor — decay will push it to zero.
-        let actor = Actor { cell_index: 0, energy: 0.1, inert: false };
+        let actor = Actor { cell_index: 0, energy: 0.1, inert: false, tumble_direction: 0, tumble_remaining: 0 };
         let _id = registry.add(actor, 4, &mut occupancy).unwrap();
 
         let config = ActorConfig {
@@ -492,6 +611,8 @@ mod tests {
             movement_cost: 0.5,
             removal_threshold: -5.0,
             extraction_cost: 0.0,
+            levy_exponent: 1.5,
+            max_tumble_steps: 20,
         };
         let chemical_read = vec![0.0; 4]; // nothing to eat
         let mut chemical_write = chemical_read.clone();
@@ -513,7 +634,7 @@ mod tests {
     fn metabolism_nan_energy_returns_error() {
         let mut occupancy = vec![None; 4];
         let mut registry = ActorRegistry::with_capacity(4);
-        let actor = Actor { cell_index: 0, energy: f32::NAN, inert: false };
+        let actor = Actor { cell_index: 0, energy: f32::NAN, inert: false, tumble_direction: 0, tumble_remaining: 0 };
         let _id = registry.add(actor, 4, &mut occupancy).unwrap();
 
         let config = default_config();

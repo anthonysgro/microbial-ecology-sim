@@ -9,11 +9,20 @@
 ///
 /// Plain data struct — no methods beyond construction. Carries only the
 /// physical state needed for v1: position and energy.
+/// A mobile biological agent occupying one grid cell.
+///
+/// Plain data struct — no methods beyond construction. Carries only the
+/// physical state needed for v1: position and energy.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Actor {
     pub cell_index: usize,
     pub energy: f32,
     pub inert: bool,
+    /// Encoded tumble direction: 0=North, 1=South, 2=West, 3=East.
+    /// Only meaningful when tumble_remaining > 0.
+    pub tumble_direction: u8,
+    /// Steps remaining in current Lévy flight tumble run. 0 = not tumbling.
+    pub tumble_remaining: u16,
 }
 
 /// Opaque handle for a registered Actor.

@@ -135,6 +135,8 @@ Optional — pass `None` to `initialize()` to skip actor systems entirely.
 | `movement_cost` | `f32` | Energy subtracted on successful move to an adjacent cell |
 | `removal_threshold` | `f32` | Energy level below which an inert actor is permanently removed (must be ≤ 0.0) |
 | `max_energy` | `f32` | Maximum energy an actor can hold. Caps reserves after each metabolic tick and makes consumption demand-driven — saturated actors extract zero chemical. Must be > 0.0, finite, and ≥ `initial_energy` |
+| `levy_exponent` | `f32` | Power-law exponent α for Lévy flight step distribution. Controls the mix of short vs long tumble runs during random foraging. Must be > 1.0. Default: 1.5 |
+| `max_tumble_steps` | `u16` | Maximum steps in a single tumble run. Clamps the power-law sample. Must be ≥ 1. Default: 20 |
 
 ### BevyExtras — Visualization Settings
 

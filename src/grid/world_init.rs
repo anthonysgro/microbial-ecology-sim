@@ -354,6 +354,8 @@ pub(crate) fn generate_actors(
                 cell_index,
                 energy: actor_config.initial_energy,
                 inert: false,
+                tumble_direction: 0,
+                tumble_remaining: 0,
             };
             match grid.add_actor(actor) {
                 Ok(_) => {
@@ -438,7 +440,7 @@ pub fn initialize(
         heat: 0.0,
     };
 
-    let mut grid = Grid::new(grid_config, defaults, actor_config)?;
+    let mut grid = Grid::new(grid_config, defaults, actor_config, seed)?;
 
     // Deterministic RNG forking: each phase draws from an independent stream,
     // so changes to one phase cannot perturb the other.
