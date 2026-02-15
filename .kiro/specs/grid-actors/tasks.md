@@ -106,8 +106,8 @@ Incremental implementation of mobile Actors into the existing deterministic grid
     - Generate actors with low energy and high decay, verify dead actors appear in removal buffer and are absent from registry after deferred removal
     - **Validates: Requirements 7.6, 8.1, 8.2**
 
-- [ ] 7. Implement Actor movement system
-  - [ ] 7.1 Implement `run_actor_movement` function in `src/grid/actor_systems.rs`
+- [x] 7. Implement Actor movement system
+  - [x] 7.1 Implement `run_actor_movement` function in `src/grid/actor_systems.rs`
     - Iterate actors in slot order
     - For each actor with a movement target: check occupancy map at target cell
     - If unoccupied: update occupancy (clear old, set new), update actor.cell_index

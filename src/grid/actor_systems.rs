@@ -163,6 +163,52 @@ pub fn run_actor_metabolism(
     Ok(())
 }
 
+// WARM PATH: Executes once per tick over the actor list.
+// No heap allocation. No dynamic dispatch. Sequential iteration.
+
+/// Execute the movement phase for all active Actors.
+///
+/// For each Actor in deterministic slot-index order:
+/// 1. Read the movement target from `movement_targets[slot_index]`.
+/// 2. If `Some(target)`: check `occupancy[target]`.
+///    - Unoccupied → update occupancy (clear old cell, set new cell),
+///      update `actor.cell_index`.
+///    - Occupied → skip (actor stays in place).
+/// 3. If `None`: actor stays in place.
+///
+/// Lower slot indices are processed first, granting them movement
+/// priority when multiple actors target the same cell.
+///
+/// # Arguments
+///
+/// * `actors` — mutable reference to the actor registry (cell_index updated in-place).
+/// * `occupancy` — mutable occupancy map, length = cell_count.
+/// * `movement_targets` — pre-computed targets indexed by slot index.
+pub fn run_actor_movement(
+    actors: &mut ActorRegistry,
+    occupancy: &mut [Option<usize>],
+    movement_targets: &[Option<usize>],
+) {
+    for (slot_index, actor) in actors.iter_mut() {
+        let target = match movement_targets.get(slot_index).copied().flatten() {
+            Some(t) => t,
+            None => continue,
+        };
+
+        // Target cell occupied → skip. Lower slot indices already claimed it.
+        if occupancy[target].is_some() {
+            continue;
+        }
+
+        // Move: clear old occupancy, set new occupancy, update actor position.
+        let old_cell = actor.cell_index;
+        occupancy[old_cell] = None;
+        occupancy[target] = Some(slot_index);
+        actor.cell_index = target;
+    }
+}
+
+
 #[cfg(test)]
 mod tests {
     use super::*;
