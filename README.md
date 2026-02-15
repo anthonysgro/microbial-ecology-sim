@@ -133,6 +133,7 @@ Optional — pass `None` to `initialize()` to skip actor systems entirely.
 | `initial_actor_capacity` | `usize` | Pre-allocated slot capacity for the actor registry |
 | `movement_cost` | `f32` | Energy subtracted on successful move to an adjacent cell |
 | `removal_threshold` | `f32` | Energy level below which an inert actor is permanently removed (must be ≤ 0.0) |
+| `max_energy` | `f32` | Maximum energy an actor can hold. Caps reserves after each metabolic tick and makes consumption demand-driven — saturated actors extract zero chemical. Must be > 0.0, finite, and ≥ `initial_energy` |
 
 ### BevyExtras — Visualization Settings
 

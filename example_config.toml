@@ -76,6 +76,9 @@ initial_energy = 8.0
 initial_actor_capacity = 64
 movement_cost = 0.3
 removal_threshold = -3.0
+max_energy = 50.0                    # Maximum energy an actor can hold. Must be > 0, finite, >= initial_energy.
+                                     # Caps reserves and makes consumption demand-driven: saturated actors
+                                     # stop extracting chemical, preserving it for neighbors and diffusion.
 
 # ─── Bevy Visualization ────────────────────────────────────────────
 

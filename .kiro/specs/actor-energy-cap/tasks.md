@@ -29,7 +29,7 @@ Add a `max_energy` field to `ActorConfig`, convert metabolism to demand-driven c
     - _Requirements: 1.2, 1.3, 5.3_
 
 - [-] 3. Implement demand-driven consumption and energy clamping in metabolism
-  - [-] 3.1 Modify the active-actor branch in `run_actor_metabolism` in `src/grid/actor_systems.rs`
+  - [x] 3.1 Modify the active-actor branch in `run_actor_metabolism` in `src/grid/actor_systems.rs`
     - Compute `headroom = (config.max_energy - actor.energy).max(0.0)`
     - Compute `max_useful = headroom / config.energy_conversion_factor`
     - Change consumed from `config.consumption_rate.min(available)` to `config.consumption_rate.min(available).min(max_useful)`
@@ -57,20 +57,20 @@ Add a `max_energy` field to `ActorConfig`, convert metabolism to demand-driven c
     - Run metabolism, verify `energy == e - base_energy_decay` and chemical unchanged
     - **Validates: Requirements 4.1, 4.2**
 
-- [ ] 4. Checkpoint — Ensure all tests pass
+- [x] 4. Checkpoint — Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 5. Update existing tests for `max_energy`
-  - [ ] 5.1 Update existing metabolism tests in `src/grid/actor_systems.rs`
+- [x] 5. Update existing tests for `max_energy`
+  - [x] 5.1 Update existing metabolism tests in `src/grid/actor_systems.rs`
     - Add `max_energy: 50.0` (or sufficiently high value) to all `default_config()` and inline `ActorConfig` constructors in existing tests so they continue to pass without behavior change
     - _Requirements: 2.1_
 
-- [ ] 6. Update documentation and example config
-  - [ ] 6.1 Add `max_energy` to `example_config.toml`
+- [x] 6. Update documentation and example config
+  - [x] 6.1 Add `max_energy` to `example_config.toml`
     - Add `max_energy = 50.0` to the `[actor]` section with a comment explaining purpose and constraints
     - _Requirements: 6.1_
 
-  - [ ] 6.2 Update `README.md` if actor config is documented
+  - [x] 6.2 Update `README.md` if actor config is documented
     - Add `max_energy` parameter description to any actor configuration documentation section
     - _Requirements: 6.2_
 
@@ -81,7 +81,7 @@ Add a `max_energy` field to `ActorConfig`, convert metabolism to demand-driven c
     - Serialize to TOML, deserialize back, assert equality
     - **Validates: Requirements 5.1**
 
-- [~] 8. Final checkpoint — Ensure all tests pass
+- [-] 8. Final checkpoint — Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Notes
