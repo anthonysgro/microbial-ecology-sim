@@ -58,11 +58,11 @@ Implement a COLD-path terminal renderer in `src/viz/` that reads `Grid` field bu
     - **Property 6: Stats bar completeness**
     - **Validates: Requirements 5.4, 6.5, 7.1**
 
-- [ ] 7. Checkpoint
+- [x] 7. Checkpoint
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 8. Implement renderer with terminal I/O
-  - [ ] 8.1 Create `src/viz/renderer.rs` with `Renderer` struct holding `RendererConfig`, `OverlayMode`, terminal dimensions, stdout handle, and pre-allocated `norm_buffer: Vec<f32>`. Implement `init()` (enter alt screen, raw mode, hide cursor, query terminal size), `shutdown()` (restore screen, show cursor, disable raw mode), `set_overlay()`, and viewport clipping logic: `render_width = min(grid.width(), terminal_width)`, `render_height = min(grid.height(), terminal_height - stats_lines)`.
+- [-] 8. Implement renderer with terminal I/O
+  - [-] 8.1 Create `src/viz/renderer.rs` with `Renderer` struct holding `RendererConfig`, `OverlayMode`, terminal dimensions, stdout handle, and pre-allocated `norm_buffer: Vec<f32>`. Implement `init()` (enter alt screen, raw mode, hide cursor, query terminal size), `shutdown()` (restore screen, show cursor, disable raw mode), `set_overlay()`, and viewport clipping logic: `render_width = min(grid.width(), terminal_width)`, `render_height = min(grid.height(), terminal_height - stats_lines)`.
     - _Requirements: 4.1, 4.2, 4.3, 4.4, 8.1, 8.2, 8.3_
   - [ ] 8.2 Implement `render_frame(&mut self, grid: &Grid, tick: u64) -> anyhow::Result<()>` that: selects the field buffer based on current overlay mode, normalizes it, computes stats, moves cursor to origin, iterates over clipped rows/cols writing glyph+color per cell, then writes the stats bar below the grid
     - _Requirements: 4.1, 4.2, 5.1, 7.2, 7.3_
@@ -72,13 +72,13 @@ Implement a COLD-path terminal renderer in `src/viz/` that reads `Grid` field bu
     - **Property 7: Viewport clipping**
     - **Validates: Requirements 8.2**
 
-- [ ] 9. Wire render loop into main.rs
+- [~] 9. Wire render loop into main.rs
   - [ ] 9.1 Update `src/main.rs` to import the viz module, construct `RendererConfig` with a default frame delay (e.g., 50ms) and initial overlay `Chemical(0)`, call `Renderer::init()`, run the tick loop calling `TickOrchestrator::step()` then `render_frame()` then `poll_input()` then `sleep()`, and call `shutdown()` on exit. Ensure `shutdown()` runs on all exit paths (normal, error, quit key).
     - _Requirements: 5.1, 5.2, 5.3, 5.4_
   - [ ] 9.2 Add `pub mod viz;` to `src/lib.rs` (or keep viz private to the binary if not in lib.rs — wire appropriately)
     - _Requirements: N/A (project structure)_
 
-- [ ] 10. Final checkpoint
+- [~] 10. Final checkpoint
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Notes
