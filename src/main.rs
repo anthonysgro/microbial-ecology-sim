@@ -17,7 +17,6 @@ fn main() {
         num_chemicals: 1,
         diffusion_rate: 0.05,
         thermal_conductivity: 0.05,
-        evaporation_coefficient: 0.01,
         ambient_heat: 0.0,
         tick_duration: 1.0,
         num_threads: 4,
@@ -26,7 +25,6 @@ fn main() {
     let defaults = CellDefaults {
         chemical_concentrations: vec![0.0],
         heat: 0.0,
-        moisture: 1.0,
     };
 
     let viz_config = RendererConfig {

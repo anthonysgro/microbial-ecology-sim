@@ -57,8 +57,8 @@ Two-phase implementation: first strip all moisture infrastructure from the codeb
     - Remove `format_stats_bar_moisture_overlay` test (or any test referencing `OverlayMode::Moisture`)
     - _Requirements: 3.5_
 
-- [-] 3. Remove moisture from application entry point
-  - [ ] 3.1 Update `src/main.rs`
+- [x] 3. Remove moisture from application entry point
+  - [x] 3.1 Update `src/main.rs`
     - Remove `moisture: 1.0` from `CellDefaults` construction
     - Remove `evaporation_coefficient: 0.01` from `GridConfig` construction
     - _Requirements: 4.1, 4.2_
