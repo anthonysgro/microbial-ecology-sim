@@ -27,6 +27,21 @@ impl<T: Copy> FieldBuffer<T> {
         &mut self.buffers[self.current ^ 1]
     }
 
+    /// Simultaneous read and write access to both buffers.
+    ///
+    /// Returns `(read_slice, write_slice)`. The two slices reference
+    /// distinct `Vec` allocations (indices 0 and 1), so no aliasing.
+    pub fn read_write(&mut self) -> (&[T], &mut [T]) {
+        let read_idx = self.current;
+        // split_at_mut(1) gives us two disjoint sub-slices of the array.
+        let (first, second) = self.buffers.split_at_mut(1);
+        if read_idx == 0 {
+            (&first[0], &mut second[0])
+        } else {
+            (&second[0], &mut first[0])
+        }
+    }
+
     /// Swap read and write buffers. No data copy — just flips the index.
     pub fn swap(&mut self) {
         self.current ^= 1;

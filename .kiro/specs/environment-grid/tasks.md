@@ -59,11 +59,11 @@ Implement the Layer 0 environment grid substrate in Rust: a double-buffered, SoA
     - **Property 5: Out-of-bounds coordinate rejection** — invalid coords return OutOfBounds error
     - **Validates: Requirements 2.3**
 
-- [-] 5. Checkpoint — core data structures
+- [x] 5. Checkpoint — core data structures
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 6. Implement Diffusion System
-  - [ ] 6.1 Implement `run_diffusion(grid, config) -> Result<(), TickError>` in `src/grid/diffusion.rs`
+- [-] 6. Implement Diffusion System
+  - [-] 6.1 Implement `run_diffusion(grid, config) -> Result<(), TickError>` in `src/grid/diffusion.rs`
     - Read from read buffer, write to write buffer
     - Discrete Laplacian: `new_c[i] = c[i] + Σ(rate × (c[neighbor] - c[i]) × dt)` for each chemical species
     - 8-connectivity neighbor lookup with bounds checking

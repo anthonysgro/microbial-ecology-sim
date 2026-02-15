@@ -1,4 +1,5 @@
 pub mod config;
+pub mod diffusion;
 pub mod error;
 pub mod field_buffer;
 pub mod partition;
@@ -148,6 +149,24 @@ impl Grid {
         for buf in &mut self.chemicals {
             buf.swap();
         }
+    }
+
+    /// Simultaneous read and write access to a chemical species buffer.
+    ///
+    /// Returns `(read_slice, write_slice)` for the given species.
+    /// The two slices reference distinct allocations within the `FieldBuffer`.
+    pub fn read_write_chemical(
+        &mut self,
+        species: usize,
+    ) -> Result<(&[f32], &mut [f32]), GridError> {
+        let num = self.chemicals.len();
+        self.chemicals
+            .get_mut(species)
+            .map(FieldBuffer::read_write)
+            .ok_or(GridError::InvalidChemicalSpecies {
+                species,
+                num_chemicals: num,
+            })
     }
 
     // ── Partition access ───────────────────────────────────────────
