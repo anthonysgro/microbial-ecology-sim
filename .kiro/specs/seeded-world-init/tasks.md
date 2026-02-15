@@ -99,7 +99,7 @@ Implement a COLD-path procedural initialization system in `src/grid/world_init.r
     - Pass the returned `Grid` to `run_visualization`
     - _Requirements: 6.1, 6.2, 6.3_
 
-- [ ] 9. Final checkpoint — Ensure all tests pass
+- [x] 9. Final checkpoint — Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Notes
