@@ -98,8 +98,8 @@ Implement the Layer 0 environment grid substrate in Rust: a double-buffered, SoA
     - Uniform heat grid (no change expected)
     - _Requirements: 4.2, 4.3_
 
-- [ ] 8. Implement Evaporation System
-  - [ ] 8.1 Implement `run_evaporation(grid, config) -> Result<(), TickError>` in `src/grid/evaporation.rs`
+- [-] 8. Implement Evaporation System
+  - [x] 8.1 Implement `run_evaporation(grid, config) -> Result<(), TickError>` in `src/grid/evaporation.rs`
     - Per-cell: `loss = coeff × heat × moisture × dt`, clamp to zero
     - No neighbor interaction — reads heat and moisture from read buffer, writes moisture to write buffer
     - Parallelize over partitions using `rayon::par_iter`
