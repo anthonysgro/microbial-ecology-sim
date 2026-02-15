@@ -12,6 +12,19 @@ This ensures configuration documentation stays in sync with the code at all time
 
 ---
 
+## Heritable Trait Update Rule
+
+When any spec adds, removes, or renames a heritable trait on `Actor` (currently: `consumption_rate`, `base_energy_decay`, `levy_exponent`, `reproduction_threshold`):
+
+1. **`HeritableTraits` struct** — Update the struct in `src/grid/actor.rs` with the new/changed field.
+2. **Trait visualization stats** — Update `compute_trait_stats_from_actors` in `src/viz_bevy/systems.rs` to collect and compute statistics for the new trait. The `TraitStats.traits` array size (currently `[SingleTraitStats; 4]`) must match the trait count.
+3. **Stats panel formatting** — Update `format_trait_stats` in `src/viz_bevy/setup.rs` to display the new trait row.
+4. **Actor inspector formatting** — Update `format_actor_info` in `src/viz_bevy/setup.rs` to display the new trait value.
+5. **Trait clamp config** — Add `trait_{name}_min` / `trait_{name}_max` fields to `ActorConfig` and follow the configuration update rules above.
+6. **Spec requirements** — Include a trait visualization update requirement in the spec so it appears in the task list.
+
+---
+
 ## Configuration Reference
 
 All configuration is loaded from a TOML file. Omitted sections/fields fall back to compiled defaults. Unknown keys are rejected at parse time (`deny_unknown_fields`).
