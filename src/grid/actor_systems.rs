@@ -435,6 +435,13 @@ pub fn run_actor_reproduction(
         if actor.energy < actor.traits.reproduction_threshold {
             continue;
         }
+        // Energy conservation: the parent must have enough energy to cover
+        // both the fission cost and the offspring's starting energy. Without
+        // this, independent mutation of reproduction_cost and offspring_energy
+        // can create net-positive energy reproduction (energy printing press).
+        if actor.energy < actor.traits.reproduction_cost + actor.traits.offspring_energy {
+            continue;
+        }
 
         // Scan N(0), S(1), W(2), E(3) for the first available cell.
         let mut target_cell: Option<usize> = None;

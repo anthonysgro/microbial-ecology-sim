@@ -27,7 +27,7 @@ pub(super) fn overlay_label_text(overlay: &ActiveOverlay) -> String {
 }
 
 /// Trait names in display order, matching `TraitStats::traits` array indices.
-const TRAIT_NAMES: [&str; 7] = [
+const TRAIT_NAMES: [&str; 8] = [
     "consumption_rate",
     "base_energy_decay",
     "levy_exponent",
@@ -35,6 +35,7 @@ const TRAIT_NAMES: [&str; 7] = [
     "max_tumble_steps",
     "reproduction_cost",
     "offspring_energy",
+    "mutation_rate",
 ];
 
 /// Format `TraitStats` into a display string for the stats panel.
@@ -100,6 +101,7 @@ pub fn format_actor_info(
     writeln!(out, "max_tumble_steps:        {}", actor.traits.max_tumble_steps).ok();
     writeln!(out, "reproduction_cost:       {:.4}", actor.traits.reproduction_cost).ok();
     writeln!(out, "offspring_energy:        {:.4}", actor.traits.offspring_energy).ok();
+    writeln!(out, "mutation_rate:           {:.4}", actor.traits.mutation_rate).ok();
 
     out
 }
@@ -201,6 +203,7 @@ pub(super) fn format_config_info(
             writeln!(out, "trait_max_tumble_steps: {}..{}", ac.trait_max_tumble_steps_min, ac.trait_max_tumble_steps_max).ok();
             writeln!(out, "trait_reproduction_cost: {:.4}..{:.4}", ac.trait_reproduction_cost_min, ac.trait_reproduction_cost_max).ok();
             writeln!(out, "trait_offspring_energy: {:.4}..{:.4}", ac.trait_offspring_energy_min, ac.trait_offspring_energy_max).ok();
+            writeln!(out, "trait_mutation_rate: {:.4}..{:.4}", ac.trait_mutation_rate_min, ac.trait_mutation_rate_max).ok();
         }
         None => {
             writeln!(out, "Actors: disabled").ok();

@@ -3,10 +3,9 @@
 When any spec adds, removes, or modifies a configuration field (in `ActorConfig`, `GridConfig`, `WorldInitConfig`, or any other config struct):
 
 1. **`example_config.toml`** — Update the example config file to include the new/changed field with a comment explaining its purpose and valid range.
-2. **`README.md`** — Update the README if it documents configuration parameters.
-3. **World config info panel** — Update `format_config_info()` in `src/viz_bevy/setup.rs` to display the new/changed field. This panel is toggled by pressing `I` in the Bevy visualization and must reflect all active configuration values.
-4. **This steering file** — Update the config reference below to reflect the new/changed field so this document stays the single source of truth.
-5. **Spec requirements** — Include a documentation update requirement in the spec so it appears in the task list and is not forgotten during implementation.
+2. **World config info panel** — Update `format_config_info()` in `src/viz_bevy/setup.rs` to display the new/changed field. This panel is toggled by pressing `I` in the Bevy visualization and must reflect all active configuration values.
+3. **This steering file** — Update the config reference below to reflect the new/changed field so this document stays the single source of truth.
+4. **Spec requirements** — Include a documentation update requirement in the spec so it appears in the task list and is not forgotten during implementation.
 
 This ensures configuration documentation stays in sync with the code at all times.
 
@@ -14,10 +13,10 @@ This ensures configuration documentation stays in sync with the code at all time
 
 ## Heritable Trait Update Rule
 
-When any spec adds, removes, or renames a heritable trait on `Actor` (currently: `consumption_rate`, `base_energy_decay`, `levy_exponent`, `reproduction_threshold`, `max_tumble_steps`, `reproduction_cost`, `offspring_energy`):
+When any spec adds, removes, or renames a heritable trait on `Actor` (currently: `consumption_rate`, `base_energy_decay`, `levy_exponent`, `reproduction_threshold`, `max_tumble_steps`, `reproduction_cost`, `offspring_energy`, `mutation_rate`):
 
 1. **`HeritableTraits` struct** — Update the struct in `src/grid/actor.rs` with the new/changed field.
-2. **Trait visualization stats** — Update `compute_trait_stats_from_actors` in `src/viz_bevy/systems.rs` to collect and compute statistics for the new trait. The `TraitStats.traits` array size (currently `[SingleTraitStats; 7]`) must match the trait count.
+2. **Trait visualization stats** — Update `compute_trait_stats_from_actors` in `src/viz_bevy/systems.rs` to collect and compute statistics for the new trait. The `TraitStats.traits` array size (currently `[SingleTraitStats; 8]`) must match the trait count.
 3. **Stats panel formatting** — Update `format_trait_stats` in `src/viz_bevy/setup.rs` to display the new trait row.
 4. **Actor inspector formatting** — Update `format_actor_info` in `src/viz_bevy/setup.rs` to display the new trait value.
 5. **Trait clamp config** — Add `trait_{name}_min` / `trait_{name}_max` fields to `ActorConfig` and follow the configuration update rules above.
@@ -107,7 +106,7 @@ Present as `Option<ActorConfig>`. Omitting the entire `[actor]` section disables
 | `reproduction_threshold` | `f32` | `20.0` | Minimum energy for binary fission. Must be `> 0.0` and `>= reproduction_cost`. |
 | `reproduction_cost` | `f32` | `12.0` | Energy deducted from parent upon fission. Must be `> 0.0` and `>= offspring_energy`. |
 | `offspring_energy` | `f32` | `10.0` | Energy assigned to offspring at creation. Must be `> 0.0` and `<= max_energy`. |
-| `mutation_stddev` | `f32` | `0.05` | Std-dev of gaussian noise applied to each heritable trait during fission. `0.0` disables mutation. Must be `>= 0.0`. |
+| `mutation_stddev` | `f32` | `0.05` | Seed genome default for the per-actor heritable `mutation_rate` trait. Each actor carries its own `mutation_rate` which evolves via proportional self-mutation. Must be within `[trait_mutation_rate_min, trait_mutation_rate_max]`. |
 | `trait_consumption_rate_min` | `f32` | `0.1` | Minimum clamp bound for heritable `consumption_rate`. Must be `> 0.0` and `< trait_consumption_rate_max`. |
 | `trait_consumption_rate_max` | `f32` | `10.0` | Maximum clamp bound for heritable `consumption_rate`. Must be `> trait_consumption_rate_min`. |
 | `trait_base_energy_decay_min` | `f32` | `0.001` | Minimum clamp bound for heritable `base_energy_decay`. Must be `> 0.0` and `< trait_base_energy_decay_max`. |
@@ -122,6 +121,8 @@ Present as `Option<ActorConfig>`. Omitting the entire `[actor]` section disables
 | `trait_reproduction_cost_max` | `f32` | `100.0` | Maximum clamp bound for heritable `reproduction_cost`. Must be `> trait_reproduction_cost_min`. |
 | `trait_offspring_energy_min` | `f32` | `0.1` | Minimum clamp bound for heritable `offspring_energy`. Must be `> 0.0` and `< trait_offspring_energy_max`. |
 | `trait_offspring_energy_max` | `f32` | `100.0` | Maximum clamp bound for heritable `offspring_energy`. Must be `> trait_offspring_energy_min` and `<= max_energy`. |
+| `trait_mutation_rate_min` | `f32` | `0.001` | Minimum clamp bound for heritable `mutation_rate`. Must be `> 0.0` and `< trait_mutation_rate_max`. |
+| `trait_mutation_rate_max` | `f32` | `0.5` | Maximum clamp bound for heritable `mutation_rate`. Must be `> trait_mutation_rate_min`. |
 
 ### `[bevy]` — `BevyExtras`
 

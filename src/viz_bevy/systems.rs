@@ -743,6 +743,7 @@ pub fn compute_trait_stats_from_actors<'a>(
     let mut tumble = Vec::new();
     let mut repro_cost = Vec::new();
     let mut offspring = Vec::new();
+    let mut mutation_rate = Vec::new();
 
     for actor in actors {
         if actor.inert {
@@ -755,6 +756,7 @@ pub fn compute_trait_stats_from_actors<'a>(
         tumble.push(actor.traits.max_tumble_steps as f32);
         repro_cost.push(actor.traits.reproduction_cost);
         offspring.push(actor.traits.offspring_energy);
+        mutation_rate.push(actor.traits.mutation_rate);
     }
 
     let actor_count = consumption.len();
@@ -775,6 +777,7 @@ pub fn compute_trait_stats_from_actors<'a>(
         compute_single_stats(&mut tumble),
         compute_single_stats(&mut repro_cost),
         compute_single_stats(&mut offspring),
+        compute_single_stats(&mut mutation_rate),
     ];
 
     TraitStats {

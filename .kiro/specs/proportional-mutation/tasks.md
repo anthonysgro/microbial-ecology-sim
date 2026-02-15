@@ -6,75 +6,75 @@ Two coupled changes: (1) switch all trait mutations from additive to proportiona
 
 ## Tasks
 
-- [-] 1. Add mutation_rate to HeritableTraits and rewrite mutate()
-  - [ ] 1.1 Add `mutation_rate: f32` field to `HeritableTraits` struct in `src/grid/actor.rs`
+- [x] 1. Add mutation_rate to HeritableTraits and rewrite mutate()
+  - [x] 1.1 Add `mutation_rate: f32` field to `HeritableTraits` struct in `src/grid/actor.rs`
     - Append after `offspring_energy`
     - Update compile-time size assert from `== 28` to `== 32`
     - _Requirements: 5.1, 5.5_
 
-  - [ ] 1.2 Update `HeritableTraits::from_config` to initialize `mutation_rate` from `config.mutation_stddev`
+  - [x] 1.2 Update `HeritableTraits::from_config` to initialize `mutation_rate` from `config.mutation_stddev`
     - _Requirements: 5.2_
 
-  - [ ] 1.3 Rewrite `HeritableTraits::mutate()` to proportional model with per-actor mutation_rate
+  - [x] 1.3 Rewrite `HeritableTraits::mutate()` to proportional model with per-actor mutation_rate
     - Change early-return guard from `config.mutation_stddev == 0.0` to `self.mutation_rate == 0.0`
     - Change `Normal::new` to use `self.mutation_rate` instead of `config.mutation_stddev`
     - Replace all additive mutation lines (`trait + noise`) with proportional (`trait * (1.0 + noise)`) for all seven existing traits
     - Add proportional self-mutation for `mutation_rate` as the last trait mutated, clamped to `[trait_mutation_rate_min, trait_mutation_rate_max]`
     - _Requirements: 1.1, 1.2, 1.3, 2.1, 2.2, 5.3, 5.4, 7.1, 7.2, 7.3_
 
-  - [ ] 1.4 Fix all existing code that constructs `HeritableTraits` literals (tests, etc.) to include the new `mutation_rate` field
+  - [x] 1.4 Fix all existing code that constructs `HeritableTraits` literals (tests, etc.) to include the new `mutation_rate` field
     - _Requirements: 5.1_
 
-- [~] 2. Add mutation_rate clamp config fields and validation
-  - [ ] 2.1 Add `default_trait_mutation_rate_min()` (0.001) and `default_trait_mutation_rate_max()` (0.5) serde default functions in `src/grid/actor_config.rs`
+- [x] 2. Add mutation_rate clamp config fields and validation
+  - [x] 2.1 Add `default_trait_mutation_rate_min()` (0.001) and `default_trait_mutation_rate_max()` (0.5) serde default functions in `src/grid/actor_config.rs`
     - _Requirements: 6.1_
 
-  - [ ] 2.2 Add `trait_mutation_rate_min: f32` and `trait_mutation_rate_max: f32` fields to `ActorConfig` with serde defaults, and update `Default` impl
+  - [x] 2.2 Add `trait_mutation_rate_min: f32` and `trait_mutation_rate_max: f32` fields to `ActorConfig` with serde defaults, and update `Default` impl
     - _Requirements: 6.1, 6.5_
 
-  - [ ] 2.3 Add validation in `validate_world_config` in `src/io/config_file.rs`
+  - [x] 2.3 Add validation in `validate_world_config` in `src/io/config_file.rs`
     - `trait_mutation_rate_min > 0.0`
     - `trait_mutation_rate_min < trait_mutation_rate_max`
     - `mutation_stddev` within `[trait_mutation_rate_min, trait_mutation_rate_max]`
     - Add `trait_mutation_rate` to the f32 clamp range batch check or as a separate check
     - _Requirements: 6.2, 6.3, 6.4_
 
-- [~] 3. Checkpoint — ensure all tests pass
+- [x] 3. Checkpoint — ensure all tests pass
   - Run `cargo test` and fix any compilation or test failures from the struct and mutation changes.
 
-- [~] 4. Update visualization for 8th trait
-  - [ ] 4.1 Update `TraitStats.traits` from `[SingleTraitStats; 7]` to `[SingleTraitStats; 8]` in `src/viz_bevy/resources.rs`
+- [x] 4. Update visualization for 8th trait
+  - [x] 4.1 Update `TraitStats.traits` from `[SingleTraitStats; 7]` to `[SingleTraitStats; 8]` in `src/viz_bevy/resources.rs`
     - Update doc comment to list all eight traits
     - _Requirements: 8.1_
 
-  - [ ] 4.2 Add `mutation_rate` buffer to `compute_trait_stats_from_actors` in `src/viz_bevy/systems.rs`
+  - [x] 4.2 Add `mutation_rate` buffer to `compute_trait_stats_from_actors` in `src/viz_bevy/systems.rs`
     - Collect `mutation_rate` values from non-inert actors
     - Include as the 8th element in the stats array
     - _Requirements: 8.2_
 
-  - [ ] 4.3 Update `TRAIT_NAMES` from 7 to 8 entries, appending `"mutation_rate"` in `src/viz_bevy/setup.rs`
+  - [x] 4.3 Update `TRAIT_NAMES` from 7 to 8 entries, appending `"mutation_rate"` in `src/viz_bevy/setup.rs`
     - _Requirements: 8.3_
 
-  - [ ] 4.4 Add `mutation_rate` line to `format_actor_info` in `src/viz_bevy/setup.rs`
+  - [x] 4.4 Add `mutation_rate` line to `format_actor_info` in `src/viz_bevy/setup.rs`
     - _Requirements: 8.4_
 
-  - [ ] 4.5 Add `trait_mutation_rate` clamp range line to `format_config_info` in `src/viz_bevy/setup.rs`
+  - [x] 4.5 Add `trait_mutation_rate` clamp range line to `format_config_info` in `src/viz_bevy/setup.rs`
     - _Requirements: 8.6_
 
-- [~] 5. Update documentation
-  - [ ] 5.1 Update `example_config.toml`
+- [x] 5. Update documentation
+  - [x] 5.1 Update `example_config.toml`
     - Add `trait_mutation_rate_min` and `trait_mutation_rate_max` fields with comments
     - Update `mutation_stddev` comment to clarify it is the seed genome default for per-actor `mutation_rate`
     - _Requirements: 9.1, 9.2_
 
-  - [ ] 5.2 Update `.kiro/steering/config-documentation.md`
+  - [x] 5.2 Update `.kiro/steering/config-documentation.md`
     - Add `trait_mutation_rate_min/max` to the ActorConfig table
     - Update `mutation_stddev` description
     - Update heritable trait list from 7 to 8
     - Update `TraitStats.traits` array size from 7 to 8
     - _Requirements: 9.3_
 
-- [~] 6. Checkpoint — ensure all tests pass
+- [x] 6. Checkpoint — ensure all tests pass
   - Run `cargo test` and fix any remaining compilation or test failures.
 
 - [ ] 7. Property-based tests for proportional mutation and heritable mutation_rate

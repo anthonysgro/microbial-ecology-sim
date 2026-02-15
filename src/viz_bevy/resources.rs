@@ -194,15 +194,15 @@ pub struct SingleTraitStats {
 ///
 /// Array order: [consumption_rate, base_energy_decay, levy_exponent,
 /// reproduction_threshold, max_tumble_steps, reproduction_cost,
-/// offspring_energy].
+/// offspring_energy, mutation_rate].
 ///
-/// Requirements: 1.2, 1.3, 7.5
+/// Requirements: 1.2, 1.3, 7.5, 8.1
 #[derive(Resource, Debug, Clone)]
 pub struct TraitStats {
     pub actor_count: usize,
     pub tick: u64,
     /// `None` when `actor_count == 0`.
-    pub traits: Option<[SingleTraitStats; 7]>,
+    pub traits: Option<[SingleTraitStats; 8]>,
 }
 
 /// Tracks the currently selected actor for inspection (by slot index).

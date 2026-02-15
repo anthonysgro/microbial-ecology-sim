@@ -16,6 +16,8 @@ fn default_trait_reproduction_cost_min() -> f32 { 0.1 }
 fn default_trait_reproduction_cost_max() -> f32 { 100.0 }
 fn default_trait_offspring_energy_min() -> f32 { 0.1 }
 fn default_trait_offspring_energy_max() -> f32 { 100.0 }
+fn default_trait_mutation_rate_min() -> f32 { 0.001 }
+fn default_trait_mutation_rate_max() -> f32 { 0.5 }
 
 /// Configuration parameters for Actor metabolism, sensing, and spawning.
 ///
@@ -116,6 +118,13 @@ pub struct ActorConfig {
     /// Maximum clamp bound for heritable `offspring_energy`.
     #[serde(default = "default_trait_offspring_energy_max")]
     pub trait_offspring_energy_max: f32,
+
+    /// Minimum clamp bound for heritable `mutation_rate`. Must be > 0.0.
+    #[serde(default = "default_trait_mutation_rate_min")]
+    pub trait_mutation_rate_min: f32,
+    /// Maximum clamp bound for heritable `mutation_rate`.
+    #[serde(default = "default_trait_mutation_rate_max")]
+    pub trait_mutation_rate_max: f32,
 }
 
 impl Default for ActorConfig {
@@ -150,6 +159,8 @@ impl Default for ActorConfig {
             trait_reproduction_cost_max: default_trait_reproduction_cost_max(),
             trait_offspring_energy_min: default_trait_offspring_energy_min(),
             trait_offspring_energy_max: default_trait_offspring_energy_max(),
+            trait_mutation_rate_min: default_trait_mutation_rate_min(),
+            trait_mutation_rate_max: default_trait_mutation_rate_max(),
         }
     }
 }

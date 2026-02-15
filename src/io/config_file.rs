@@ -261,13 +261,14 @@ pub fn validate_world_config(config: &WorldConfig) -> Result<(), ConfigError> {
         }
 
         // 3h. Trait clamp ranges (f32): min must be strictly less than max.
-        let clamp_ranges: [(&str, f32, f32); 6] = [
+        let clamp_ranges: [(&str, f32, f32); 7] = [
             ("trait_consumption_rate", actor.trait_consumption_rate_min, actor.trait_consumption_rate_max),
             ("trait_base_energy_decay", actor.trait_base_energy_decay_min, actor.trait_base_energy_decay_max),
             ("trait_levy_exponent", actor.trait_levy_exponent_min, actor.trait_levy_exponent_max),
             ("trait_reproduction_threshold", actor.trait_reproduction_threshold_min, actor.trait_reproduction_threshold_max),
             ("trait_reproduction_cost", actor.trait_reproduction_cost_min, actor.trait_reproduction_cost_max),
             ("trait_offspring_energy", actor.trait_offspring_energy_min, actor.trait_offspring_energy_max),
+            ("trait_mutation_rate", actor.trait_mutation_rate_min, actor.trait_mutation_rate_max),
         ];
         for (name, min, max) in &clamp_ranges {
             if min >= max {
@@ -343,6 +344,14 @@ pub fn validate_world_config(config: &WorldConfig) -> Result<(), ConfigError> {
                 reason: format!(
                     "trait_offspring_energy_min ({}) must be > 0.0",
                     actor.trait_offspring_energy_min,
+                ),
+            });
+        }
+        if actor.trait_mutation_rate_min <= 0.0 {
+            return Err(ConfigError::Validation {
+                reason: format!(
+                    "trait_mutation_rate_min ({}) must be > 0.0",
+                    actor.trait_mutation_rate_min,
                 ),
             });
         }
@@ -439,6 +448,18 @@ pub fn validate_world_config(config: &WorldConfig) -> Result<(), ConfigError> {
                     actor.offspring_energy,
                     actor.trait_offspring_energy_min,
                     actor.trait_offspring_energy_max,
+                ),
+            });
+        }
+        if actor.mutation_stddev < actor.trait_mutation_rate_min
+            || actor.mutation_stddev > actor.trait_mutation_rate_max
+        {
+            return Err(ConfigError::Validation {
+                reason: format!(
+                    "mutation_stddev ({}) must be within trait clamp range [{}, {}]",
+                    actor.mutation_stddev,
+                    actor.trait_mutation_rate_min,
+                    actor.trait_mutation_rate_max,
                 ),
             });
         }

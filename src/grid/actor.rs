@@ -10,7 +10,7 @@ use rand::Rng;
 use rand_distr::{Distribution, Normal};
 
 /// Per-actor heritable trait values. Inherited from parent during fission
-/// with gaussian mutation. 28 bytes (includes 2 bytes padding after u16).
+/// with proportional gaussian mutation. 32 bytes (includes 2 bytes padding after u16).
 ///
 /// Plain data struct — no methods beyond construction and mutation.
 /// Stored inline in `Actor`.
@@ -23,9 +23,10 @@ pub struct HeritableTraits {
     pub max_tumble_steps: u16,
     pub reproduction_cost: f32,
     pub offspring_energy: f32,
+    pub mutation_rate: f32,
 }
 
-const _: () = assert!(std::mem::size_of::<HeritableTraits>() == 28);
+const _: () = assert!(std::mem::size_of::<HeritableTraits>() == 32);
 
 impl HeritableTraits {
     /// Create traits from global config defaults (seed genome).
@@ -38,49 +39,57 @@ impl HeritableTraits {
             max_tumble_steps: config.max_tumble_steps,
             reproduction_cost: config.reproduction_cost,
             offspring_energy: config.offspring_energy,
+            mutation_rate: config.mutation_stddev,
         }
     }
 
-    /// Apply independent gaussian mutation to all seven trait fields, then
-    /// clamp each to its configured range. No-op when `mutation_stddev == 0.0`.
+    /// Apply independent proportional gaussian mutation to all eight trait fields,
+    /// then clamp each to its configured range. No-op when `mutation_rate == 0.0`.
     ///
-    /// `max_tumble_steps` is mutated in f32 space (convert → add noise → round → clamp → cast u16).
+    /// Proportional model: `trait * (1.0 + Normal(0, mutation_rate))`.
+    /// `max_tumble_steps` is mutated in f32 space (convert → scale → round → clamp → cast u16).
+    /// `mutation_rate` mutates itself last, using the pre-mutation rate as σ.
     ///
     /// The caller is responsible for providing a deterministically-seeded RNG
     /// derived from the simulation master seed, tick, and spawn index.
     pub fn mutate(&mut self, config: &ActorConfig, rng: &mut impl Rng) {
-        if config.mutation_stddev == 0.0 {
+        if self.mutation_rate == 0.0 {
             return;
         }
 
-        // SAFETY of expect: mutation_stddev is validated >= 0.0 at config load.
-        let normal = Normal::new(0.0_f64, config.mutation_stddev as f64)
-            .expect("mutation_stddev validated non-negative at config load");
+        // SAFETY of expect: mutation_rate is validated > 0.0 via clamp bounds at config load.
+        let normal = Normal::new(0.0_f64, self.mutation_rate as f64)
+            .expect("mutation_rate validated non-negative at config load");
 
-        self.consumption_rate = (self.consumption_rate + normal.sample(rng) as f32)
+        self.consumption_rate = (self.consumption_rate * (1.0 + normal.sample(rng) as f32))
             .clamp(config.trait_consumption_rate_min, config.trait_consumption_rate_max);
 
-        self.base_energy_decay = (self.base_energy_decay + normal.sample(rng) as f32)
+        self.base_energy_decay = (self.base_energy_decay * (1.0 + normal.sample(rng) as f32))
             .clamp(config.trait_base_energy_decay_min, config.trait_base_energy_decay_max);
 
-        self.levy_exponent = (self.levy_exponent + normal.sample(rng) as f32)
+        self.levy_exponent = (self.levy_exponent * (1.0 + normal.sample(rng) as f32))
             .clamp(config.trait_levy_exponent_min, config.trait_levy_exponent_max);
 
-        self.reproduction_threshold = (self.reproduction_threshold + normal.sample(rng) as f32)
+        self.reproduction_threshold = (self.reproduction_threshold * (1.0 + normal.sample(rng) as f32))
             .clamp(config.trait_reproduction_threshold_min, config.trait_reproduction_threshold_max);
 
-        // max_tumble_steps: mutate in f32 space, round, clamp to u16 range.
-        let tumble_f32 = self.max_tumble_steps as f32 + normal.sample(rng) as f32;
+        // max_tumble_steps: proportional in f32 space, round, clamp to u16 range.
+        let tumble_f32 = self.max_tumble_steps as f32 * (1.0 + normal.sample(rng) as f32);
         self.max_tumble_steps = tumble_f32
             .round()
             .clamp(config.trait_max_tumble_steps_min as f32, config.trait_max_tumble_steps_max as f32)
             as u16;
 
-        self.reproduction_cost = (self.reproduction_cost + normal.sample(rng) as f32)
+        self.reproduction_cost = (self.reproduction_cost * (1.0 + normal.sample(rng) as f32))
             .clamp(config.trait_reproduction_cost_min, config.trait_reproduction_cost_max);
 
-        self.offspring_energy = (self.offspring_energy + normal.sample(rng) as f32)
+        self.offspring_energy = (self.offspring_energy * (1.0 + normal.sample(rng) as f32))
             .clamp(config.trait_offspring_energy_min, config.trait_offspring_energy_max);
+
+        // mutation_rate mutates itself — self-referential proportional mutation.
+        // Uses the pre-mutation rate (captured in `normal` above) as σ.
+        self.mutation_rate = (self.mutation_rate * (1.0 + normal.sample(rng) as f32))
+            .clamp(config.trait_mutation_rate_min, config.trait_mutation_rate_max);
     }
 }
 
