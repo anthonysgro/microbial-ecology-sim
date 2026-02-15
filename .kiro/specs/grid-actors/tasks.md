@@ -14,8 +14,8 @@ Incremental implementation of mobile Actors into the existing deterministic grid
     - `ActorError`: enum with `CellOutOfBounds`, `CellOccupied`, `InvalidActorId` variants using `thiserror`
     - _Requirements: 1.1, 1.2, 1.3, 1.4, 11.1, 11.2, 11.3, 11.4_
 
-- [ ] 2. Implement ActorRegistry with occupancy map integration
-  - [ ] 2.1 Implement `ActorRegistry` in `src/grid/actor.rs`
+- [-] 2. Implement ActorRegistry with occupancy map integration
+  - [x] 2.1 Implement `ActorRegistry` in `src/grid/actor.rs`
     - `new() -> Self` and `with_capacity(cap: usize) -> Self`
     - `add(actor, cell_count, occupancy) -> Result<ActorId, ActorError>` — validates cell_index, checks occupancy, inserts into slot, updates occupancy map
     - `remove(id, occupancy) -> Result<(), ActorError>` — validates generation, clears slot, clears occupancy, pushes to free list
