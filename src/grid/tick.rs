@@ -101,7 +101,7 @@ fn run_emission_phase(grid: &mut Grid, _config: &GridConfig) -> Result<(), TickE
 
     // Temporarily extract the registry to split the borrow:
     // run_emission needs &mut Grid (for write buffers) + &SourceRegistry.
-    let registry = grid.take_sources();
+    let mut registry = grid.take_sources();
 
     // Copy read→write for affected fields, then run emission.
     if heat_affected {
@@ -115,8 +115,8 @@ fn run_emission_phase(grid: &mut Grid, _config: &GridConfig) -> Result<(), TickE
         }
     }
 
-    // Inject emission values into write buffers.
-    run_emission(grid, &registry);
+    // Inject emission values into write buffers, draining reservoirs.
+    run_emission(grid, &mut registry);
 
     // Clamp chemical write buffers to ≥ 0.0 (concentrations cannot be negative).
     for species in 0..num_chemicals {

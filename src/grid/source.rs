@@ -270,27 +270,70 @@ impl SourceRegistry {
 // No heap allocation. No dynamic dispatch. Sequential iteration.
 
 /// Inject emission rates from all active sources into the appropriate
-/// field write buffers.
+/// field write buffers, draining reservoirs for non-renewable sources.
 ///
-/// Iterates the registry in deterministic slot order. For each source,
-/// adds `emission_rate` to the write buffer of the target field at the
-/// source's `cell_index`. Caller is responsible for copy-read-to-write
-/// before calling this, and for validation + swap after.
+/// Iterates the registry in deterministic slot order. For each source:
+/// - Skips depleted sources (reservoir == 0.0, but not INFINITY).
+/// - Computes effective emission rate with deceleration when reservoir
+///   falls below `deceleration_threshold * initial_capacity`.
+/// - Clamps actual emission to remaining reservoir.
+/// - Subtracts actual emission from reservoir.
 ///
-/// Species indices were validated at registration time, so chemical
-/// buffer lookups use `get_mut` with a silent skip on index mismatch
-/// (defensive — should never occur in practice).
-pub fn run_emission(grid: &mut Grid, registry: &SourceRegistry) {
-    for source in registry.iter() {
+/// Renewable sources (reservoir = INFINITY) emit at full rate every tick
+/// with no reservoir mutation (INFINITY - R = INFINITY).
+///
+/// Caller is responsible for copy-read-to-write before calling this,
+/// and for validation + swap after.
+pub fn run_emission(grid: &mut Grid, registry: &mut SourceRegistry) {
+    for source in registry.iter_mut() {
+        // Skip depleted non-renewable sources.
+        // f32::INFINITY > 0.0 is true, so renewable sources pass this check.
+        if source.reservoir == 0.0 {
+            continue;
+        }
+
+        let threshold_capacity = source.deceleration_threshold * source.initial_capacity;
+
+        // Compute effective emission rate with deceleration.
+        // When reservoir is INFINITY, the first branch always fires (∞ > any finite).
+        // When threshold is 0.0, threshold_capacity is 0.0, so reservoir > 0.0 >= 0.0
+        // also takes the first branch (full rate until exhaustion).
+        let effective_rate = if source.deceleration_threshold == 0.0
+            || source.reservoir > threshold_capacity
+        {
+            source.emission_rate
+        } else {
+            // Linear deceleration: rate scales with remaining fraction of threshold band.
+            source.emission_rate * (source.reservoir / threshold_capacity)
+        };
+
+        // Clamp to remaining reservoir. For renewable sources (INFINITY),
+        // min(effective_rate, INFINITY) = effective_rate, so no clamping occurs.
+        let actual_emission = if source.reservoir.is_infinite() {
+            effective_rate
+        } else {
+            effective_rate.min(source.reservoir)
+        };
+
+        // Drain reservoir. INFINITY - finite = INFINITY, so renewable sources
+        // are unaffected.
+        source.reservoir -= actual_emission;
+
+        // Clamp reservoir to zero to avoid floating-point undershoot.
+        if source.reservoir < 0.0 {
+            source.reservoir = 0.0;
+        }
+
+        // Write to the appropriate field buffer.
         match source.field {
             SourceField::Heat => {
-                grid.write_heat()[source.cell_index] += source.emission_rate;
+                grid.write_heat()[source.cell_index] += actual_emission;
             }
             SourceField::Chemical(species) => {
-                // Species validated at add() time. Defensive get_mut avoids
+                // Species validated at add() time. Defensive get avoids
                 // panic if registry and grid are somehow out of sync.
                 if let Ok(buf) = grid.write_chemical(species) {
-                    buf[source.cell_index] += source.emission_rate;
+                    buf[source.cell_index] += actual_emission;
                 }
             }
         }

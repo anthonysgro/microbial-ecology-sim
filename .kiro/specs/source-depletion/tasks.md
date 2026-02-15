@@ -26,20 +26,20 @@ Extend the `Source` struct with reservoir, initial_capacity, and deceleration_th
     - Update any test code that constructs `Source` directly
     - _Requirements: 1.1, 1.2_
 
-- [-] 2. Implement `iter_mut`, `is_depleted`, and `active_emitting_count` on SourceRegistry
-  - [-] 2.1 Add `iter_mut()` method returning `impl Iterator<Item = &mut Source>` over active slots
+- [x] 2. Implement `iter_mut`, `is_depleted`, and `active_emitting_count` on SourceRegistry
+  - [x] 2.1 Add `iter_mut()` method returning `impl Iterator<Item = &mut Source>` over active slots
     - _Requirements: 2.1_
-  - [-] 2.2 Add `is_depleted(id: SourceId) -> Result<bool, SourceError>` method
+  - [x] 2.2 Add `is_depleted(id: SourceId) -> Result<bool, SourceError>` method
     - Returns true if source exists and reservoir == 0.0
     - _Requirements: 4.3_
-  - [-] 2.3 Add `active_emitting_count()` method returning count of sources with reservoir > 0.0
+  - [x] 2.3 Add `active_emitting_count()` method returning count of sources with reservoir > 0.0
     - _Requirements: 4.4_
 
-- [ ] 3. Modify `run_emission` to support depletion and deceleration
-  - [ ] 3.1 Change `run_emission` signature to take `&mut SourceRegistry` instead of `&SourceRegistry`
+- [x] 3. Modify `run_emission` to support depletion and deceleration
+  - [x] 3.1 Change `run_emission` signature to take `&mut SourceRegistry` instead of `&SourceRegistry`
     - Update call site in `run_emission_phase` in `src/grid/tick.rs`
     - _Requirements: 2.1_
-  - [ ] 3.2 Implement effective emission rate computation with deceleration
+  - [x] 3.2 Implement effective emission rate computation with deceleration
     - If `reservoir > threshold * initial_capacity`: effective_rate = emission_rate
     - Else if `threshold > 0.0`: effective_rate = emission_rate * (reservoir / (threshold * initial_capacity))
     - Else: effective_rate = emission_rate
@@ -69,7 +69,7 @@ Extend the `Source` struct with reservoir, initial_capacity, and deceleration_th
     - Negative emission_rate with finite reservoir
     - _Requirements: 2.3, 3.4_
 
-- [ ] 4. Checkpoint - Ensure all tests pass
+- [-] 4. Checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 5. Update WorldInitConfig and generate_sources for reservoir parameterization
