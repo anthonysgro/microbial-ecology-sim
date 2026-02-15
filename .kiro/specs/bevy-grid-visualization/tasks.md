@@ -115,8 +115,8 @@ Incremental build-up of the `viz_bevy` module: pure functions first (normalize, 
     - **Property 6: Label-overlay text sync**
     - **Validates: Requirements 6.4**
 
-- [-] 11. Implement camera control system
-  - [-] 11.1 Implement `camera_controls` in `src/viz_bevy/systems.rs`
+- [x] 11. Implement camera control system
+  - [x] 11.1 Implement `camera_controls` in `src/viz_bevy/systems.rs`
     - Runs in `Update` schedule
     - Mouse wheel up → decrease orthographic scale (zoom in)
     - Mouse wheel down → increase orthographic scale (zoom out)
@@ -132,15 +132,15 @@ Incremental build-up of the `viz_bevy` module: pure functions first (normalize, 
     - **Property 8: Zoom clamping invariant**
     - **Validates: Requirements 8.5**
 
-- [~] 12. Wire plugin and app entry point
-  - [ ] 12.1 Implement `BevyVizPlugin` in `src/viz_bevy/mod.rs`
+- [-] 12. Wire plugin and app entry point
+  - [x] 12.1 Implement `BevyVizPlugin` in `src/viz_bevy/mod.rs`
     - Define a Bevy `Plugin` that registers all systems and schedules:
       - `Startup`: `setup`
       - `FixedUpdate`: `tick_simulation` (configure timestep from `BevyVizConfig::tick_hz`)
       - `Update`: `handle_input`, `update_texture`, `camera_controls`, `update_overlay_label`
     - _Requirements: 2.3, 2.4_
 
-  - [ ] 12.2 Update `src/main.rs` or create a separate binary entry point
+  - [-] 12.2 Update `src/main.rs` or create a separate binary entry point
     - Parse CLI args (seed, optional `--bevy` flag or separate binary)
     - Construct `BevyVizConfig` with defaults
     - Build Bevy `App`, insert `BevyVizConfig` resource, add `BevyVizPlugin`, run

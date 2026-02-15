@@ -2,7 +2,7 @@
 // COLD PATH: input, camera, label systems run every Update frame.
 // Allocation forbidden in tick_simulation. Standard rules for Update systems.
 
-use bevy::input::mouse::MouseWheel;
+use bevy::input::mouse::AccumulatedMouseScroll;
 use bevy::prelude::*;
 
 use crate::grid::tick::TickOrchestrator;
@@ -163,3 +163,63 @@ pub fn update_overlay_label(
         **text = label.clone();
     }
 }
+
+/// Handle mouse wheel zoom and middle-button pan for the 2D camera.
+///
+/// COLD PATH: Runs every `Update` frame. Reads accumulated mouse scroll
+/// for zoom and middle-button drag for panning. Clamps orthographic scale
+/// to `[zoom_min, zoom_max]` from `BevyVizConfig`.
+///
+/// Zoom: scroll up (positive y) → decrease scale (zoom in),
+///        scroll down (negative y) → increase scale (zoom out).
+/// Pan:  middle mouse button held → translate camera by cursor delta
+///        scaled by current projection scale and `pan_speed`.
+///
+/// Requirements: 8.2 (zoom in), 8.3 (zoom out), 8.4 (pan), 8.5 (clamp).
+pub fn camera_controls(
+    mouse_wheel: Res<AccumulatedMouseScroll>,
+    mouse: Res<ButtonInput<MouseButton>>,
+    mut camera_q: Query<(&mut Transform, &mut Projection), With<MainCamera>>,
+    config: Res<BevyVizConfig>,
+    mut last_cursor_pos: Local<Option<Vec2>>,
+    windows: Query<&Window>,
+) {
+    let Ok((mut transform, mut projection)) = camera_q.single_mut() else {
+        return;
+    };
+
+    let Projection::Orthographic(ref mut ortho) = *projection else {
+        return;
+    };
+
+    // ── Zoom via mouse wheel ───────────────────────────────────────
+    // Multiplicative zoom: scroll up (positive y) → zoom in (decrease scale).
+    if mouse_wheel.delta.y != 0.0 {
+        let zoom_factor = 1.0 + (-mouse_wheel.delta.y * config.zoom_speed);
+        ortho.scale = (ortho.scale * zoom_factor)
+            .clamp(config.zoom_min, config.zoom_max);
+    }
+
+    // ── Pan via middle mouse button drag ───────────────────────────
+    let Ok(window) = windows.single() else {
+        *last_cursor_pos = None;
+        return;
+    };
+
+    if mouse.pressed(MouseButton::Middle) {
+        if let Some(cursor_pos) = window.cursor_position() {
+            if let Some(prev) = *last_cursor_pos {
+                let delta = cursor_pos - prev;
+                // Screen-space delta → world-space translation.
+                // Negate x so dragging right moves the view right (camera left).
+                // Negate y because screen y is top-down, world y is bottom-up.
+                transform.translation.x -= delta.x * config.pan_speed * ortho.scale;
+                transform.translation.y += delta.y * config.pan_speed * ortho.scale;
+            }
+            *last_cursor_pos = Some(cursor_pos);
+        }
+    } else {
+        *last_cursor_pos = None;
+    }
+}
+

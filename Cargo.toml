@@ -3,6 +3,10 @@ name = "emergent-sovereignty"
 version = "0.1.0"
 edition = "2024"
 
+[[bin]]
+name = "bevy_viz"
+path = "src/bin/bevy_viz.rs"
+
 [dependencies]
 anyhow = "1"
 rand = "0.9"
