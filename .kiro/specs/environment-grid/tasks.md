@@ -113,11 +113,11 @@ Implement the Layer 0 environment grid substrate in Rust: a double-buffered, SoA
     - Very high heat causing clamp to zero
     - _Requirements: 5.2, 5.3_
 
-- [ ] 9. Checkpoint — all three systems
+- [x] 9. Checkpoint — all three systems
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 10. Implement Tick Orchestrator
-  - [ ] 10.1 Implement `TickOrchestrator::step(grid, config) -> Result<(), TickError>` in `src/grid/tick.rs`
+- [x] 10. Implement Tick Orchestrator
+  - [x] 10.1 Implement `TickOrchestrator::step(grid, config) -> Result<(), TickError>` in `src/grid/tick.rs`
     - Run diffusion → swap chemicals → run heat → swap heat → run evaporation → swap moisture
     - After each system, scan write buffer for NaN/infinity before swapping
     - Return `TickError::NumericalError` on first invalid value found
@@ -130,7 +130,7 @@ Implement the Layer 0 environment grid substrate in Rust: a double-buffered, SoA
     - **Property 14: NaN/infinity detection** — inject NaN/inf, verify TickError returned with correct metadata
     - **Validates: Requirements 9.4**
 
-- [ ] 11. Final checkpoint — full integration
+- [x] 11. Final checkpoint — full integration
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Notes
