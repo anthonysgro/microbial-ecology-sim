@@ -13,8 +13,8 @@
 seed = 773
 
 [grid]
-width  = 60
-height = 60
+width  = 500
+height = 500
 num_chemicals = 1                    # Actors sense and consume species 0 only
 diffusion_rate = 0.08                # Moderate spread — gradients persist 10–20 ticks
 thermal_conductivity = 0.04          # Heat spreads slower than chemicals
@@ -31,8 +31,8 @@ max_initial_heat = 0.6               # Warm baseline — not uniform, creates ea
 min_initial_concentration = 0.0
 max_initial_concentration = 0.3      # Light chemical dusting — sources dominate quickly
 
-min_actors = 15
-max_actors = 25                      # Enough actors for competition without grid saturation
+min_actors = 200
+max_actors = 400                      # Enough actors for competition without grid saturation
 
 # Heat sources: a few strong emitters create thermal "hotspots"
 [world_init.heat_source_config]
@@ -51,8 +51,8 @@ max_respawn_cooldown_ticks = 150     # Maximum ticks before a depleted source re
 
 # Chemical sources: moderate count, low emission — actors out-consume any single source
 [world_init.chemical_source_config]
-min_sources = 8
-max_sources = 15
+min_sources = 50
+max_sources = 75
 min_emission_rate = 0.2
 max_emission_rate = 0.8              # Below consumption_rate (1.5) — actors drain sources
 renewable_fraction = 0             # Mostly finite — forces migration as sources deplete
@@ -85,7 +85,7 @@ initial_energy = 50.0
 initial_actor_capacity = 64
 movement_cost = 0.1
 removal_threshold = -3.0
-max_energy = 100.0                    # Maximum energy an actor can hold. Must be > 0, finite, >= initial_energy.
+max_energy = 500.0                    # Maximum energy an actor can hold. Must be > 0, finite, >= initial_energy.
                                      # Caps reserves and makes consumption demand-driven: saturated actors
                                      # stop extracting chemical, preserving it for neighbors and diffusion.
 levy_exponent = 1.5                  # Power-law exponent α for Lévy flight step distribution.
