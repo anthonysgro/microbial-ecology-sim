@@ -38,6 +38,7 @@ fn main() {
         zoom_max: 10.0,
         zoom_speed: 0.1,
         pan_speed: 1.0,
+        color_scale_max: 10.0,
     };
 
     App::new()

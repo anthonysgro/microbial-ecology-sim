@@ -59,6 +59,10 @@ pub struct BevyVizConfig {
     pub zoom_max: f32,
     pub zoom_speed: f32,
     pub pan_speed: f32,
+    /// Fixed upper bound for color mapping. Raw values are divided by this
+    /// instead of the dynamic max, so the color scale stays stable.
+    /// Values above this render as full intensity.
+    pub color_scale_max: f32,
 }
 
 // ── Marker Components ──────────────────────────────────────────────
@@ -74,3 +78,19 @@ pub struct OverlayLabel;
 /// Marker for the main camera entity.
 #[derive(Component)]
 pub struct MainCamera;
+
+/// Marker for the hover tooltip text entity.
+#[derive(Component)]
+pub struct HoverTooltip;
+
+/// Marker for the color scale bar image entity.
+#[derive(Component)]
+pub struct ScaleBar;
+
+/// Marker for the scale bar "0" label.
+#[derive(Component)]
+pub struct ScaleMinLabel;
+
+/// Marker for the scale bar max label.
+#[derive(Component)]
+pub struct ScaleMaxLabel;

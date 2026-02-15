@@ -51,6 +51,8 @@ impl Plugin for BevyVizPlugin {
                 systems::update_texture,
                 systems::camera_controls,
                 systems::update_overlay_label,
+                systems::update_hover_tooltip,
+                systems::update_scale_bar,
             ),
         );
     }

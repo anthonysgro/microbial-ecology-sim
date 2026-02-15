@@ -9,10 +9,10 @@ use crate::grid::tick::TickOrchestrator;
 
 use super::{color, normalize};
 use super::resources::{
-    ActiveOverlay, BevyVizConfig, GridSprite, MainCamera, OverlayLabel, RenderState,
-    SimulationState,
+    ActiveOverlay, BevyVizConfig, GridSprite, HoverTooltip, MainCamera, OverlayLabel,
+    RenderState, ScaleBar, ScaleMaxLabel, SimulationState,
 };
-use super::setup::overlay_label_text;
+use super::setup::{build_scale_image, overlay_label_text};
 
 /// Advance the simulation by one tick.
 ///
@@ -56,6 +56,7 @@ pub fn update_texture(
     mut render: ResMut<RenderState>,
     mut images: ResMut<Assets<Image>>,
     query: Query<&Sprite, With<GridSprite>>,
+    config: Res<BevyVizConfig>,
 ) {
     // Resolve the field slice and color function from the active overlay.
     let (field, color_fn): (&[f32], fn(f32) -> [u8; 4]) = match *overlay {
@@ -74,7 +75,7 @@ pub fn update_texture(
     let render = &mut *render;
 
     // Normalize field values into the pre-allocated norm buffer.
-    normalize::normalize_field(field, &mut render.norm_buffer);
+    normalize::normalize_field(field, &mut render.norm_buffer, config.color_scale_max);
 
     // Color-map normalized values into the pre-allocated pixel buffer.
     color::fill_pixel_buffer(&render.norm_buffer, &mut render.pixel_buffer, color_fn);
@@ -223,3 +224,109 @@ pub fn camera_controls(
     }
 }
 
+
+
+/// Update the hover tooltip with the raw field value under the cursor.
+///
+/// COLD PATH: Runs every `Update` frame. Uses Bevy's `Camera` viewport
+/// projection to convert cursor screen position to world coordinates,
+/// then maps to a grid cell and displays the raw field value.
+pub fn update_hover_tooltip(
+    windows: Query<&Window>,
+    camera_q: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
+    sim: Res<SimulationState>,
+    overlay: Res<ActiveOverlay>,
+    sprite_q: Query<(&Transform, &Sprite), With<GridSprite>>,
+    mut tooltip_q: Query<&mut Text, With<HoverTooltip>>,
+) {
+    let Ok(window) = windows.single() else {
+        return;
+    };
+    let Ok((camera, cam_global)) = camera_q.single() else {
+        return;
+    };
+    let Ok((sprite_transform, sprite)) = sprite_q.single() else {
+        return;
+    };
+
+    let Some(cursor_screen) = window.cursor_position() else {
+        for mut text in &mut tooltip_q {
+            **text = String::new();
+        }
+        return;
+    };
+
+    // Use Bevy's built-in viewport_to_world_2d for accurate projection.
+    let Ok(world_pos) = camera.viewport_to_world_2d(cam_global, cursor_screen) else {
+        for mut text in &mut tooltip_q {
+            **text = String::new();
+        }
+        return;
+    };
+
+    // World position → grid cell.
+    let sprite_size = sprite.custom_size.unwrap_or(Vec2::ONE);
+    let sprite_origin = sprite_transform.translation.truncate() - sprite_size * 0.5;
+    let local = world_pos - sprite_origin;
+
+    let gx = local.x.floor() as i32;
+    let gy = (sprite_size.y - local.y).floor() as i32; // flip y: world y-up → row-major top-down
+
+    let width = sim.grid.width() as i32;
+    let height = sim.grid.height() as i32;
+
+    if gx < 0 || gy < 0 || gx >= width || gy >= height {
+        for mut text in &mut tooltip_q {
+            **text = String::new();
+        }
+        return;
+    }
+
+    let cell_index = (gy as usize) * (width as usize) + (gx as usize);
+
+    let raw_value = match *overlay {
+        ActiveOverlay::Heat => sim.grid.read_heat().get(cell_index).copied(),
+        ActiveOverlay::Chemical(species) => sim
+            .grid
+            .read_chemical(species)
+            .ok()
+            .and_then(|buf| buf.get(cell_index).copied()),
+    };
+
+    let label = match raw_value {
+        Some(v) => format!("({gx}, {gy}): {v:.4}"),
+        None => String::new(),
+    };
+
+    for mut text in &mut tooltip_q {
+        **text = label.clone();
+    }
+}
+
+/// Rebuild the color scale bar image when the overlay changes.
+///
+/// COLD PATH: Only runs when `ActiveOverlay` changes. Regenerates the
+/// gradient texture to match the current overlay's color function.
+pub fn update_scale_bar(
+    overlay: Res<ActiveOverlay>,
+    config: Res<BevyVizConfig>,
+    mut images: ResMut<Assets<Image>>,
+    mut scale_q: Query<&mut ImageNode, With<ScaleBar>>,
+    mut max_label_q: Query<&mut Text, With<ScaleMaxLabel>>,
+) {
+    if !overlay.is_changed() {
+        return;
+    }
+
+    let scale_image = build_scale_image(20, 256, &overlay);
+    let handle = images.add(scale_image);
+
+    for mut image_node in &mut scale_q {
+        image_node.image = handle.clone();
+    }
+
+    // Update the max label in case color_scale_max changed (future-proofing).
+    for mut text in &mut max_label_q {
+        **text = format!("{:.1}", config.color_scale_max);
+    }
+}
