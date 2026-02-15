@@ -41,8 +41,8 @@ Implement a COLD-path terminal renderer in `src/viz/` that reads `Grid` field bu
     - **Property 4: Moisture blue-channel dominance**
     - **Validates: Requirements 3.2**
 
-- [ ] 5. Implement input handling
-  - [ ] 5.1 Create `src/viz/input.rs` with `map_key_event(event: KeyEvent, num_chemicals: usize) -> InputAction` mapping digit keys to chemical overlays (with bounds check), 'h' to Heat, 'm' to Moisture, 'q'/Esc to Quit, everything else to None
+- [x] 5. Implement input handling
+  - [x] 5.1 Create `src/viz/input.rs` with `map_key_event(event: KeyEvent, num_chemicals: usize) -> InputAction` mapping digit keys to chemical overlays (with bounds check), 'h' to Heat, 'm' to Moisture, 'q'/Esc to Quit, everything else to None
     - _Requirements: 5.3, 6.1, 6.2, 6.3, 6.4_
   - [ ]* 5.2 Write property test: Key-to-overlay mapping correctness
     - **Property 5: Key-to-overlay mapping correctness**
