@@ -60,7 +60,7 @@ Implement a COLD-path procedural initialization system in `src/grid/world_init.r
     - After `initialize`, read all cells from `grid.read_heat()` and `grid.read_chemical(i)`; verify all values in configured ranges
     - **Validates: Requirements 3.1, 3.2, 3.3**
 
-- [-] 5. Implement top-level `initialize` function and RNG forking
+- [x] 5. Implement top-level `initialize` function and RNG forking
   - [x] 5.1 Implement `pub fn initialize(seed: u64, grid_config: GridConfig, init_config: &WorldInitConfig) -> Result<Grid, WorldInitError>`
     - Call `validate_config`
     - Construct `CellDefaults` with zeros (field population overwrites them)
@@ -82,7 +82,7 @@ Implement a COLD-path procedural initialization system in `src/grid/world_init.r
     - For any two distinct seeds with same config: call `initialize` on each, verify at least one field value or source parameter differs
     - **Validates: Requirements 1.3**
 
-- [ ] 6. Checkpoint — Ensure all tests pass
+- [x] 6. Checkpoint — Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 7. Implement grid-valid-for-tick property test
@@ -91,8 +91,8 @@ Implement a COLD-path procedural initialization system in `src/grid/world_init.r
     - For any seed and valid WorldInitConfig: call `initialize`, then call `TickOrchestrator::step` on the result; verify no error
     - **Validates: Requirements 4.3**
 
-- [ ] 8. Integrate into `main.rs`
-  - [ ] 8.1 Replace hardcoded initialization in `main.rs` with `world_init::initialize`
+- [x] 8. Integrate into `main.rs`
+  - [x] 8.1 Replace hardcoded initialization in `main.rs` with `world_init::initialize`
     - Accept seed as an optional CLI argument (e.g., `std::env::args().nth(1)` parsed as `u64`, defaulting to a fixed seed like `42`)
     - Construct a `WorldInitConfig::default()`
     - Call `world_init::initialize(seed, config, &init_config)` instead of `Grid::new` + manual `add_source` calls
