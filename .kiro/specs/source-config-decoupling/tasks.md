@@ -22,18 +22,18 @@ Extract all source-generation parameters from `WorldInitConfig` into a reusable 
     - Chemical: source count `[1, 3]`, emission rate `[0.1, 5.0]`, renewable fraction `0.3`, reservoir capacity `[50.0, 200.0]`, deceleration threshold `[0.1, 0.5]`
     - _Requirements: 4.1, 4.2, 4.3_
 
-- [ ] 2. Refactor validation and generation functions
-  - [ ] 2.1 Extract `validate_source_field_config` helper
+- [x] 2. Refactor validation and generation functions
+  - [x] 2.1 Extract `validate_source_field_config` helper
     - Signature: `fn validate_source_field_config(config: &SourceFieldConfig, field_label: &'static str) -> Result<(), WorldInitError>`
     - Validate all ranges and bounds, prefixing error field names with `field_label` (e.g., `"heat_emission_rate"`)
     - Call from `validate_config` for both `heat_source_config` and `chemical_source_config`
     - Keep non-source validations (initial_heat, initial_concentration, actors) unchanged
     - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8_
-  - [ ] 2.2 Update `sample_reservoir_params` signature
+  - [x] 2.2 Update `sample_reservoir_params` signature
     - Change from `(&mut impl Rng, &WorldInitConfig, f64)` to `(&mut impl Rng, &SourceFieldConfig, f64)`
     - Body reads from `SourceFieldConfig` fields (same field names, just different source struct)
     - _Requirements: 5.2_
-  - [ ] 2.3 Update `generate_sources` to use per-field configs
+  - [x] 2.3 Update `generate_sources` to use per-field configs
     - Heat loop: read count, emission rate, renewable_prob from `config.heat_source_config`
     - Chemical loop: read count, emission rate, renewable_prob from `config.chemical_source_config`
     - Pass the appropriate `SourceFieldConfig` to `sample_reservoir_params`

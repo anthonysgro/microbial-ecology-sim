@@ -114,36 +114,103 @@ pub enum WorldInitError {
     ActorError(#[from] ActorError),
 }
 
+/// Static label set for a single field type, used by `validate_source_field_config`
+/// to produce `&'static str` error fields without allocation.
+struct SourceFieldLabels {
+    sources: &'static str,
+    emission_rate: &'static str,
+    renewable_fraction: &'static str,
+    min_reservoir_capacity: &'static str,
+    reservoir_capacity: &'static str,
+    min_deceleration_threshold: &'static str,
+    max_deceleration_threshold: &'static str,
+    deceleration_threshold: &'static str,
+}
+
+const HEAT_LABELS: SourceFieldLabels = SourceFieldLabels {
+    sources: "heat_sources",
+    emission_rate: "heat_emission_rate",
+    renewable_fraction: "heat renewable_fraction must be in [0.0, 1.0]",
+    min_reservoir_capacity: "heat min_reservoir_capacity must be > 0.0",
+    reservoir_capacity: "heat_reservoir_capacity",
+    min_deceleration_threshold: "heat min_deceleration_threshold must be in [0.0, 1.0]",
+    max_deceleration_threshold: "heat max_deceleration_threshold must be in [0.0, 1.0]",
+    deceleration_threshold: "heat_deceleration_threshold",
+};
+
+const CHEMICAL_LABELS: SourceFieldLabels = SourceFieldLabels {
+    sources: "chemical_sources",
+    emission_rate: "chemical_emission_rate",
+    renewable_fraction: "chemical renewable_fraction must be in [0.0, 1.0]",
+    min_reservoir_capacity: "chemical min_reservoir_capacity must be > 0.0",
+    reservoir_capacity: "chemical_reservoir_capacity",
+    min_deceleration_threshold: "chemical min_deceleration_threshold must be in [0.0, 1.0]",
+    max_deceleration_threshold: "chemical max_deceleration_threshold must be in [0.0, 1.0]",
+    deceleration_threshold: "chemical_deceleration_threshold",
+};
+
+/// Validate a single `SourceFieldConfig`. All error messages are prefixed
+/// with the field type via the pre-baked `labels`.
+fn validate_source_field_config(
+    config: &SourceFieldConfig,
+    labels: &SourceFieldLabels,
+) -> Result<(), WorldInitError> {
+    if config.min_sources > config.max_sources {
+        return Err(WorldInitError::InvalidRange {
+            field: labels.sources,
+            min: f64::from(config.min_sources),
+            max: f64::from(config.max_sources),
+        });
+    }
+    if config.min_emission_rate > config.max_emission_rate {
+        return Err(WorldInitError::InvalidRange {
+            field: labels.emission_rate,
+            min: f64::from(config.min_emission_rate),
+            max: f64::from(config.max_emission_rate),
+        });
+    }
+    if !(0.0..=1.0).contains(&config.renewable_fraction) {
+        return Err(WorldInitError::InvalidConfig {
+            reason: labels.renewable_fraction,
+        });
+    }
+    if config.min_reservoir_capacity <= 0.0 {
+        return Err(WorldInitError::InvalidConfig {
+            reason: labels.min_reservoir_capacity,
+        });
+    }
+    if config.max_reservoir_capacity < config.min_reservoir_capacity {
+        return Err(WorldInitError::InvalidRange {
+            field: labels.reservoir_capacity,
+            min: f64::from(config.min_reservoir_capacity),
+            max: f64::from(config.max_reservoir_capacity),
+        });
+    }
+    if !(0.0..=1.0).contains(&config.min_deceleration_threshold) {
+        return Err(WorldInitError::InvalidConfig {
+            reason: labels.min_deceleration_threshold,
+        });
+    }
+    if !(0.0..=1.0).contains(&config.max_deceleration_threshold) {
+        return Err(WorldInitError::InvalidConfig {
+            reason: labels.max_deceleration_threshold,
+        });
+    }
+    if config.max_deceleration_threshold < config.min_deceleration_threshold {
+        return Err(WorldInitError::InvalidRange {
+            field: labels.deceleration_threshold,
+            min: f64::from(config.min_deceleration_threshold),
+            max: f64::from(config.max_deceleration_threshold),
+        });
+    }
+    Ok(())
+}
+
 /// Validate all `WorldInitConfig` ranges. Returns first error found.
 pub(crate) fn validate_config(config: &WorldInitConfig) -> Result<(), WorldInitError> {
-    if config.heat_source_config.min_sources > config.heat_source_config.max_sources {
-        return Err(WorldInitError::InvalidRange {
-            field: "heat_sources",
-            min: f64::from(config.heat_source_config.min_sources),
-            max: f64::from(config.heat_source_config.max_sources),
-        });
-    }
-    if config.chemical_source_config.min_sources > config.chemical_source_config.max_sources {
-        return Err(WorldInitError::InvalidRange {
-            field: "chemical_sources",
-            min: f64::from(config.chemical_source_config.min_sources),
-            max: f64::from(config.chemical_source_config.max_sources),
-        });
-    }
-    if config.heat_source_config.min_emission_rate > config.heat_source_config.max_emission_rate {
-        return Err(WorldInitError::InvalidRange {
-            field: "heat_emission_rate",
-            min: f64::from(config.heat_source_config.min_emission_rate),
-            max: f64::from(config.heat_source_config.max_emission_rate),
-        });
-    }
-    if config.chemical_source_config.min_emission_rate > config.chemical_source_config.max_emission_rate {
-        return Err(WorldInitError::InvalidRange {
-            field: "chemical_emission_rate",
-            min: f64::from(config.chemical_source_config.min_emission_rate),
-            max: f64::from(config.chemical_source_config.max_emission_rate),
-        });
-    }
+    validate_source_field_config(&config.heat_source_config, &HEAT_LABELS)?;
+    validate_source_field_config(&config.chemical_source_config, &CHEMICAL_LABELS)?;
+
     if config.min_initial_heat > config.max_initial_heat {
         return Err(WorldInitError::InvalidRange {
             field: "initial_heat",
@@ -163,78 +230,6 @@ pub(crate) fn validate_config(config: &WorldInitConfig) -> Result<(), WorldInitE
             field: "actors",
             min: f64::from(config.min_actors),
             max: f64::from(config.max_actors),
-        });
-    }
-
-    // Reservoir parameterization validation — heat
-    if !(0.0..=1.0).contains(&config.heat_source_config.renewable_fraction) {
-        return Err(WorldInitError::InvalidConfig {
-            reason: "heat renewable_fraction must be in [0.0, 1.0]",
-        });
-    }
-    if config.heat_source_config.min_reservoir_capacity <= 0.0 {
-        return Err(WorldInitError::InvalidConfig {
-            reason: "heat min_reservoir_capacity must be > 0.0",
-        });
-    }
-    if config.heat_source_config.max_reservoir_capacity < config.heat_source_config.min_reservoir_capacity {
-        return Err(WorldInitError::InvalidRange {
-            field: "heat_reservoir_capacity",
-            min: f64::from(config.heat_source_config.min_reservoir_capacity),
-            max: f64::from(config.heat_source_config.max_reservoir_capacity),
-        });
-    }
-    if !(0.0..=1.0).contains(&config.heat_source_config.min_deceleration_threshold) {
-        return Err(WorldInitError::InvalidConfig {
-            reason: "heat min_deceleration_threshold must be in [0.0, 1.0]",
-        });
-    }
-    if !(0.0..=1.0).contains(&config.heat_source_config.max_deceleration_threshold) {
-        return Err(WorldInitError::InvalidConfig {
-            reason: "heat max_deceleration_threshold must be in [0.0, 1.0]",
-        });
-    }
-    if config.heat_source_config.max_deceleration_threshold < config.heat_source_config.min_deceleration_threshold {
-        return Err(WorldInitError::InvalidRange {
-            field: "heat_deceleration_threshold",
-            min: f64::from(config.heat_source_config.min_deceleration_threshold),
-            max: f64::from(config.heat_source_config.max_deceleration_threshold),
-        });
-    }
-
-    // Reservoir parameterization validation — chemical
-    if !(0.0..=1.0).contains(&config.chemical_source_config.renewable_fraction) {
-        return Err(WorldInitError::InvalidConfig {
-            reason: "chemical renewable_fraction must be in [0.0, 1.0]",
-        });
-    }
-    if config.chemical_source_config.min_reservoir_capacity <= 0.0 {
-        return Err(WorldInitError::InvalidConfig {
-            reason: "chemical min_reservoir_capacity must be > 0.0",
-        });
-    }
-    if config.chemical_source_config.max_reservoir_capacity < config.chemical_source_config.min_reservoir_capacity {
-        return Err(WorldInitError::InvalidRange {
-            field: "chemical_reservoir_capacity",
-            min: f64::from(config.chemical_source_config.min_reservoir_capacity),
-            max: f64::from(config.chemical_source_config.max_reservoir_capacity),
-        });
-    }
-    if !(0.0..=1.0).contains(&config.chemical_source_config.min_deceleration_threshold) {
-        return Err(WorldInitError::InvalidConfig {
-            reason: "chemical min_deceleration_threshold must be in [0.0, 1.0]",
-        });
-    }
-    if !(0.0..=1.0).contains(&config.chemical_source_config.max_deceleration_threshold) {
-        return Err(WorldInitError::InvalidConfig {
-            reason: "chemical max_deceleration_threshold must be in [0.0, 1.0]",
-        });
-    }
-    if config.chemical_source_config.max_deceleration_threshold < config.chemical_source_config.min_deceleration_threshold {
-        return Err(WorldInitError::InvalidRange {
-            field: "chemical_deceleration_threshold",
-            min: f64::from(config.chemical_source_config.min_deceleration_threshold),
-            max: f64::from(config.chemical_source_config.max_deceleration_threshold),
         });
     }
 
