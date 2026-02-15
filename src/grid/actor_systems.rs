@@ -153,9 +153,11 @@ pub fn run_actor_metabolism(
                 removal_buffer.push(id);
             }
         } else {
-            // Active actors: consume chemicals and apply energy balance.
+            // Active actors: demand-driven consumption and energy balance.
             let available = chemical_read[ci];
-            let consumed = config.consumption_rate.min(available);
+            let headroom = (config.max_energy - actor.energy).max(0.0);
+            let max_useful = headroom / config.energy_conversion_factor;
+            let consumed = config.consumption_rate.min(available).min(max_useful);
 
             chemical_write[ci] -= consumed;
             if chemical_write[ci] < 0.0 {
@@ -172,6 +174,10 @@ pub fn run_actor_metabolism(
                     value: actor.energy,
                 });
             }
+
+            // Safety clamp: floating-point arithmetic may marginally exceed max_energy.
+            // Placed after NaN/Inf check because f32::min swallows NaN.
+            actor.energy = actor.energy.min(config.max_energy);
 
             // Transition to inert instead of immediate removal.
             if actor.energy <= 0.0 {
@@ -396,6 +402,7 @@ mod tests {
             energy_conversion_factor: 1.5,
             base_energy_decay: 0.5,
             initial_energy: 10.0,
+            max_energy: 1000.0,
             initial_actor_capacity: 8,
             movement_cost: 0.5,
             removal_threshold: -5.0,
@@ -444,6 +451,7 @@ mod tests {
             energy_conversion_factor: 1.0,
             base_energy_decay: 0.0,
             initial_energy: 10.0,
+            max_energy: 1000.0,
             initial_actor_capacity: 4,
             movement_cost: 0.5,
             removal_threshold: -5.0,
@@ -477,6 +485,7 @@ mod tests {
             energy_conversion_factor: 0.0, // no energy from consumption
             base_energy_decay: 1.0,        // heavy decay
             initial_energy: 10.0,
+            max_energy: 1000.0,
             initial_actor_capacity: 4,
             movement_cost: 0.5,
             removal_threshold: -5.0,

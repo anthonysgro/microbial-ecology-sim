@@ -22,14 +22,14 @@ Add a `max_energy` field to `ActorConfig`, convert metabolism to demand-driven c
     - Generate valid `max_energy > 0.0`, then `initial_energy` in `(max_energy, max_energy * 10.0]`, run validation, assert error
     - **Validates: Requirements 1.3**
 
-- [-] 2. Add config validation for `max_energy`
-  - [-] 2.1 Add validation checks in `validate_world_config` in `src/io/config_file.rs`
+- [x] 2. Add config validation for `max_energy`
+  - [x] 2.1 Add validation checks in `validate_world_config` in `src/io/config_file.rs`
     - Reject `max_energy <= 0.0`, NaN, or infinite
     - Reject `initial_energy > max_energy`
     - _Requirements: 1.2, 1.3, 5.3_
 
-- [ ] 3. Implement demand-driven consumption and energy clamping in metabolism
-  - [ ] 3.1 Modify the active-actor branch in `run_actor_metabolism` in `src/grid/actor_systems.rs`
+- [-] 3. Implement demand-driven consumption and energy clamping in metabolism
+  - [-] 3.1 Modify the active-actor branch in `run_actor_metabolism` in `src/grid/actor_systems.rs`
     - Compute `headroom = (config.max_energy - actor.energy).max(0.0)`
     - Compute `max_useful = headroom / config.energy_conversion_factor`
     - Change consumed from `config.consumption_rate.min(available)` to `config.consumption_rate.min(available).min(max_useful)`
