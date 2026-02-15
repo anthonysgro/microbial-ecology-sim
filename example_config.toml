@@ -21,7 +21,7 @@ thermal_conductivity = 0.04          # Heat spreads slower than chemicals
 ambient_heat = 0.2                   # Mild ambient — edges don't become dead zones
 tick_duration = 1.0
 num_threads = 4
-chemical_decay_rates = [0.02]        # Slow decay — sources must outpace it to build gradients
+chemical_decay_rates = [0.005]        # Slow decay — sources must outpace it to build gradients
 
 # ─── World Initialization ───────────────────────────────────────────
 
@@ -51,8 +51,8 @@ max_respawn_cooldown_ticks = 150     # Maximum ticks before a depleted source re
 
 # Chemical sources: moderate count, low emission — actors out-consume any single source
 [world_init.chemical_source_config]
-min_sources = 4
-max_sources = 10
+min_sources = 8
+max_sources = 15
 min_emission_rate = 0.2
 max_emission_rate = 0.8              # Below consumption_rate (1.5) — actors drain sources
 renewable_fraction = 0             # Mostly finite — forces migration as sources deplete
@@ -80,10 +80,10 @@ energy_conversion_factor = 1.8
 extraction_cost = 0.2                # Energy cost per unit of chemical consumed. Reduces net gain:
                                      # net = consumed * (energy_conversion_factor - extraction_cost).
                                      # Valid range: [0.0, energy_conversion_factor). Default: 0.2
-base_energy_decay = 0.03
+base_energy_decay = 0.01
 initial_energy = 50.0
 initial_actor_capacity = 64
-movement_cost = 0.3
+movement_cost = 0.1
 removal_threshold = -3.0
 max_energy = 100.0                    # Maximum energy an actor can hold. Must be > 0, finite, >= initial_energy.
                                      # Caps reserves and makes consumption demand-driven: saturated actors
