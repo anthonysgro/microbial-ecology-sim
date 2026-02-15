@@ -134,8 +134,8 @@ Incremental implementation of mobile Actors into the existing deterministic grid
 - [ ] 9. Checkpoint — Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 10. Integrate Actor phases into TickOrchestrator
-  - [ ] 10.1 Extend `TickOrchestrator::step` in `src/grid/tick.rs`
+- [-] 10. Integrate Actor phases into TickOrchestrator
+  - [x] 10.1 Extend `TickOrchestrator::step` in `src/grid/tick.rs`
     - After emission phase: run actor sensing, metabolism, deferred removal, movement
     - Swap chemical buffers after actor consumption (before diffusion)
     - Skip all actor phases if `actors.is_empty()`

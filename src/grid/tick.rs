@@ -2,6 +2,9 @@
 // Allocation forbidden. Dynamic dispatch forbidden.
 // Deterministic execution required.
 
+use crate::grid::actor_systems::{
+    run_actor_metabolism, run_actor_movement, run_actor_sensing, run_deferred_removal,
+};
 use crate::grid::config::GridConfig;
 use crate::grid::diffusion::run_diffusion;
 use crate::grid::error::TickError;
@@ -164,12 +167,120 @@ fn run_emission_phase(grid: &mut Grid, _config: &GridConfig) -> Result<(), TickE
     Ok(())
 }
 
+// WARM PATH: Actor phases — runs once per tick over the actor list.
+// Allocation: one temporary take/put of actor data (pointer swaps via
+// mem::replace/mem::take). No dynamic dispatch.
+
+/// Execute all actor phases: sensing, metabolism, deferred removal, movement.
+///
+/// Borrow-splitting strategy: `take_actors` extracts the ActorRegistry,
+/// occupancy map, removal buffer, and movement targets so that actor
+/// system functions can operate on them while the Grid retains ownership
+/// of field buffers.
+///
+/// Buffer discipline:
+/// - Sensing reads from chemical read buffer (species 0).
+/// - Metabolism copies chemical read→write, then subtracts consumption
+///   from the write buffer.
+/// - After actor phases complete, chemical write buffers are validated
+///   and swapped so diffusion reads post-consumption state.
+///
+/// # Requirements
+/// 4.1 — phase ordering: sensing → metabolism → removal → movement
+/// 4.2 — read from read buffers, write to write buffers
+/// 4.3 — swap chemical buffers after actor consumption, before diffusion
+/// 4.4 — deterministic slot-index order
+fn run_actor_phases(grid: &mut Grid, _config: &GridConfig) -> Result<(), TickError> {
+    let actor_config = grid
+        .actor_config()
+        .expect("actor_config must be set when actors are registered")
+        .clone();
+
+    // Extract actor data to split borrows with field buffers.
+    let (mut actors, mut occupancy, mut removal_buffer, mut movement_targets) =
+        grid.take_actors();
+
+    // Phase 1: Sensing (WARM) — read chemical gradients, compute movement targets.
+    // Reads from chemical species 0 read buffer only.
+    {
+        let chemical_read = grid
+            .read_chemical(0)
+            .expect("at least one chemical species required for actor sensing");
+        run_actor_sensing(
+            &actors,
+            chemical_read,
+            grid.width(),
+            grid.height(),
+            &mut movement_targets,
+        );
+    }
+
+    // Phase 2: Metabolism (WARM) — consume chemicals, update energy, mark dead.
+    // Copy read→write before metabolism so consumption subtracts from current state.
+    {
+        if let Some(buf) = grid.chemical_buffer_mut(0) {
+            buf.copy_read_to_write();
+        }
+        let (chemical_read, chemical_write) = grid
+            .read_write_chemical(0)
+            .expect("at least one chemical species required for actor metabolism");
+        run_actor_metabolism(
+            &mut actors,
+            chemical_read,
+            chemical_write,
+            &actor_config,
+            &mut removal_buffer,
+        )?;
+    }
+
+    // Phase 3: Deferred removal — remove dead actors after metabolism iteration.
+    if !removal_buffer.is_empty() {
+        // ActorError from removal is a logic bug (stale id in the buffer we just
+        // built), so convert to a TickError for uniform error propagation.
+        run_deferred_removal(&mut actors, &mut occupancy, &mut removal_buffer)
+            .map_err(|_| TickError::NumericalError {
+                system: "actor_deferred_removal",
+                cell_index: 0,
+                field: "actor_id",
+                value: f32::NAN,
+            })?;
+    }
+
+    // Phase 4: Movement (WARM) — relocate actors toward sensed gradients.
+    run_actor_movement(&mut actors, &mut occupancy, &movement_targets);
+
+    // Return actor data to the grid.
+    grid.put_actors(actors, occupancy, removal_buffer, movement_targets);
+
+    // Validate chemical write buffer after actor consumption (NaN/Inf check).
+    {
+        let write_buf = grid
+            .write_chemical(0)
+            .expect("at least one chemical species required");
+        validate_buffer(write_buf, "actor_metabolism", "chemical_0")?;
+    }
+
+    // Swap chemical buffers so diffusion reads post-consumption state.
+    grid.swap_chemicals();
+
+    Ok(())
+}
+
 impl TickOrchestrator {
     pub fn step(grid: &mut Grid, config: &GridConfig) -> Result<(), TickError> {
         // Phase 0: Emission (WARM) — inject source values before downstream systems
         run_emission_phase(grid, config)?;
 
-        // Phase 1: Chemical diffusion
+        // Phases 1–4: Actor phases (WARM) — sensing, metabolism, removal, movement.
+        // Skip entirely when no actors are registered (zero overhead).
+        //
+        // Requirements: 4.1 (phase ordering), 4.2 (read/write discipline),
+        //               4.3 (swap before diffusion), 4.4 (deterministic), 4.5 (zero-actor skip)
+        if !grid.actors().is_empty() {
+            run_actor_phases(grid, config)?;
+        }
+
+        // Phase 5: Chemical diffusion
         run_diffusion(grid, config)?;
         for species in 0..config.num_chemicals {
             let write_buf = grid
@@ -186,7 +297,7 @@ impl TickOrchestrator {
         }
         grid.swap_chemicals();
 
-        // Phase 2: Heat radiation
+        // Phase 6: Heat radiation
         run_heat(grid, config)?;
         validate_buffer(grid.write_heat(), "heat", "heat")?;
         grid.swap_heat();
