@@ -10,7 +10,7 @@ use rand::Rng;
 use rand_distr::{Distribution, Normal};
 
 /// Per-actor heritable trait values. Inherited from parent during fission
-/// with gaussian mutation. 16 bytes, no padding.
+/// with gaussian mutation. 28 bytes (includes 2 bytes padding after u16).
 ///
 /// Plain data struct — no methods beyond construction and mutation.
 /// Stored inline in `Actor`.
@@ -20,9 +20,12 @@ pub struct HeritableTraits {
     pub base_energy_decay: f32,
     pub levy_exponent: f32,
     pub reproduction_threshold: f32,
+    pub max_tumble_steps: u16,
+    pub reproduction_cost: f32,
+    pub offspring_energy: f32,
 }
 
-const _: () = assert!(std::mem::size_of::<HeritableTraits>() == 16);
+const _: () = assert!(std::mem::size_of::<HeritableTraits>() == 28);
 
 impl HeritableTraits {
     /// Create traits from global config defaults (seed genome).
@@ -32,11 +35,16 @@ impl HeritableTraits {
             base_energy_decay: config.base_energy_decay,
             levy_exponent: config.levy_exponent,
             reproduction_threshold: config.reproduction_threshold,
+            max_tumble_steps: config.max_tumble_steps,
+            reproduction_cost: config.reproduction_cost,
+            offspring_energy: config.offspring_energy,
         }
     }
 
-    /// Apply independent gaussian mutation to all four trait fields, then
+    /// Apply independent gaussian mutation to all seven trait fields, then
     /// clamp each to its configured range. No-op when `mutation_stddev == 0.0`.
+    ///
+    /// `max_tumble_steps` is mutated in f32 space (convert → add noise → round → clamp → cast u16).
     ///
     /// The caller is responsible for providing a deterministically-seeded RNG
     /// derived from the simulation master seed, tick, and spawn index.
@@ -60,6 +68,19 @@ impl HeritableTraits {
 
         self.reproduction_threshold = (self.reproduction_threshold + normal.sample(rng) as f32)
             .clamp(config.trait_reproduction_threshold_min, config.trait_reproduction_threshold_max);
+
+        // max_tumble_steps: mutate in f32 space, round, clamp to u16 range.
+        let tumble_f32 = self.max_tumble_steps as f32 + normal.sample(rng) as f32;
+        self.max_tumble_steps = tumble_f32
+            .round()
+            .clamp(config.trait_max_tumble_steps_min as f32, config.trait_max_tumble_steps_max as f32)
+            as u16;
+
+        self.reproduction_cost = (self.reproduction_cost + normal.sample(rng) as f32)
+            .clamp(config.trait_reproduction_cost_min, config.trait_reproduction_cost_max);
+
+        self.offspring_energy = (self.offspring_energy + normal.sample(rng) as f32)
+            .clamp(config.trait_offspring_energy_min, config.trait_offspring_energy_max);
     }
 }
 

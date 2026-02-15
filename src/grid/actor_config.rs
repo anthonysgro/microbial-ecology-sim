@@ -10,6 +10,12 @@ fn default_trait_levy_exponent_min() -> f32 { 1.01 }
 fn default_trait_levy_exponent_max() -> f32 { 3.0 }
 fn default_trait_reproduction_threshold_min() -> f32 { 1.0 }
 fn default_trait_reproduction_threshold_max() -> f32 { 100.0 }
+fn default_trait_max_tumble_steps_min() -> u16 { 1 }
+fn default_trait_max_tumble_steps_max() -> u16 { 50 }
+fn default_trait_reproduction_cost_min() -> f32 { 0.1 }
+fn default_trait_reproduction_cost_max() -> f32 { 100.0 }
+fn default_trait_offspring_energy_min() -> f32 { 0.1 }
+fn default_trait_offspring_energy_max() -> f32 { 100.0 }
 
 /// Configuration parameters for Actor metabolism, sensing, and spawning.
 ///
@@ -89,6 +95,27 @@ pub struct ActorConfig {
     /// Maximum clamp bound for heritable `reproduction_threshold`.
     #[serde(default = "default_trait_reproduction_threshold_max")]
     pub trait_reproduction_threshold_max: f32,
+
+    /// Minimum clamp bound for heritable `max_tumble_steps`. Must be >= 1.
+    #[serde(default = "default_trait_max_tumble_steps_min")]
+    pub trait_max_tumble_steps_min: u16,
+    /// Maximum clamp bound for heritable `max_tumble_steps`.
+    #[serde(default = "default_trait_max_tumble_steps_max")]
+    pub trait_max_tumble_steps_max: u16,
+
+    /// Minimum clamp bound for heritable `reproduction_cost`. Must be > 0.0.
+    #[serde(default = "default_trait_reproduction_cost_min")]
+    pub trait_reproduction_cost_min: f32,
+    /// Maximum clamp bound for heritable `reproduction_cost`.
+    #[serde(default = "default_trait_reproduction_cost_max")]
+    pub trait_reproduction_cost_max: f32,
+
+    /// Minimum clamp bound for heritable `offspring_energy`. Must be > 0.0.
+    #[serde(default = "default_trait_offspring_energy_min")]
+    pub trait_offspring_energy_min: f32,
+    /// Maximum clamp bound for heritable `offspring_energy`.
+    #[serde(default = "default_trait_offspring_energy_max")]
+    pub trait_offspring_energy_max: f32,
 }
 
 impl Default for ActorConfig {
@@ -117,6 +144,12 @@ impl Default for ActorConfig {
             trait_levy_exponent_max: default_trait_levy_exponent_max(),
             trait_reproduction_threshold_min: default_trait_reproduction_threshold_min(),
             trait_reproduction_threshold_max: default_trait_reproduction_threshold_max(),
+            trait_max_tumble_steps_min: default_trait_max_tumble_steps_min(),
+            trait_max_tumble_steps_max: default_trait_max_tumble_steps_max(),
+            trait_reproduction_cost_min: default_trait_reproduction_cost_min(),
+            trait_reproduction_cost_max: default_trait_reproduction_cost_max(),
+            trait_offspring_energy_min: default_trait_offspring_energy_min(),
+            trait_offspring_energy_max: default_trait_offspring_energy_max(),
         }
     }
 }

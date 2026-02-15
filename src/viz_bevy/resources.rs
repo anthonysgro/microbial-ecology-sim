@@ -193,15 +193,16 @@ pub struct SingleTraitStats {
 /// COLD path — heap allocation during computation is acceptable.
 ///
 /// Array order: [consumption_rate, base_energy_decay, levy_exponent,
-/// reproduction_threshold].
+/// reproduction_threshold, max_tumble_steps, reproduction_cost,
+/// offspring_energy].
 ///
-/// Requirements: 1.2, 1.3
+/// Requirements: 1.2, 1.3, 7.5
 #[derive(Resource, Debug, Clone)]
 pub struct TraitStats {
     pub actor_count: usize,
     pub tick: u64,
     /// `None` when `actor_count == 0`.
-    pub traits: Option<[SingleTraitStats; 4]>,
+    pub traits: Option<[SingleTraitStats; 7]>,
 }
 
 /// Tracks the currently selected actor for inspection (by slot index).

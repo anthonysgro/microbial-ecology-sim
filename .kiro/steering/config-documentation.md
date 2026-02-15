@@ -14,10 +14,10 @@ This ensures configuration documentation stays in sync with the code at all time
 
 ## Heritable Trait Update Rule
 
-When any spec adds, removes, or renames a heritable trait on `Actor` (currently: `consumption_rate`, `base_energy_decay`, `levy_exponent`, `reproduction_threshold`):
+When any spec adds, removes, or renames a heritable trait on `Actor` (currently: `consumption_rate`, `base_energy_decay`, `levy_exponent`, `reproduction_threshold`, `max_tumble_steps`, `reproduction_cost`, `offspring_energy`):
 
 1. **`HeritableTraits` struct** — Update the struct in `src/grid/actor.rs` with the new/changed field.
-2. **Trait visualization stats** — Update `compute_trait_stats_from_actors` in `src/viz_bevy/systems.rs` to collect and compute statistics for the new trait. The `TraitStats.traits` array size (currently `[SingleTraitStats; 4]`) must match the trait count.
+2. **Trait visualization stats** — Update `compute_trait_stats_from_actors` in `src/viz_bevy/systems.rs` to collect and compute statistics for the new trait. The `TraitStats.traits` array size (currently `[SingleTraitStats; 7]`) must match the trait count.
 3. **Stats panel formatting** — Update `format_trait_stats` in `src/viz_bevy/setup.rs` to display the new trait row.
 4. **Actor inspector formatting** — Update `format_actor_info` in `src/viz_bevy/setup.rs` to display the new trait value.
 5. **Trait clamp config** — Add `trait_{name}_min` / `trait_{name}_max` fields to `ActorConfig` and follow the configuration update rules above.
@@ -116,6 +116,12 @@ Present as `Option<ActorConfig>`. Omitting the entire `[actor]` section disables
 | `trait_levy_exponent_max` | `f32` | `3.0` | Maximum clamp bound for heritable `levy_exponent`. Must be `> trait_levy_exponent_min`. |
 | `trait_reproduction_threshold_min` | `f32` | `1.0` | Minimum clamp bound for heritable `reproduction_threshold`. Must be `> 0.0` and `< trait_reproduction_threshold_max`. |
 | `trait_reproduction_threshold_max` | `f32` | `100.0` | Maximum clamp bound for heritable `reproduction_threshold`. Must be `> trait_reproduction_threshold_min`. |
+| `trait_max_tumble_steps_min` | `u16` | `1` | Minimum clamp bound for heritable `max_tumble_steps`. Must be `>= 1` and `< trait_max_tumble_steps_max`. |
+| `trait_max_tumble_steps_max` | `u16` | `50` | Maximum clamp bound for heritable `max_tumble_steps`. Must be `> trait_max_tumble_steps_min`. |
+| `trait_reproduction_cost_min` | `f32` | `0.1` | Minimum clamp bound for heritable `reproduction_cost`. Must be `> 0.0` and `< trait_reproduction_cost_max`. |
+| `trait_reproduction_cost_max` | `f32` | `100.0` | Maximum clamp bound for heritable `reproduction_cost`. Must be `> trait_reproduction_cost_min`. |
+| `trait_offspring_energy_min` | `f32` | `0.1` | Minimum clamp bound for heritable `offspring_energy`. Must be `> 0.0` and `< trait_offspring_energy_max`. |
+| `trait_offspring_energy_max` | `f32` | `100.0` | Maximum clamp bound for heritable `offspring_energy`. Must be `> trait_offspring_energy_min` and `<= max_energy`. |
 
 ### `[bevy]` — `BevyExtras`
 

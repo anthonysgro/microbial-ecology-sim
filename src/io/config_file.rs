@@ -260,12 +260,14 @@ pub fn validate_world_config(config: &WorldConfig) -> Result<(), ConfigError> {
             });
         }
 
-        // 3h. Trait clamp ranges: min must be strictly less than max.
-        let clamp_ranges: [(&str, f32, f32); 4] = [
+        // 3h. Trait clamp ranges (f32): min must be strictly less than max.
+        let clamp_ranges: [(&str, f32, f32); 6] = [
             ("trait_consumption_rate", actor.trait_consumption_rate_min, actor.trait_consumption_rate_max),
             ("trait_base_energy_decay", actor.trait_base_energy_decay_min, actor.trait_base_energy_decay_max),
             ("trait_levy_exponent", actor.trait_levy_exponent_min, actor.trait_levy_exponent_max),
             ("trait_reproduction_threshold", actor.trait_reproduction_threshold_min, actor.trait_reproduction_threshold_max),
+            ("trait_reproduction_cost", actor.trait_reproduction_cost_min, actor.trait_reproduction_cost_max),
+            ("trait_offspring_energy", actor.trait_offspring_energy_min, actor.trait_offspring_energy_max),
         ];
         for (name, min, max) in &clamp_ranges {
             if min >= max {
@@ -275,6 +277,24 @@ pub fn validate_world_config(config: &WorldConfig) -> Result<(), ConfigError> {
                     ),
                 });
             }
+        }
+
+        // 3h-2. Trait clamp range for max_tumble_steps (u16).
+        if actor.trait_max_tumble_steps_min < 1 {
+            return Err(ConfigError::Validation {
+                reason: format!(
+                    "trait_max_tumble_steps_min ({}) must be >= 1",
+                    actor.trait_max_tumble_steps_min,
+                ),
+            });
+        }
+        if actor.trait_max_tumble_steps_min >= actor.trait_max_tumble_steps_max {
+            return Err(ConfigError::Validation {
+                reason: format!(
+                    "trait_max_tumble_steps_min ({}) must be < trait_max_tumble_steps_max ({})",
+                    actor.trait_max_tumble_steps_min, actor.trait_max_tumble_steps_max,
+                ),
+            });
         }
 
         // 3i. Trait-specific lower-bound constraints.
@@ -307,6 +327,32 @@ pub fn validate_world_config(config: &WorldConfig) -> Result<(), ConfigError> {
                 reason: format!(
                     "trait_reproduction_threshold_min ({}) must be > 0.0",
                     actor.trait_reproduction_threshold_min,
+                ),
+            });
+        }
+        if actor.trait_reproduction_cost_min <= 0.0 {
+            return Err(ConfigError::Validation {
+                reason: format!(
+                    "trait_reproduction_cost_min ({}) must be > 0.0",
+                    actor.trait_reproduction_cost_min,
+                ),
+            });
+        }
+        if actor.trait_offspring_energy_min <= 0.0 {
+            return Err(ConfigError::Validation {
+                reason: format!(
+                    "trait_offspring_energy_min ({}) must be > 0.0",
+                    actor.trait_offspring_energy_min,
+                ),
+            });
+        }
+
+        // 3i-2. trait_offspring_energy_max must not exceed max_energy.
+        if actor.trait_offspring_energy_max > actor.max_energy {
+            return Err(ConfigError::Validation {
+                reason: format!(
+                    "trait_offspring_energy_max ({}) must be <= max_energy ({})",
+                    actor.trait_offspring_energy_max, actor.max_energy,
                 ),
             });
         }
@@ -357,6 +403,42 @@ pub fn validate_world_config(config: &WorldConfig) -> Result<(), ConfigError> {
                     actor.reproduction_threshold,
                     actor.trait_reproduction_threshold_min,
                     actor.trait_reproduction_threshold_max,
+                ),
+            });
+        }
+        if actor.max_tumble_steps < actor.trait_max_tumble_steps_min
+            || actor.max_tumble_steps > actor.trait_max_tumble_steps_max
+        {
+            return Err(ConfigError::Validation {
+                reason: format!(
+                    "max_tumble_steps ({}) must be within trait clamp range [{}, {}]",
+                    actor.max_tumble_steps,
+                    actor.trait_max_tumble_steps_min,
+                    actor.trait_max_tumble_steps_max,
+                ),
+            });
+        }
+        if actor.reproduction_cost < actor.trait_reproduction_cost_min
+            || actor.reproduction_cost > actor.trait_reproduction_cost_max
+        {
+            return Err(ConfigError::Validation {
+                reason: format!(
+                    "reproduction_cost ({}) must be within trait clamp range [{}, {}]",
+                    actor.reproduction_cost,
+                    actor.trait_reproduction_cost_min,
+                    actor.trait_reproduction_cost_max,
+                ),
+            });
+        }
+        if actor.offspring_energy < actor.trait_offspring_energy_min
+            || actor.offspring_energy > actor.trait_offspring_energy_max
+        {
+            return Err(ConfigError::Validation {
+                reason: format!(
+                    "offspring_energy ({}) must be within trait clamp range [{}, {}]",
+                    actor.offspring_energy,
+                    actor.trait_offspring_energy_min,
+                    actor.trait_offspring_energy_max,
                 ),
             });
         }

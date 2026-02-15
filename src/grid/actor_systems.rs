@@ -190,7 +190,7 @@ pub fn run_actor_sensing(
         } else {
             // No gradient, not tumbling — initiate new Lévy flight tumble.
             actor.tumble_direction = rng.random_range(0u8..4u8);
-            actor.tumble_remaining = sample_tumble_steps(rng, actor.traits.levy_exponent, config.max_tumble_steps);
+            actor.tumble_remaining = sample_tumble_steps(rng, actor.traits.levy_exponent, actor.traits.max_tumble_steps);
             let target = direction_to_target(ci, actor.tumble_direction, w, h);
             if target.is_none() {
                 // Facing a boundary — end tumble immediately.
@@ -419,7 +419,7 @@ pub fn run_deferred_removal(
 pub fn run_actor_reproduction(
     actors: &mut ActorRegistry,
     occupancy: &[Option<usize>],
-    config: &ActorConfig,
+    _config: &ActorConfig,
     spawn_buffer: &mut Vec<(usize, f32, crate::grid::actor::HeritableTraits)>,
     w: usize,
     h: usize,
@@ -459,7 +459,7 @@ pub fn run_actor_reproduction(
         };
 
         // Deduct reproduction cost from parent.
-        actor.energy -= config.reproduction_cost;
+        actor.energy -= actor.traits.reproduction_cost;
 
         // NaN/Inf check on parent energy after deduction.
         if actor.energy.is_nan() || actor.energy.is_infinite() {
@@ -471,7 +471,7 @@ pub fn run_actor_reproduction(
             });
         }
 
-        spawn_buffer.push((cell, config.offspring_energy, actor.traits));
+        spawn_buffer.push((cell, actor.traits.offspring_energy, actor.traits));
     }
 
     Ok(())
