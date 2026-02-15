@@ -1,8 +1,11 @@
 // COLD PATH: Runs once at startup for procedural world generation.
 // Allocations and dynamic dispatch permitted.
 
+use rand::Rng;
+
+use crate::grid::Grid;
 use crate::grid::error::GridError;
-use crate::grid::source::SourceError;
+use crate::grid::source::{Source, SourceError, SourceField};
 
 /// Ranges and constraints for procedural world generation.
 /// All ranges are inclusive: [min, max].
@@ -100,5 +103,47 @@ pub(crate) fn validate_config(config: &WorldInitConfig) -> Result<(), WorldInitE
             max: f64::from(config.max_initial_concentration),
         });
     }
+    Ok(())
+}
+/// Generate and register heat and chemical sources into the grid.
+///
+/// Samples source counts from the configured ranges, then for each source
+/// samples a cell position uniformly from `[0, cell_count)` and an emission
+/// rate from `[min_emission_rate, max_emission_rate]`. Registers each source
+/// via `Grid::add_source`, propagating any `SourceError`.
+pub(crate) fn generate_sources(
+    grid: &mut Grid,
+    rng: &mut impl Rng,
+    config: &WorldInitConfig,
+    num_chemicals: usize,
+) -> Result<(), WorldInitError> {
+    let cell_count = grid.cell_count();
+
+    // Heat sources
+    let heat_count = rng.random_range(config.min_heat_sources..=config.max_heat_sources);
+    for _ in 0..heat_count {
+        let cell_index = rng.random_range(0..cell_count);
+        let emission_rate = rng.random_range(config.min_emission_rate..=config.max_emission_rate);
+        grid.add_source(Source {
+            cell_index,
+            field: SourceField::Heat,
+            emission_rate,
+        })?;
+    }
+
+    // Chemical sources: one batch per species
+    for species in 0..num_chemicals {
+        let chem_count = rng.random_range(config.min_chemical_sources..=config.max_chemical_sources);
+        for _ in 0..chem_count {
+            let cell_index = rng.random_range(0..cell_count);
+            let emission_rate = rng.random_range(config.min_emission_rate..=config.max_emission_rate);
+            grid.add_source(Source {
+                cell_index,
+                field: SourceField::Chemical(species),
+                emission_rate,
+            })?;
+        }
+    }
+
     Ok(())
 }

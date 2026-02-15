@@ -28,8 +28,8 @@ Implement a COLD-path procedural initialization system in `src/grid/world_init.r
     - Generate `WorldInitConfig` where at least one range has min > max, verify `initialize` returns `WorldInitError::InvalidRange`
     - **Validates: Requirements 5.1, 5.2, 5.3, 5.4, 5.5**
 
-- [ ] 3. Implement source generation
-  - [ ] 3.1 Implement `generate_sources` function
+- [x] 3. Implement source generation
+  - [x] 3.1 Implement `generate_sources` function
     - Accept `&mut Grid`, `&mut impl Rng`, `&WorldInitConfig`, `num_chemicals: usize`
     - Sample heat source count from `[min_heat_sources, max_heat_sources]` using `rng.gen_range()`
     - For each heat source: sample `cell_index` from `[0, cell_count)`, sample `emission_rate` from `[min_emission_rate, max_emission_rate]`, call `grid.add_source()`
