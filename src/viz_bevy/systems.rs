@@ -85,3 +85,55 @@ pub fn update_texture(
         }
     }
 }
+
+/// Handle keyboard input for overlay switching and application exit.
+///
+/// COLD PATH: Runs every `Update` frame. Reads keyboard state, updates
+/// `ActiveOverlay` on H/digit keys, sends `AppExit` on Escape/Q.
+///
+/// Key mapping:
+/// - `H` → `ActiveOverlay::Heat`
+/// - `1`–`9` → `ActiveOverlay::Chemical(digit - 1)` if index < num_chemicals
+/// - `Escape` / `Q` → `AppExit`
+///
+/// Requirements: 6.1 (H key), 6.2 (digit keys), 6.3 (out-of-range ignored), 10.2 (quit).
+pub fn handle_input(
+    keys: Res<ButtonInput<KeyCode>>,
+    mut overlay: ResMut<ActiveOverlay>,
+    sim: Res<SimulationState>,
+    mut exit: EventWriter<AppExit>,
+) {
+    // Quit on Escape or Q.
+    if keys.just_pressed(KeyCode::Escape) || keys.just_pressed(KeyCode::KeyQ) {
+        exit.write(AppExit::Success);
+        return;
+    }
+
+    // H → Heat overlay.
+    if keys.just_pressed(KeyCode::KeyH) {
+        *overlay = ActiveOverlay::Heat;
+        return;
+    }
+
+    // Digit 1–9 → Chemical overlay (if species index is valid).
+    let num_chemicals = sim.config.num_chemicals;
+    let digit_keys: [(KeyCode, usize); 9] = [
+        (KeyCode::Digit1, 0),
+        (KeyCode::Digit2, 1),
+        (KeyCode::Digit3, 2),
+        (KeyCode::Digit4, 3),
+        (KeyCode::Digit5, 4),
+        (KeyCode::Digit6, 5),
+        (KeyCode::Digit7, 6),
+        (KeyCode::Digit8, 7),
+        (KeyCode::Digit9, 8),
+    ];
+
+    for (key, species) in digit_keys {
+        if keys.just_pressed(key) && species < num_chemicals {
+            *overlay = ActiveOverlay::Chemical(species);
+            return;
+        }
+    }
+}
+

@@ -92,8 +92,8 @@ Incremental build-up of the `viz_bevy` module: pure functions first (normalize, 
     - Zero per-frame allocations: all buffers pre-allocated
     - _Requirements: 5.2, 9.1, 9.3_
 
-- [~] 9. Implement input handling system
-  - [ ] 9.1 Implement `handle_input` in `src/viz_bevy/systems.rs`
+- [x] 9. Implement input handling system
+  - [x] 9.1 Implement `handle_input` in `src/viz_bevy/systems.rs`
     - Runs in `Update` schedule
     - `H` key → set `ActiveOverlay::Heat`
     - Digit `1`–`9` → set `ActiveOverlay::Chemical(digit - 1)` if index < `num_chemicals`
@@ -104,8 +104,8 @@ Incremental build-up of the `viz_bevy` module: pure functions first (normalize, 
     - **Property 5: Overlay key mapping correctness**
     - **Validates: Requirements 6.2, 6.3**
 
-- [~] 10. Implement overlay label update system
-  - [ ] 10.1 Implement `update_overlay_label` in `src/viz_bevy/systems.rs`
+- [-] 10. Implement overlay label update system
+  - [-] 10.1 Implement `update_overlay_label` in `src/viz_bevy/systems.rs`
     - Runs in `Update` schedule
     - Query `OverlayLabel` text entity
     - Set text to `"Heat"` or `"Chemical N"` based on `ActiveOverlay`
