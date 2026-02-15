@@ -4,6 +4,7 @@
 use rand::Rng;
 use rand::SeedableRng;
 use rand_chacha::ChaCha8Rng;
+use serde::{Deserialize, Serialize};
 
 use crate::grid::Grid;
 use crate::grid::actor::{Actor, ActorError};
@@ -15,7 +16,8 @@ use crate::grid::source::{Source, SourceError, SourceField};
 /// Per-field-type configuration for source generation.
 /// Reusable for any fundamental (heat, chemical, future types).
 /// All ranges are inclusive: [min, max].
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
 pub struct SourceFieldConfig {
     /// Range for number of sources to place.
     pub min_sources: u32,
@@ -35,7 +37,8 @@ pub struct SourceFieldConfig {
 
 /// Ranges and constraints for procedural world generation.
 /// All ranges are inclusive: [min, max].
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
 pub struct WorldInitConfig {
     /// All heat source generation parameters.
     pub heat_source_config: SourceFieldConfig,
@@ -56,30 +59,29 @@ pub struct WorldInitConfig {
     pub max_actors: u32,
 }
 
+impl Default for SourceFieldConfig {
+    fn default() -> Self {
+        Self {
+            min_sources: 1,
+            max_sources: 5,
+            min_emission_rate: 0.1,
+            max_emission_rate: 5.0,
+            renewable_fraction: 0.3,
+            min_reservoir_capacity: 50.0,
+            max_reservoir_capacity: 200.0,
+            min_deceleration_threshold: 0.1,
+            max_deceleration_threshold: 0.5,
+        }
+    }
+}
+
 impl Default for WorldInitConfig {
     fn default() -> Self {
         Self {
-            heat_source_config: SourceFieldConfig {
-                min_sources: 1,
-                max_sources: 5,
-                min_emission_rate: 0.1,
-                max_emission_rate: 5.0,
-                renewable_fraction: 0.3,
-                min_reservoir_capacity: 50.0,
-                max_reservoir_capacity: 200.0,
-                min_deceleration_threshold: 0.1,
-                max_deceleration_threshold: 0.5,
-            },
+            heat_source_config: SourceFieldConfig::default(),
             chemical_source_config: SourceFieldConfig {
-                min_sources: 1,
                 max_sources: 3,
-                min_emission_rate: 0.1,
-                max_emission_rate: 5.0,
-                renewable_fraction: 0.3,
-                min_reservoir_capacity: 50.0,
-                max_reservoir_capacity: 200.0,
-                min_deceleration_threshold: 0.1,
-                max_deceleration_threshold: 0.5,
+                ..SourceFieldConfig::default()
             },
             min_initial_heat: 0.0,
             max_initial_heat: 1.0,

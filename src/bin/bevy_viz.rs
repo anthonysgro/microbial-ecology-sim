@@ -1,63 +1,22 @@
 // COLD PATH: Bevy visualization binary entry point.
-// Parses CLI args, constructs BevyVizConfig, builds and runs the Bevy app.
-//
-// Requirements: 10.1 (seed + config init), 10.3 (CLI seed argument).
+// Parses CLI args, loads TOML config, builds and runs the Bevy app.
 
 use bevy::prelude::*;
 
-use emergent_sovereignty::grid::actor_config::ActorConfig;
-use emergent_sovereignty::grid::config::GridConfig;
-use emergent_sovereignty::grid::world_init::WorldInitConfig;
+use emergent_sovereignty::io::cli::parse_cli_args;
+use emergent_sovereignty::io::config_file::{
+    load_bevy_config, validate_world_config, BevyWorldConfig,
+};
 use emergent_sovereignty::viz_bevy::resources::{ActiveOverlay, BevyVizConfig};
 use emergent_sovereignty::viz_bevy::BevyVizPlugin;
 
 fn main() {
-    // Accept an optional seed as the first CLI argument; default to 42.
-    let seed: u64 = std::env::args()
-        .nth(1)
-        .and_then(|s| s.parse().ok())
-        .unwrap_or(42);
-
-    let grid_config = GridConfig {
-        width: 128,
-        height: 128,
-        num_chemicals: 1,
-        diffusion_rate: 0.05,
-        thermal_conductivity: 0.05,
-        ambient_heat: 0.0,
-        tick_duration: 1.0,
-        num_threads: 4,
-        chemical_decay_rates: vec![0.05; 1],
-    };
-
-    let actor_config = ActorConfig {
-        consumption_rate: 1.5,
-        energy_conversion_factor: 2.0,
-        base_energy_decay: 0.05,
-        initial_energy: 10.0,
-        initial_actor_capacity: 64,
-        movement_cost: 0.5,
-        removal_threshold: -5.0,
-    };
-
-    let init_config = WorldInitConfig {
-        min_actors: 5,
-        max_actors: 10,
-        ..WorldInitConfig::default()
-    };
-
-    let config = BevyVizConfig {
-        seed,
-        grid_config,
-        init_config,
-        actor_config: Some(actor_config),
-        initial_overlay: ActiveOverlay::Chemical(0),
-        tick_hz: 10.0,
-        zoom_min: 0.1,
-        zoom_max: 10.0,
-        zoom_speed: 0.1,
-        pan_speed: 1.0,
-        color_scale_max: 10.0,
+    let config = match load_config() {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("Fatal: {e:#}");
+            std::process::exit(1);
+        }
     };
 
     App::new()
@@ -71,4 +30,40 @@ fn main() {
         .insert_resource(config)
         .add_plugins(BevyVizPlugin)
         .run();
+}
+
+fn load_config() -> anyhow::Result<BevyVizConfig> {
+    // 1. Parse CLI arguments.
+    let cli = parse_cli_args()?;
+
+    // 2. Load config file if provided, otherwise use compiled defaults.
+    let mut bevy_config = match cli.config_path {
+        Some(ref path) => load_bevy_config(path)?,
+        None => BevyWorldConfig::default(),
+    };
+
+    // 3. Apply CLI seed override (positional seed takes precedence over TOML).
+    if let Some(seed) = cli.seed_override {
+        bevy_config.world.seed = seed;
+    }
+
+    // 4. Validate cross-field invariants on the world config portion.
+    validate_world_config(&bevy_config.world)?;
+
+    // 5. Construct BevyVizConfig from the loaded + validated config.
+    let viz = BevyVizConfig {
+        seed: bevy_config.world.seed,
+        grid_config: bevy_config.world.grid,
+        init_config: bevy_config.world.world_init,
+        actor_config: bevy_config.world.actor,
+        initial_overlay: ActiveOverlay::Chemical(0),
+        tick_hz: bevy_config.bevy.tick_hz,
+        zoom_min: bevy_config.bevy.zoom_min,
+        zoom_max: bevy_config.bevy.zoom_max,
+        zoom_speed: bevy_config.bevy.zoom_speed,
+        pan_speed: bevy_config.bevy.pan_speed,
+        color_scale_max: bevy_config.bevy.color_scale_max,
+    };
+
+    Ok(viz)
 }

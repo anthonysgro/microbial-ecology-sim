@@ -13,7 +13,9 @@ rand = "0.9"
 rand_chacha = "0.9"
 rayon = "1.10"
 crossterm = "0.28"
+serde = { version = "1", features = ["derive"] }
 thiserror = "2"
+toml = "0.8"
 
 [dependencies.bevy]
 version = "0.16"

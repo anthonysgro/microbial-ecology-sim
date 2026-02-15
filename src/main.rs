@@ -5,74 +5,56 @@ use std::thread;
 use std::time::Duration;
 
 use emergent_sovereignty::grid::config::GridConfig;
-use emergent_sovereignty::grid::actor_config::ActorConfig;
 use emergent_sovereignty::grid::tick::TickOrchestrator;
-use emergent_sovereignty::grid::world_init::{self, WorldInitConfig};
+use emergent_sovereignty::grid::world_init;
 use emergent_sovereignty::grid::Grid;
+use emergent_sovereignty::io::cli::parse_cli_args;
+use emergent_sovereignty::io::config_file::{load_world_config, validate_world_config, WorldConfig};
 use emergent_sovereignty::viz::renderer::Renderer;
 use emergent_sovereignty::viz::{InputAction, OverlayMode, RendererConfig};
 
 fn main() {
-    // Accept an optional seed as the first CLI argument; default to 42.
-    let seed: u64 = std::env::args()
-        .nth(1)
-        .and_then(|s| s.parse().ok())
-        .unwrap_or(42);
+    if let Err(e) = run() {
+        eprintln!("Fatal: {e:#}");
+        std::process::exit(1);
+    }
+}
 
-    let grid_config = GridConfig {
-        width: 30,
-        height: 30,
-        num_chemicals: 1,
-        diffusion_rate: 0.05,
-        thermal_conductivity: 0.05,
-        ambient_heat: 0.0,
-        tick_duration: 1.0,
-        num_threads: 4,
-        chemical_decay_rates: vec![0.05; 1],
+fn run() -> anyhow::Result<()> {
+    // 1. Parse CLI arguments.
+    let cli = parse_cli_args()?;
+
+    // 2. Load config file if provided, otherwise use compiled defaults.
+    let mut config = match cli.config_path {
+        Some(ref path) => load_world_config(path)?,
+        None => WorldConfig::default(),
     };
 
-    let init_config = WorldInitConfig {
-        min_actors: 5,
-        max_actors: 10,
-        ..WorldInitConfig::default()
-    };
+    // 3. Apply CLI seed override (positional seed takes precedence over TOML).
+    if let Some(seed) = cli.seed_override {
+        config.seed = seed;
+    }
 
-    let actor_config = ActorConfig {
-        consumption_rate: 1.5,
-        energy_conversion_factor: 2.0,
-        base_energy_decay: 0.05,
-        initial_energy: 10.0,
-        initial_actor_capacity: 64,
-        movement_cost: 0.5,
-        removal_threshold: -5.0,
-    };
+    // 4. Validate cross-field invariants.
+    validate_world_config(&config)?;
+
+    // 5. Initialize the world from the validated config.
+    let grid = world_init::initialize(
+        config.seed,
+        config.grid.clone(),
+        &config.world_init,
+        config.actor,
+    )?;
 
     let viz_config = RendererConfig {
         frame_delay_ms: 50,
         initial_overlay: OverlayMode::Chemical(0),
     };
 
-    let grid = match world_init::initialize(seed, grid_config.clone(), &init_config, Some(actor_config)) {
-        Ok(g) => g,
-        Err(e) => {
-            eprintln!("Fatal: world initialization failed: {e}");
-            std::process::exit(1);
-        }
-    };
-
-    if let Err(e) = run_visualization(grid, &grid_config, viz_config) {
-        eprintln!("Fatal: {e:#}");
-        std::process::exit(1);
-    }
+    run_visualization(grid, &config.grid, viz_config)
 }
 
 /// Run the simulation with terminal visualization.
-///
-/// Accepts a pre-initialized Grid from `world_init::initialize`,
-/// replacing the previous hardcoded source registration.
-///
-/// Requirements: 6.1 (seed via CLI), 6.2 (default WorldInitConfig),
-/// 6.3 (Grid from world_init replaces hardcoded init).
 fn run_visualization(
     mut grid: Grid,
     config: &GridConfig,
@@ -81,10 +63,8 @@ fn run_visualization(
     let frame_delay = Duration::from_millis(viz_config.frame_delay_ms);
     let mut renderer = Renderer::init(viz_config)?;
 
-    // Run the tick loop. Capture the result so shutdown() always runs.
     let loop_result = tick_loop(&mut renderer, &mut grid, config, frame_delay);
 
-    // Shutdown must run regardless of how the loop exited.
     renderer.shutdown()?;
 
     loop_result
