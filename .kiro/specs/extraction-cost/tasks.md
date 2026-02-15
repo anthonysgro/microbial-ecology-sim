@@ -47,15 +47,15 @@ Add `extraction_cost: f32` to `ActorConfig`, update validation, modify the metab
     - Verify all existing tests still pass with the updated equation
     - _Requirements: 3.1_
 
-- [-] 4. Checkpoint - Ensure all tests pass
+- [x] 4. Checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
-- [~] 5. Update configuration documentation
-  - [ ] 5.1 Update `example_config.toml`
+- [x] 5. Update configuration documentation
+  - [x] 5.1 Update `example_config.toml`
     - Add `extraction_cost = 0.2` in the `[actor]` section with a comment explaining purpose and valid range `[0.0, energy_conversion_factor)`
     - _Requirements: 5.1_
 
-  - [ ] 5.2 Update `format_config_info()` in `src/viz_bevy/setup.rs`
+  - [x] 5.2 Update `format_config_info()` in `src/viz_bevy/setup.rs`
     - Add `writeln!(out, "extraction_cost: {:.4}", ac.extraction_cost).ok();` in the actor config display block
     - _Requirements: 5.2_
 
@@ -63,15 +63,15 @@ Add `extraction_cost: f32` to `ActorConfig`, update validation, modify the metab
     - **Property 8: Info panel contains extraction_cost**
     - **Validates: Requirements 5.2**
 
-  - [ ] 5.4 Update `README.md` ActorConfig parameter table
+  - [x] 5.4 Update `README.md` ActorConfig parameter table
     - Add row: `extraction_cost` | `f32` | Energy cost per unit of chemical consumed. Reduces net gain from consumption. Must be in `[0.0, energy_conversion_factor)` |
     - _Requirements: 5.4_
 
-  - [ ] 5.5 Update `.kiro/steering/config-documentation.md` ActorConfig table
+  - [x] 5.5 Update `.kiro/steering/config-documentation.md` ActorConfig table
     - Add row: `extraction_cost` | `f32` | `0.2` | Energy cost per unit of chemical consumed. Net gain = `consumed * (energy_conversion_factor - extraction_cost)`. Must be `>= 0.0` and `< energy_conversion_factor`. |
     - _Requirements: 5.3_
 
-- [~] 6. Final checkpoint - Ensure all tests pass
+- [-] 6. Final checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Notes

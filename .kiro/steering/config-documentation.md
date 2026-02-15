@@ -79,6 +79,7 @@ Present as `Option<ActorConfig>`. Omitting the entire `[actor]` section disables
 |---|---|---|---|
 | `consumption_rate` | `f32` | `1.5` | Chemical units consumed per tick from the actor's cell (species 0). |
 | `energy_conversion_factor` | `f32` | `2.0` | Energy gained per unit of chemical consumed. |
+| `extraction_cost` | `f32` | `0.2` | Energy cost per unit of chemical consumed. Net gain = `consumed * (energy_conversion_factor - extraction_cost)`. Must be `>= 0.0` and `< energy_conversion_factor`. |
 | `base_energy_decay` | `f32` | `0.05` | Energy subtracted every tick (basal metabolic cost). |
 | `initial_energy` | `f32` | `10.0` | Energy assigned to newly spawned actors. Must be `<= max_energy`. |
 | `max_energy` | `f32` | `50.0` | Maximum energy an actor can hold. Clamped after each metabolic tick. Must be `> 0.0`, finite, `>= initial_energy`. |

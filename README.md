@@ -128,6 +128,7 @@ Optional — pass `None` to `initialize()` to skip actor systems entirely.
 |-----------|------|-------------|
 | `consumption_rate` | `f32` | Chemical units consumed per tick from the actor's current cell (species 0) |
 | `energy_conversion_factor` | `f32` | Energy gained per unit of chemical consumed |
+| `extraction_cost` | `f32` | Energy cost per unit of chemical consumed. Reduces net gain from consumption. Must be in `[0.0, energy_conversion_factor)` |
 | `base_energy_decay` | `f32` | Basal metabolic cost subtracted each tick |
 | `initial_energy` | `f32` | Energy assigned to newly spawned actors |
 | `initial_actor_capacity` | `usize` | Pre-allocated slot capacity for the actor registry |

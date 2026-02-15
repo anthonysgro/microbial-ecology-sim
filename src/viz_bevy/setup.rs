@@ -96,6 +96,7 @@ pub(super) fn format_config_info(
         Some(ac) => {
             writeln!(out, "consumption_rate: {:.4}", ac.consumption_rate).ok();
             writeln!(out, "energy_conversion_factor: {:.4}", ac.energy_conversion_factor).ok();
+            writeln!(out, "extraction_cost: {:.4}", ac.extraction_cost).ok();
             writeln!(out, "base_energy_decay: {:.4}", ac.base_energy_decay).ok();
             writeln!(out, "initial_energy: {:.4}", ac.initial_energy).ok();
             writeln!(out, "initial_actor_capacity: {}", ac.initial_actor_capacity).ok();

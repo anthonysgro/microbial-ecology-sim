@@ -71,6 +71,9 @@ max_deceleration_threshold = 0.35
 [actor]
 consumption_rate = 1.5
 energy_conversion_factor = 1.8
+extraction_cost = 0.2                # Energy cost per unit of chemical consumed. Reduces net gain:
+                                     # net = consumed * (energy_conversion_factor - extraction_cost).
+                                     # Valid range: [0.0, energy_conversion_factor). Default: 0.2
 base_energy_decay = 0.03
 initial_energy = 8.0
 initial_actor_capacity = 64
