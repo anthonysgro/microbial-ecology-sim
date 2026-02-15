@@ -40,6 +40,19 @@ pub struct WorldInitConfig {
     /// Set both to 0 to skip actor seeding.
     pub min_actors: u32,
     pub max_actors: u32,
+
+    /// Fraction of sources that are renewable (infinite reservoir).
+    /// 0.0 = all finite, 1.0 = all renewable.
+    pub renewable_fraction: f32,
+
+    /// Range for initial reservoir capacity of non-renewable sources.
+    pub min_reservoir_capacity: f32,
+    pub max_reservoir_capacity: f32,
+
+    /// Range for deceleration threshold of non-renewable sources.
+    /// Each value in [0.0, 1.0].
+    pub min_deceleration_threshold: f32,
+    pub max_deceleration_threshold: f32,
 }
 
 impl Default for WorldInitConfig {
@@ -57,6 +70,11 @@ impl Default for WorldInitConfig {
             max_initial_concentration: 0.5,
             min_actors: 0,
             max_actors: 0,
+            renewable_fraction: 0.3,
+            min_reservoir_capacity: 50.0,
+            max_reservoir_capacity: 200.0,
+            min_deceleration_threshold: 0.1,
+            max_deceleration_threshold: 0.5,
         }
     }
 }
@@ -70,6 +88,9 @@ pub enum WorldInitError {
         min: f64,
         max: f64,
     },
+
+    #[error("invalid config: {reason}")]
+    InvalidConfig { reason: &'static str },
 
     #[error("grid construction failed: {0}")]
     GridError(#[from] GridError),
@@ -125,13 +146,53 @@ pub(crate) fn validate_config(config: &WorldInitConfig) -> Result<(), WorldInitE
             max: f64::from(config.max_actors),
         });
     }
+
+    // Reservoir parameterization validation
+    if !(0.0..=1.0).contains(&config.renewable_fraction) {
+        return Err(WorldInitError::InvalidConfig {
+            reason: "renewable_fraction must be in [0.0, 1.0]",
+        });
+    }
+    if config.min_reservoir_capacity <= 0.0 {
+        return Err(WorldInitError::InvalidConfig {
+            reason: "min_reservoir_capacity must be > 0.0",
+        });
+    }
+    if config.max_reservoir_capacity < config.min_reservoir_capacity {
+        return Err(WorldInitError::InvalidRange {
+            field: "reservoir_capacity",
+            min: f64::from(config.min_reservoir_capacity),
+            max: f64::from(config.max_reservoir_capacity),
+        });
+    }
+    if !(0.0..=1.0).contains(&config.min_deceleration_threshold) {
+        return Err(WorldInitError::InvalidConfig {
+            reason: "min_deceleration_threshold must be in [0.0, 1.0]",
+        });
+    }
+    if !(0.0..=1.0).contains(&config.max_deceleration_threshold) {
+        return Err(WorldInitError::InvalidConfig {
+            reason: "max_deceleration_threshold must be in [0.0, 1.0]",
+        });
+    }
+    if config.max_deceleration_threshold < config.min_deceleration_threshold {
+        return Err(WorldInitError::InvalidRange {
+            field: "deceleration_threshold",
+            min: f64::from(config.min_deceleration_threshold),
+            max: f64::from(config.max_deceleration_threshold),
+        });
+    }
+
     Ok(())
 }
 /// Generate and register heat and chemical sources into the grid.
 ///
 /// Samples source counts from the configured ranges, then for each source
 /// samples a cell position uniformly from `[0, cell_count)` and an emission
-/// rate from `[min_emission_rate, max_emission_rate]`. Registers each source
+/// rate from `[min_emission_rate, max_emission_rate]`. Each source is assigned
+/// as renewable or finite based on `renewable_fraction`. Finite sources get
+/// a reservoir sampled from the configured capacity range and a deceleration
+/// threshold from the configured threshold range. Registers each source
 /// via `Grid::add_source`, propagating any `SourceError`.
 pub(crate) fn generate_sources(
     grid: &mut Grid,
@@ -140,19 +201,22 @@ pub(crate) fn generate_sources(
     num_chemicals: usize,
 ) -> Result<(), WorldInitError> {
     let cell_count = grid.cell_count();
+    let renewable_prob = f64::from(config.renewable_fraction);
 
     // Heat sources
     let heat_count = rng.random_range(config.min_heat_sources..=config.max_heat_sources);
     for _ in 0..heat_count {
         let cell_index = rng.random_range(0..cell_count);
         let emission_rate = rng.random_range(config.min_emission_rate..=config.max_emission_rate);
+        let (reservoir, initial_capacity, deceleration_threshold) =
+            sample_reservoir_params(rng, config, renewable_prob);
         grid.add_source(Source {
             cell_index,
             field: SourceField::Heat,
             emission_rate,
-            reservoir: f32::INFINITY,
-            initial_capacity: f32::INFINITY,
-            deceleration_threshold: 0.0,
+            reservoir,
+            initial_capacity,
+            deceleration_threshold,
         })?;
     }
 
@@ -162,18 +226,42 @@ pub(crate) fn generate_sources(
         for _ in 0..chem_count {
             let cell_index = rng.random_range(0..cell_count);
             let emission_rate = rng.random_range(config.min_emission_rate..=config.max_emission_rate);
+            let (reservoir, initial_capacity, deceleration_threshold) =
+                sample_reservoir_params(rng, config, renewable_prob);
             grid.add_source(Source {
                 cell_index,
                 field: SourceField::Chemical(species),
                 emission_rate,
-                reservoir: f32::INFINITY,
-                initial_capacity: f32::INFINITY,
-                deceleration_threshold: 0.0,
+                reservoir,
+                initial_capacity,
+                deceleration_threshold,
             })?;
         }
     }
 
     Ok(())
+}
+
+/// Sample reservoir parameters for a single source.
+///
+/// Returns `(reservoir, initial_capacity, deceleration_threshold)`.
+/// Renewable sources get `(INFINITY, INFINITY, 0.0)`.
+/// Finite sources sample capacity and threshold from the configured ranges.
+fn sample_reservoir_params(
+    rng: &mut impl Rng,
+    config: &WorldInitConfig,
+    renewable_prob: f64,
+) -> (f32, f32, f32) {
+    if rng.random_bool(renewable_prob) {
+        (f32::INFINITY, f32::INFINITY, 0.0)
+    } else {
+        let capacity =
+            rng.random_range(config.min_reservoir_capacity..=config.max_reservoir_capacity);
+        let threshold = rng.random_range(
+            config.min_deceleration_threshold..=config.max_deceleration_threshold,
+        );
+        (capacity, capacity, threshold)
+    }
 }
 
 /// Generate and register initial actors into the grid.
