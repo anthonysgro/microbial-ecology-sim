@@ -28,11 +28,11 @@ Implement the Layer 0 environment grid substrate in Rust: a double-buffered, SoA
     - **Property 3: Double-buffer distinctness and swap round-trip** — write, swap, read-back; verify non-aliasing
     - **Validates: Requirements 1.5, 6.2**
 
-- [ ] 3. Implement GridConfig, CellDefaults, and Partition
-  - [ ] 3.1 Implement `GridConfig` and `CellDefaults` structs in `src/grid/config.rs`
+- [x] 3. Implement GridConfig, CellDefaults, and Partition
+  - [x] 3.1 Implement `GridConfig` and `CellDefaults` structs in `src/grid/config.rs`
     - All fields as described in design (width, height, num_chemicals, rates, num_threads)
     - _Requirements: 3.2, 4.2, 5.2_
-  - [ ] 3.2 Implement `Partition` struct and row-band partitioning logic in `src/grid/partition.rs`
+  - [x] 3.2 Implement `Partition` struct and row-band partitioning logic in `src/grid/partition.rs`
     - `Partition { start_row, end_row, start_col, end_col }`
     - `cell_indices()` iterator
     - `compute_partitions(width, height, num_threads) -> Vec<Partition>` — row-band slicing
