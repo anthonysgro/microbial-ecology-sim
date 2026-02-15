@@ -11,5 +11,27 @@ rayon = "1.10"
 crossterm = "0.28"
 thiserror = "2"
 
+[dependencies.bevy]
+version = "0.16"
+default-features = false
+features = [
+    "bevy_core_pipeline",
+    "bevy_render",
+    "bevy_sprite",
+    "bevy_ui",
+    "bevy_text",
+    "bevy_winit",
+    "bevy_image",
+    "bevy_window",
+    "bevy_color",
+    "bevy_state",
+    "bevy_log",
+    "std",
+    "multi_threaded",
+    "x11",
+    "png",
+    "default_font",
+]
+
 [dev-dependencies]
 proptest = "1.6"
