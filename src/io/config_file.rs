@@ -182,13 +182,33 @@ pub fn validate_world_config(config: &WorldConfig) -> Result<(), ConfigError> {
         });
     }
 
-    // 3. Removal threshold must be non-positive.
+    // 3. Actor config validation.
     if let Some(ref actor) = config.actor {
         if actor.removal_threshold > 0.0 {
             return Err(ConfigError::Validation {
                 reason: format!(
                     "removal_threshold ({}) must be <= 0.0",
                     actor.removal_threshold,
+                ),
+            });
+        }
+
+        // 3a. max_energy must be positive and finite.
+        if actor.max_energy <= 0.0 || !actor.max_energy.is_finite() {
+            return Err(ConfigError::Validation {
+                reason: format!(
+                    "max_energy ({}) must be > 0.0 and finite",
+                    actor.max_energy,
+                ),
+            });
+        }
+
+        // 3b. initial_energy must not exceed max_energy.
+        if actor.initial_energy > actor.max_energy {
+            return Err(ConfigError::Validation {
+                reason: format!(
+                    "initial_energy ({}) must be <= max_energy ({})",
+                    actor.initial_energy, actor.max_energy,
                 ),
             });
         }

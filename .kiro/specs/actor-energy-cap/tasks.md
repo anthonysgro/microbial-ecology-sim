@@ -23,7 +23,7 @@ Add a `max_energy` field to `ActorConfig`, convert metabolism to demand-driven c
     - **Validates: Requirements 1.3**
 
 - [-] 2. Add config validation for `max_energy`
-  - [ ] 2.1 Add validation checks in `validate_world_config` in `src/io/config_file.rs`
+  - [-] 2.1 Add validation checks in `validate_world_config` in `src/io/config_file.rs`
     - Reject `max_energy <= 0.0`, NaN, or infinite
     - Reject `initial_energy > max_energy`
     - _Requirements: 1.2, 1.3, 5.3_
