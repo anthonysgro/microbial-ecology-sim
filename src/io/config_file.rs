@@ -212,6 +212,26 @@ pub fn validate_world_config(config: &WorldConfig) -> Result<(), ConfigError> {
                 ),
             });
         }
+
+        // 3c. extraction_cost must be non-negative.
+        if actor.extraction_cost < 0.0 {
+            return Err(ConfigError::Validation {
+                reason: format!(
+                    "extraction_cost ({}) must be >= 0.0",
+                    actor.extraction_cost,
+                ),
+            });
+        }
+
+        // 3d. extraction_cost must be strictly less than energy_conversion_factor.
+        if actor.extraction_cost >= actor.energy_conversion_factor {
+            return Err(ConfigError::Validation {
+                reason: format!(
+                    "extraction_cost ({}) must be < energy_conversion_factor ({})",
+                    actor.extraction_cost, actor.energy_conversion_factor,
+                ),
+            });
+        }
     }
 
     Ok(())

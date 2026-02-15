@@ -156,7 +156,7 @@ pub fn run_actor_metabolism(
             // Active actors: demand-driven consumption and energy balance.
             let available = chemical_read[ci];
             let headroom = (config.max_energy - actor.energy).max(0.0);
-            let max_useful = headroom / config.energy_conversion_factor;
+            let max_useful = headroom / (config.energy_conversion_factor - config.extraction_cost);
             let consumed = config.consumption_rate.min(available).min(max_useful);
 
             chemical_write[ci] -= consumed;
@@ -164,7 +164,7 @@ pub fn run_actor_metabolism(
                 chemical_write[ci] = 0.0;
             }
 
-            actor.energy += consumed * config.energy_conversion_factor - config.base_energy_decay;
+            actor.energy += consumed * (config.energy_conversion_factor - config.extraction_cost) - config.base_energy_decay;
 
             if actor.energy.is_nan() || actor.energy.is_infinite() {
                 return Err(TickError::NumericalError {

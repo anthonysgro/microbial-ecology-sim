@@ -6,8 +6,8 @@ Add `extraction_cost: f32` to `ActorConfig`, update validation, modify the metab
 
 ## Tasks
 
-- [-] 1. Add `extraction_cost` field to `ActorConfig`
-  - [-] 1.1 Add `extraction_cost: f32` field to `ActorConfig` struct in `src/grid/actor_config.rs`
+- [x] 1. Add `extraction_cost` field to `ActorConfig`
+  - [x] 1.1 Add `extraction_cost: f32` field to `ActorConfig` struct in `src/grid/actor_config.rs`
     - Add field with doc comment: energy cost per unit of chemical consumed, must be in `[0.0, energy_conversion_factor)`, default `0.2`
     - Update `Default` impl to set `extraction_cost: 0.2`
     - _Requirements: 1.1, 1.2, 1.3_
@@ -16,8 +16,8 @@ Add `extraction_cost: f32` to `ActorConfig`, update validation, modify the metab
     - **Property 1: TOML round-trip for extraction_cost**
     - **Validates: Requirements 1.2**
 
-- [~] 2. Add extraction_cost validation to `validate_world_config`
-  - [ ] 2.1 Add validation checks in `src/io/config_file.rs` `validate_world_config`
+- [x] 2. Add extraction_cost validation to `validate_world_config`
+  - [x] 2.1 Add validation checks in `src/io/config_file.rs` `validate_world_config`
     - Add check: `extraction_cost < 0.0` → `ConfigError::Validation` with message "extraction_cost ({value}) must be >= 0.0"
     - Add check: `extraction_cost >= energy_conversion_factor` → `ConfigError::Validation` with message "extraction_cost ({value}) must be < energy_conversion_factor ({value})"
     - Place checks in the existing `if let Some(ref actor)` block alongside `removal_threshold` and `max_energy` checks
@@ -29,8 +29,8 @@ Add `extraction_cost: f32` to `ActorConfig`, update validation, modify the metab
     - **Property 4: Valid extraction_cost accepted**
     - **Validates: Requirements 2.1, 2.2, 2.3**
 
-- [~] 3. Update metabolism equation in `run_actor_metabolism`
-  - [ ] 3.1 Modify active actor branch in `src/grid/actor_systems.rs` `run_actor_metabolism`
+- [x] 3. Update metabolism equation in `run_actor_metabolism`
+  - [x] 3.1 Modify active actor branch in `src/grid/actor_systems.rs` `run_actor_metabolism`
     - Change `max_useful` computation: `headroom / config.energy_conversion_factor` → `headroom / (config.energy_conversion_factor - config.extraction_cost)`
     - Change energy update: `consumed * config.energy_conversion_factor - config.base_energy_decay` → `consumed * (config.energy_conversion_factor - config.extraction_cost) - config.base_energy_decay`
     - Do NOT modify the inert actor branch
@@ -42,12 +42,12 @@ Add `extraction_cost: f32` to `ActorConfig`, update validation, modify the metab
     - **Property 7: Energy never exceeds max_energy after metabolism**
     - **Validates: Requirements 3.1, 3.2, 3.3, 4.1, 4.2**
 
-  - [ ] 3.3 Update existing metabolism unit tests in `src/grid/actor_systems.rs`
+  - [x] 3.3 Update existing metabolism unit tests in `src/grid/actor_systems.rs`
     - Update `default_config()` helper to include `extraction_cost: 0.0` (preserves existing test behavior since 0.0 extraction cost is equivalent to the old equation)
     - Verify all existing tests still pass with the updated equation
     - _Requirements: 3.1_
 
-- [~] 4. Checkpoint - Ensure all tests pass
+- [-] 4. Checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 - [~] 5. Update configuration documentation
