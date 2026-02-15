@@ -63,7 +63,7 @@ Implement the Layer 0 environment grid substrate in Rust: a double-buffered, SoA
   - Ensure all tests pass, ask the user if questions arise.
 
 - [-] 6. Implement Diffusion System
-  - [-] 6.1 Implement `run_diffusion(grid, config) -> Result<(), TickError>` in `src/grid/diffusion.rs`
+  - [x] 6.1 Implement `run_diffusion(grid, config) -> Result<(), TickError>` in `src/grid/diffusion.rs`
     - Read from read buffer, write to write buffer
     - Discrete Laplacian: `new_c[i] = c[i] + Σ(rate × (c[neighbor] - c[i]) × dt)` for each chemical species
     - 8-connectivity neighbor lookup with bounds checking
@@ -81,8 +81,8 @@ Implement the Layer 0 environment grid substrate in Rust: a double-buffered, SoA
     - Uniform concentration grid (no change expected)
     - _Requirements: 3.2, 3.3_
 
-- [ ] 7. Implement Heat System
-  - [ ] 7.1 Implement `run_heat(grid, config) -> Result<(), TickError>` in `src/grid/heat.rs`
+- [-] 7. Implement Heat System
+  - [x] 7.1 Implement `run_heat(grid, config) -> Result<(), TickError>` in `src/grid/heat.rs`
     - Same structure as diffusion but for heat field
     - Boundary condition: missing neighbors use `config.ambient_heat`
     - Parallelize over partitions using `rayon::par_iter`

@@ -1,5 +1,6 @@
 pub mod config;
 pub mod diffusion;
+pub mod heat;
 pub mod error;
 pub mod field_buffer;
 pub mod partition;
@@ -149,6 +150,13 @@ impl Grid {
         for buf in &mut self.chemicals {
             buf.swap();
         }
+    }
+
+    /// Simultaneous read and write access to the heat field buffer.
+    ///
+    /// Returns `(read_slice, write_slice)` referencing distinct allocations.
+    pub fn read_write_heat(&mut self) -> (&[f32], &mut [f32]) {
+        self.heat.read_write()
     }
 
     /// Simultaneous read and write access to a chemical species buffer.
