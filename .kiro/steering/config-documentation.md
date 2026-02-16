@@ -74,6 +74,7 @@ All configuration is loaded from a TOML file. Omitted sections/fields fall back 
 | `min_respawn_cooldown_ticks` | `u32` | `50` | Minimum ticks before a depleted source respawns. |
 | `max_respawn_cooldown_ticks` | `u32` | `150` | Maximum ticks before a depleted source respawns. When `respawn_enabled` is true, must be `> 0` and `>= min_respawn_cooldown_ticks`. |
 | `source_clustering` | `f32` | `0.0` | Spatial clustering of sources. `0.0` = uniform random, `1.0` = tight clusters around a single center. Range: `[0.0, 1.0]`. |
+| `source_dispersion` | `f32` | `0.0` | Inter-cluster dispersion. Controls how many distinct cluster centers sources are distributed across. `0.0` = one shared center, `1.0` = one center per source. Formula: `num_clusters = max(1, round(source_dispersion * num_sources))`. Range: `[0.0, 1.0]`. |
 
 ### `[[world_init.chemical_species_configs]]` — `ChemicalSpeciesConfig`
 

@@ -170,6 +170,7 @@ pub(super) fn format_config_info(
     writeln!(out, "heat respawn_enabled: {}", hs.respawn_enabled).ok();
     writeln!(out, "heat respawn_cooldown_ticks: {}..{}", hs.min_respawn_cooldown_ticks, hs.max_respawn_cooldown_ticks).ok();
     writeln!(out, "heat source_clustering: {:.4}", hs.source_clustering).ok();
+    writeln!(out, "heat source_dispersion: {:.4}", hs.source_dispersion).ok();
 
     // Chemical species configs (per-species)
     for (i, cs) in init_config.chemical_species_configs.iter().enumerate() {
@@ -185,6 +186,7 @@ pub(super) fn format_config_info(
         writeln!(out, "    respawn_enabled: {}", sc.respawn_enabled).ok();
         writeln!(out, "    respawn_cooldown_ticks: {}..{}", sc.min_respawn_cooldown_ticks, sc.max_respawn_cooldown_ticks).ok();
         writeln!(out, "    source_clustering: {:.4}", sc.source_clustering).ok();
+        writeln!(out, "    source_dispersion: {:.4}", sc.source_dispersion).ok();
     }
 
     // Initial ranges

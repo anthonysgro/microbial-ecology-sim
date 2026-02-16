@@ -137,12 +137,19 @@ fn run_emission_phase(
             SourceField::Chemical(i) => &chemical_species_configs[i].source_config,
         };
         if field_config.respawn_enabled {
+            // Read cluster_index before removal so respawn can sample near
+            // the correct cluster center.
+            let cluster_index = registry
+                .get(event.source_id)
+                .map(|s| s.cluster_index)
+                .unwrap_or(0);
             let cooldown = rng.random_range(
                 field_config.min_respawn_cooldown_ticks..=field_config.max_respawn_cooldown_ticks,
             );
             grid.respawn_queue_mut().push(RespawnEntry {
                 field: event.field,
                 respawn_tick: current_tick + u64::from(cooldown),
+                cluster_index,
             });
         }
         // Remove depleted source from registry — slot freed for reuse.

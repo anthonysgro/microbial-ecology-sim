@@ -222,3 +222,78 @@ num_clusters = min(num_clusters, 255)  // u8 bound
 | 10 | 0.3 | 3 |
 | 10 | 0.1 | 1 |
 
+
+## Correctness Properties
+
+*A property is a characteristic or behavior that should hold true across all valid executions of a system — essentially, a formal statement about what the system should do. Properties serve as the bridge between human-readable specifications and machine-verifiable correctness guarantees.*
+
+### Property 1: Cluster count matches dispersion formula
+
+*For any* valid `source_dispersion` in `[0.0, 1.0]` and any `num_sources >= 1`, the number of cluster centers stored in the `ClusterCenterMap` for that field type after `generate_sources` SHALL equal `max(1, round(source_dispersion * num_sources))` (clamped to 255). Edge cases: `dispersion=0.0` yields 1 center; `dispersion=1.0` yields `num_sources` centers.
+
+**Validates: Requirements 1.2, 1.3, 1.4, 5.4**
+
+### Property 2: Validation rejects out-of-range dispersion
+
+*For any* `source_dispersion` value outside `[0.0, 1.0]` (including values < 0.0, > 1.0, NaN, and infinity), `validate_source_field_config` SHALL return an error.
+
+**Validates: Requirements 2.1, 2.2**
+
+### Property 3: Round-robin cluster assignment
+
+*For any* valid config with `K` cluster centers and `N` sources, source at generation index `i` SHALL have `cluster_index == (i % K) as u8`. This ensures sources are evenly distributed across clusters.
+
+**Validates: Requirements 3.2, 4.2**
+
+### Property 4: Respawn preserves cluster index
+
+*For any* source with a known `cluster_index` that depletes and triggers a respawn, the resulting `RespawnEntry` SHALL carry the same `cluster_index`, and the replacement source created by `run_respawn_phase` SHALL also carry that `cluster_index`.
+
+**Validates: Requirements 4.3, 4.4**
+
+## Error Handling
+
+All error handling follows the existing `WorldInitError` / `SourceError` pattern:
+
+| Condition | Error Type | Message |
+|---|---|---|
+| `source_dispersion < 0.0` or `> 1.0` | `WorldInitError::InvalidConfig` | `"{field_type} source_dispersion must be in [0.0, 1.0]"` |
+| `source_dispersion` is NaN or infinity | `WorldInitError::InvalidConfig` | `"{field_type} source_dispersion must be finite"` |
+
+Validation runs in `validate_source_field_config()` alongside existing `source_clustering` checks. Uses the same `SourceFieldLabels` pattern — two new static labels per field type (heat/chemical).
+
+No panics introduced. No `unwrap()` in simulation logic. The `cluster_index` field is always set deterministically from the formula, so no runtime failure path exists for it.
+
+## Testing Strategy
+
+### Property-Based Tests (proptest)
+
+Each correctness property maps to a single `proptest` test. Minimum 100 iterations per test.
+
+- **Property 1**: Generate random `(source_dispersion, num_sources)` pairs. Compute expected K. Run `generate_sources` on a minimal grid. Count cluster centers in the map for the field. Assert count == expected K.
+  - Generator: `source_dispersion` in `0.0..=1.0`, `num_sources` in `1..=50u32`.
+  - Tag: `Feature: source-dispersion, Property 1: Cluster count matches dispersion formula`
+
+- **Property 2**: Generate random `f32` values outside `[0.0, 1.0]` (negative, >1.0, NaN, infinity). Construct a `SourceFieldConfig` with that dispersion. Call `validate_source_field_config`. Assert error.
+  - Generator: `prop_oneof![(-100.0f32..-0.001), (1.001..100.0), Just(f32::NAN), Just(f32::INFINITY), Just(f32::NEG_INFINITY)]`.
+  - Tag: `Feature: source-dispersion, Property 2: Validation rejects out-of-range dispersion`
+
+- **Property 3**: Generate random `(source_dispersion, num_sources)` pairs. Run `generate_sources`. Iterate all sources for the field. Assert source at index `i` has `cluster_index == (i % K) as u8`.
+  - Generator: same as Property 1.
+  - Tag: `Feature: source-dispersion, Property 3: Round-robin cluster assignment`
+
+- **Property 4**: Generate a config with `respawn_enabled=true`, finite sources, and known `cluster_index` values. Run simulation ticks until depletion. Verify the respawn entry and replacement source carry the original `cluster_index`.
+  - This is an integration-level property test requiring tick orchestration. Generator: random `cluster_index` in `0..K`, random field type.
+  - Tag: `Feature: source-dispersion, Property 4: Respawn preserves cluster index`
+
+### Unit Tests
+
+- Default `SourceFieldConfig` has `source_dispersion == 0.0`.
+- TOML deserialization without `source_dispersion` field defaults to `0.0`.
+- `format_config_info` output contains `"source_dispersion"` for heat and chemical species.
+- `lookup_cluster_center` with `(field, cluster_index)` returns correct center from a multi-entry map.
+- `lookup_cluster_center` returns `None` for missing `(field, cluster_index)` pair.
+
+### PBT Library
+
+`proptest` — already used in the project. Configure `ProptestConfig { cases: 100, .. }` minimum per test.

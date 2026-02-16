@@ -13,6 +13,7 @@ use crate::grid::actor_config::ActorConfig;
 use crate::grid::config::{CellDefaults, GridConfig};
 use crate::grid::error::GridError;
 use crate::grid::source::{ClusterCenter, RespawnQueue, Source, SourceError, SourceField};
+use smallvec::SmallVec;
 
 /// Per-field-type configuration for source generation.
 /// Reusable for any fundamental (heat, chemical, future types).
@@ -44,6 +45,12 @@ pub struct SourceFieldConfig {
     /// Spatial clustering of sources. 0.0 = uniform random, 1.0 = tight clusters.
     /// Range: [0.0, 1.0]. Default: 0.0.
     pub source_clustering: f32,
+    /// Inter-cluster dispersion. Controls how many distinct cluster centers
+    /// sources are distributed across. [0.0, 1.0]. Default: 0.0.
+    /// 0.0 = one shared center (current behavior).
+    /// 1.0 = one center per source.
+    /// Formula: num_clusters = max(1, round(source_dispersion * num_sources)).
+    pub source_dispersion: f32,
 }
 
 /// Per-species chemical configuration bundle.
@@ -116,6 +123,7 @@ impl Default for SourceFieldConfig {
             min_respawn_cooldown_ticks: 50,
             max_respawn_cooldown_ticks: 150,
             source_clustering: 0.0,
+            source_dispersion: 0.0,
         }
     }
 }
@@ -188,6 +196,8 @@ struct SourceFieldLabels {
     respawn_zero_cooldown: &'static str,
     source_clustering_range: &'static str,
     source_clustering_finite: &'static str,
+    source_dispersion_range: &'static str,
+    source_dispersion_finite: &'static str,
 }
 
 const HEAT_LABELS: SourceFieldLabels = SourceFieldLabels {
@@ -203,6 +213,8 @@ const HEAT_LABELS: SourceFieldLabels = SourceFieldLabels {
     respawn_zero_cooldown: "heat max_respawn_cooldown_ticks must be > 0 when respawn is enabled",
     source_clustering_range: "heat source_clustering must be in [0.0, 1.0]",
     source_clustering_finite: "heat source_clustering must be finite",
+    source_dispersion_range: "heat source_dispersion must be in [0.0, 1.0]",
+    source_dispersion_finite: "heat source_dispersion must be finite",
 };
 
 const CHEMICAL_LABELS: SourceFieldLabels = SourceFieldLabels {
@@ -218,6 +230,8 @@ const CHEMICAL_LABELS: SourceFieldLabels = SourceFieldLabels {
     respawn_zero_cooldown: "chemical max_respawn_cooldown_ticks must be > 0 when respawn is enabled",
     source_clustering_range: "chemical source_clustering must be in [0.0, 1.0]",
     source_clustering_finite: "chemical source_clustering must be finite",
+    source_dispersion_range: "chemical source_dispersion must be in [0.0, 1.0]",
+    source_dispersion_finite: "chemical source_dispersion must be finite",
 };
 
 /// Validate a single `SourceFieldConfig`. All error messages are prefixed
@@ -298,6 +312,17 @@ fn validate_source_field_config(
     if !(0.0..=1.0).contains(&config.source_clustering) {
         return Err(WorldInitError::InvalidConfig {
             reason: labels.source_clustering_range,
+        });
+    }
+    // Source dispersion validation.
+    if !config.source_dispersion.is_finite() {
+        return Err(WorldInitError::InvalidConfig {
+            reason: labels.source_dispersion_finite,
+        });
+    }
+    if !(0.0..=1.0).contains(&config.source_dispersion) {
+        return Err(WorldInitError::InvalidConfig {
+            reason: labels.source_dispersion_range,
         });
     }
     Ok(())
@@ -422,74 +447,110 @@ pub(crate) fn generate_sources(
     let heat_cfg = &config.heat_source_config;
     let heat_renewable_prob = f64::from(heat_cfg.renewable_fraction);
     let heat_count = rng.random_range(heat_cfg.min_sources..=heat_cfg.max_sources);
-    // Pick a cluster center for the entire heat batch.
-    let heat_center_col = rng.random_range(0..width);
-    let heat_center_row = rng.random_range(0..height);
-    if heat_cfg.source_clustering > 0.0 {
-        grid.cluster_centers_mut().push((
-            SourceField::Heat,
-            ClusterCenter { col: heat_center_col, row: heat_center_row },
-        ));
-    }
-    for _ in 0..heat_count {
-        let cell_index = sample_clustered_position(
-            rng,
-            heat_center_col,
-            heat_center_row,
-            width,
-            height,
-            heat_cfg.source_clustering,
-        );
-        let emission_rate = rng.random_range(heat_cfg.min_emission_rate..=heat_cfg.max_emission_rate);
-        let (reservoir, initial_capacity, deceleration_threshold) =
-            sample_reservoir_params(rng, heat_cfg, heat_renewable_prob);
-        grid.add_source(Source {
-            cell_index,
-            field: SourceField::Heat,
-            emission_rate,
-            reservoir,
-            initial_capacity,
-            deceleration_threshold,
-        })?;
-    }
 
-    // Chemical sources: one batch per species, each with its own cluster center.
+    generate_field_sources(
+        grid,
+        rng,
+        SourceField::Heat,
+        heat_cfg,
+        heat_count,
+        heat_renewable_prob,
+        width,
+        height,
+    )?;
+
+    // Chemical sources: one batch per species.
     for species in 0..num_chemicals {
         let chem_cfg = &config.chemical_species_configs[species].source_config;
         let chem_renewable_prob = f64::from(chem_cfg.renewable_fraction);
         let chem_count = rng.random_range(chem_cfg.min_sources..=chem_cfg.max_sources);
-        let chem_center_col = rng.random_range(0..width);
-        let chem_center_row = rng.random_range(0..height);
-        if chem_cfg.source_clustering > 0.0 {
-            grid.cluster_centers_mut().push((
-                SourceField::Chemical(species),
-                ClusterCenter { col: chem_center_col, row: chem_center_row },
-            ));
-        }
-        for _ in 0..chem_count {
-            let cell_index = sample_clustered_position(
-                rng,
-                chem_center_col,
-                chem_center_row,
-                width,
-                height,
-                chem_cfg.source_clustering,
-            );
-            let emission_rate = rng.random_range(chem_cfg.min_emission_rate..=chem_cfg.max_emission_rate);
-            let (reservoir, initial_capacity, deceleration_threshold) =
-                sample_reservoir_params(rng, chem_cfg, chem_renewable_prob);
-            grid.add_source(Source {
-                cell_index,
-                field: SourceField::Chemical(species),
-                emission_rate,
-                reservoir,
-                initial_capacity,
-                deceleration_threshold,
-            })?;
-        }
+
+        generate_field_sources(
+            grid,
+            rng,
+            SourceField::Chemical(species),
+            chem_cfg,
+            chem_count,
+            chem_renewable_prob,
+            width,
+            height,
+        )?;
     }
 
     Ok(())
+}
+
+/// Generate sources for a single field type with multi-center dispersion support.
+///
+/// Computes K = max(1, round(source_dispersion * num_sources)), clamped to 255.
+/// Samples K independent cluster centers, assigns sources round-robin across them,
+/// and positions each source via `sample_clustered_position` using its assigned center.
+///
+/// When `source_dispersion == 0.0`, K=1, collapsing to the legacy single-center behavior.
+fn generate_field_sources(
+    grid: &mut Grid,
+    rng: &mut impl Rng,
+    field: SourceField,
+    cfg: &SourceFieldConfig,
+    num_sources: u32,
+    renewable_prob: f64,
+    width: u32,
+    height: u32,
+) -> Result<(), WorldInitError> {
+    // Compute cluster count K from dispersion formula.
+    let k = compute_cluster_count(cfg.source_dispersion, num_sources);
+
+    // Sample K independent cluster center positions.
+    let centers: SmallVec<[ClusterCenter; 8]> = (0..k)
+        .map(|_| ClusterCenter {
+            col: rng.random_range(0..width),
+            row: rng.random_range(0..height),
+        })
+        .collect();
+
+    // Store centers in ClusterCenterMap when they are meaningful for respawn.
+    if cfg.source_clustering > 0.0 || cfg.source_dispersion > 0.0 {
+        for (idx, center) in centers.iter().enumerate() {
+            grid.cluster_centers_mut().push((field, idx as u8, *center));
+        }
+    }
+
+    // Generate sources with round-robin cluster assignment.
+    for i in 0..num_sources {
+        let cluster_idx = (i % u32::from(k)) as u8;
+        let center = &centers[cluster_idx as usize];
+        let cell_index = sample_clustered_position(
+            rng,
+            center.col,
+            center.row,
+            width,
+            height,
+            cfg.source_clustering,
+        );
+        let emission_rate = rng.random_range(cfg.min_emission_rate..=cfg.max_emission_rate);
+        let (reservoir, initial_capacity, deceleration_threshold) =
+            sample_reservoir_params(rng, cfg, renewable_prob);
+        grid.add_source(Source {
+            cell_index,
+            field,
+            emission_rate,
+            reservoir,
+            initial_capacity,
+            deceleration_threshold,
+            cluster_index: cluster_idx,
+        })?;
+    }
+
+    Ok(())
+}
+
+/// Compute the number of cluster centers from the dispersion formula.
+///
+/// `K = max(1, round(source_dispersion * num_sources))`, clamped to 255 (u8 bound).
+/// When `source_dispersion == 0.0`, returns 1 (single-center, backward compatible).
+fn compute_cluster_count(source_dispersion: f32, num_sources: u32) -> u8 {
+    let raw = (source_dispersion * num_sources as f32).round() as u32;
+    raw.max(1).min(255) as u8
 }
 
 /// Sample reservoir parameters for a single source.

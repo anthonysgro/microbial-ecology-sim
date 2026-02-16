@@ -14,19 +14,20 @@ pub struct ClusterCenter {
     pub row: u32,
 }
 
-/// Maps each `SourceField` variant to its cluster center.
-/// `SmallVec<[(SourceField, ClusterCenter); 4]>` — stack-allocated for
-/// typical cardinality (1 heat + 1–3 chemical species).
-pub type ClusterCenterMap = SmallVec<[(SourceField, ClusterCenter); 4]>;
+/// Maps (SourceField, cluster_index) → ClusterCenter.
+/// Stack-allocated for typical cardinality (1 heat + 1–3 chemical species,
+/// potentially multiple centers per field with source_dispersion > 0).
+pub type ClusterCenterMap = SmallVec<[(SourceField, u8, ClusterCenter); 8]>;
 
-/// Look up the cluster center for a given field, if one was stored.
+/// Look up the cluster center for a given field and cluster index, if one was stored.
 pub fn lookup_cluster_center(
     map: &ClusterCenterMap,
     field: SourceField,
+    cluster_index: u8,
 ) -> Option<ClusterCenter> {
     map.iter()
-        .find(|(f, _)| *f == field)
-        .map(|(_, c)| *c)
+        .find(|(f, idx, _)| *f == field && *idx == cluster_index)
+        .map(|(_, _, c)| *c)
 }
 
 use crate::grid::Grid;
@@ -73,6 +74,10 @@ pub struct Source {
     /// 0.0 = no deceleration (full rate until exhaustion).
     /// 1.0 = deceleration begins immediately.
     pub deceleration_threshold: f32,
+    /// Index of the cluster center this source belongs to.
+    /// Used by respawn to sample near the correct center.
+    /// Always 0 when source_dispersion is 0.0 (single center).
+    pub cluster_index: u8,
 }
 
 /// Internal slot in the `SourceRegistry`. Holds an optional source and a
@@ -296,6 +301,27 @@ impl SourceRegistry {
             })
     }
 
+    /// Returns a reference to the source identified by `id`, or an error if
+    /// the id is invalid (wrong generation or already removed).
+    pub fn get(&self, id: SourceId) -> Result<&Source, SourceError> {
+        let slot = self.slots.get(id.index).ok_or(SourceError::InvalidSourceId {
+            index: id.index,
+            generation: id.generation,
+        })?;
+
+        if slot.generation != id.generation || slot.source.is_none() {
+            return Err(SourceError::InvalidSourceId {
+                index: id.index,
+                generation: id.generation,
+            });
+        }
+
+        slot.source.as_ref().ok_or(SourceError::InvalidSourceId {
+            index: id.index,
+            generation: id.generation,
+        })
+    }
+
     /// Returns true if the source identified by `id` exists and is depleted
     /// (reservoir == 0.0). Renewable sources (reservoir = INFINITY) are never
     /// depleted.
@@ -448,6 +474,8 @@ pub struct RespawnEntry {
     pub field: SourceField,
     /// The tick at which the replacement source should spawn.
     pub respawn_tick: u64,
+    /// Cluster center index of the depleted source, for respawn placement.
+    pub cluster_index: u8,
 }
 
 /// Pre-allocated queue of pending source respawns.
@@ -558,7 +586,7 @@ pub fn run_respawn_phase(
         // random placement when the center cell is already occupied.
         // When no cluster center exists, fall back to uniform-random placement
         // on an unoccupied cell (pre-feature behavior).
-        let center = lookup_cluster_center(grid.cluster_centers(), entry.field);
+        let center = lookup_cluster_center(grid.cluster_centers(), entry.field, entry.cluster_index);
 
         let cell_index = match center {
             Some(c) => {
@@ -591,6 +619,7 @@ pub fn run_respawn_phase(
                     grid.respawn_queue_mut().push(RespawnEntry {
                         field: entry.field,
                         respawn_tick: entry.respawn_tick + 1,
+                        cluster_index: entry.cluster_index,
                     });
                     continue;
                 }
@@ -628,6 +657,7 @@ pub fn run_respawn_phase(
             reservoir: capacity,
             initial_capacity: capacity,
             deceleration_threshold,
+            cluster_index: entry.cluster_index,
         };
 
         // Register the new source. add_source validates cell bounds and species,
