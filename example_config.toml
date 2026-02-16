@@ -34,20 +34,20 @@ max_actors = 5                      # Enough actors for competition without grid
 
 # Heat sources: a few strong emitters create thermal "hotspots"
 [world_init.heat_source_config]
-min_sources = 1
+min_sources = 2
 max_sources = 3
 min_emission_rate = 0.5
 max_emission_rate = 3.0              # Strong enough to create visible thermal zones
 renewable_fraction = 0.5             # Half are permanent, half deplete over time
 min_reservoir_capacity = 100.0
-max_reservoir_capacity = 500.0       # Finite sources last 30–500 ticks depending on rate
-min_deceleration_threshold = 0.2
-max_deceleration_threshold = 0.4     # Gradual tapering as sources deplete
+max_reservoir_capacity = 1000.0       # Finite sources last 30–500 ticks depending on rate
+min_deceleration_threshold = 0.01
+max_deceleration_threshold = 0.1     # Gradual tapering as sources deplete
 respawn_enabled = true               # Depleted non-renewable heat sources respawn after cooldown.
-min_respawn_cooldown_ticks = 50      # Minimum ticks before a depleted source respawns.
-max_respawn_cooldown_ticks = 150     # Maximum ticks before a depleted source respawns.
-source_clustering = 1                # Spatial clustering of sources. 0.0 = uniform random, 1.0 = tight clusters. [0.0, 1.0].
-source_dispersion = 0.0              # Inter-cluster dispersion. Controls how many distinct cluster centers sources
+min_respawn_cooldown_ticks = 0       # Minimum ticks before a depleted source respawns.
+max_respawn_cooldown_ticks = 10      # Maximum ticks before a depleted source respawns.
+source_clustering = 0.96                # Spatial clustering of sources. 0.0 = uniform random, 1.0 = tight clusters. [0.0, 1.0].
+source_dispersion = 1.0              # Inter-cluster dispersion. Controls how many distinct cluster centers sources
                                      # are distributed across. 0.0 = one shared center, 1.0 = one center per source.
                                      # Formula: num_clusters = max(1, round(source_dispersion * num_sources)). [0.0, 1.0].
 
@@ -158,6 +158,27 @@ kin_tolerance = 0.5                      # Seed genome default for heritable kin
                                          # Must be within [trait_kin_tolerance_min, trait_kin_tolerance_max].
 trait_kin_tolerance_min = 0.0            # Minimum clamp bound for heritable kin_tolerance.
 trait_kin_tolerance_max = 1.0            # Maximum clamp bound for heritable kin_tolerance. Must be > min.
+
+# ── Reproduction Cooldown ───────────────────────────────────────
+# Minimum ticks between successive reproductions. Creates a temporal gate
+# on fission frequency, coupled with a continuous readiness metabolic cost
+# that enforces r/K trade-off differentiation.
+
+reproduction_cooldown = 5                # Seed genome default for heritable reproduction_cooldown trait.
+                                         # Minimum ticks between successive reproductions. Must be within
+                                         # [trait_reproduction_cooldown_min, trait_reproduction_cooldown_max].
+trait_reproduction_cooldown_min = 1      # Minimum clamp bound for heritable reproduction_cooldown.
+                                         # Must be >= 1 and < trait_reproduction_cooldown_max.
+trait_reproduction_cooldown_max = 100    # Maximum clamp bound for heritable reproduction_cooldown.
+                                         # Must be > trait_reproduction_cooldown_min.
+readiness_sensitivity = 0.01            # Global sensitivity coefficient for reproductive readiness metabolic cost.
+                                         # readiness_cost = readiness_sensitivity * (reproduction_cost + offspring_energy)
+                                         #   / max(reproduction_cooldown, 1) / reference_cooldown
+                                         # 0.0 disables the mechanic. Must be >= 0.0 and finite.
+reference_cooldown = 5.0                 # Neutral cooldown for readiness cost normalization. At this cooldown,
+                                         # the readiness multiplier equals 1.0 / reference_cooldown. Actors with
+                                         # shorter cooldowns pay more; longer cooldowns pay less.
+                                         # Must be > 0.0 and finite.
 
 # ── Thermal Metabolism ──────────────────────────────────────────
 # Actors pay an extra energy cost based on the squared mismatch between

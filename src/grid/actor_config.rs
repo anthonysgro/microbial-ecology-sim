@@ -29,6 +29,11 @@ fn default_thermal_sensitivity() -> f32 { 0.01 }
 fn default_optimal_temp() -> f32 { 0.5 }
 fn default_trait_optimal_temp_min() -> f32 { 0.0 }
 fn default_trait_optimal_temp_max() -> f32 { 2.0 }
+fn default_reproduction_cooldown() -> u16 { 5 }
+fn default_trait_reproduction_cooldown_min() -> u16 { 1 }
+fn default_trait_reproduction_cooldown_max() -> u16 { 100 }
+fn default_readiness_sensitivity() -> f32 { 0.01 }
+fn default_reference_cooldown() -> f32 { 5.0 }
 
 /// Configuration parameters for Actor metabolism, sensing, and spawning.
 ///
@@ -190,6 +195,33 @@ pub struct ActorConfig {
     /// Must be > 0.0 and finite. Default: 0.05.
     #[serde(default = "default_reference_metabolic_rate")]
     pub reference_metabolic_rate: f32,
+
+    // ── Reproduction cooldown config ───────────────────────────────
+    /// Seed genome default for heritable reproduction_cooldown trait.
+    /// Minimum ticks between successive reproductions. Default: 5.
+    #[serde(default = "default_reproduction_cooldown")]
+    pub reproduction_cooldown: u16,
+
+    /// Minimum clamp bound for heritable reproduction_cooldown. Must be >= 1. Default: 1.
+    #[serde(default = "default_trait_reproduction_cooldown_min")]
+    pub trait_reproduction_cooldown_min: u16,
+
+    /// Maximum clamp bound for heritable reproduction_cooldown. Default: 100.
+    #[serde(default = "default_trait_reproduction_cooldown_max")]
+    pub trait_reproduction_cooldown_max: u16,
+
+    /// Global sensitivity coefficient for reproductive readiness metabolic cost.
+    /// Higher values increase the per-tick energy drain for maintaining reproductive
+    /// machinery. 0.0 disables the mechanic. Must be >= 0.0 and finite. Default: 0.01.
+    #[serde(default = "default_readiness_sensitivity")]
+    pub readiness_sensitivity: f32,
+
+    /// Neutral cooldown for readiness cost normalization. At this cooldown value,
+    /// the readiness multiplier equals 1.0 / reference_cooldown. Actors with shorter
+    /// cooldowns pay more; actors with longer cooldowns pay less.
+    /// Must be > 0.0 and finite. Default: 5.0.
+    #[serde(default = "default_reference_cooldown")]
+    pub reference_cooldown: f32,
 }
 
 impl Default for ActorConfig {
@@ -236,6 +268,11 @@ impl Default for ActorConfig {
             trait_optimal_temp_min: default_trait_optimal_temp_min(),
             trait_optimal_temp_max: default_trait_optimal_temp_max(),
             reference_metabolic_rate: default_reference_metabolic_rate(),
+            reproduction_cooldown: default_reproduction_cooldown(),
+            trait_reproduction_cooldown_min: default_trait_reproduction_cooldown_min(),
+            trait_reproduction_cooldown_max: default_trait_reproduction_cooldown_max(),
+            readiness_sensitivity: default_readiness_sensitivity(),
+            reference_cooldown: default_reference_cooldown(),
         }
     }
 }

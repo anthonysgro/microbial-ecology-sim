@@ -29,6 +29,8 @@ pub struct HeritableTraits {
     pub kin_tolerance: f32,
     /// Preferred cell heat for minimal thermal penalty.
     pub optimal_temp: f32,
+    /// Minimum ticks between successive reproductions.
+    pub reproduction_cooldown: u16,
 }
 
 const _: () = assert!(std::mem::size_of::<HeritableTraits>() == 40);
@@ -47,6 +49,7 @@ impl HeritableTraits {
             mutation_rate: config.mutation_stddev,
             kin_tolerance: config.kin_tolerance,
             optimal_temp: config.optimal_temp,
+            reproduction_cooldown: config.reproduction_cooldown,
         }
     }
 
@@ -103,6 +106,13 @@ impl HeritableTraits {
 
         self.optimal_temp = (self.optimal_temp * (1.0 + normal.sample(rng) as f32))
             .clamp(config.trait_optimal_temp_min, config.trait_optimal_temp_max);
+
+        // reproduction_cooldown: proportional in f32 space, round, clamp to u16 range.
+        let cooldown_f32 = self.reproduction_cooldown as f32 * (1.0 + normal.sample(rng) as f32);
+        self.reproduction_cooldown = cooldown_f32
+            .round()
+            .clamp(config.trait_reproduction_cooldown_min as f32, config.trait_reproduction_cooldown_max as f32)
+            as u16;
     }
 }
 
@@ -123,6 +133,8 @@ pub struct Actor {
     pub tumble_remaining: u16,
     /// Per-actor heritable traits for behavioral variation.
     pub traits: HeritableTraits,
+    /// Ticks remaining before this actor can reproduce again. 0 = eligible.
+    pub cooldown_remaining: u16,
 }
 
 /// Opaque handle for a registered Actor.

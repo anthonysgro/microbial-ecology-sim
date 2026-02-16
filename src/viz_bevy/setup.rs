@@ -27,7 +27,7 @@ pub(super) fn overlay_label_text(overlay: &ActiveOverlay) -> String {
 }
 
 /// Trait names in display order, matching `TraitStats::traits` array indices.
-const TRAIT_NAMES: [&str; 10] = [
+const TRAIT_NAMES: [&str; 11] = [
     "consumption_rate",
     "base_energy_decay",
     "levy_exponent",
@@ -38,6 +38,7 @@ const TRAIT_NAMES: [&str; 10] = [
     "mutation_rate",
     "kin_tolerance",
     "optimal_temp",
+    "repro_cooldown",
 ];
 
 /// Format `TraitStats` into a display string for the stats panel.
@@ -122,6 +123,9 @@ pub fn format_actor_info(
     writeln!(out, "mutation_rate:           {:.4}", actor.traits.mutation_rate).ok();
     writeln!(out, "kin_tolerance:           {:.4}", actor.traits.kin_tolerance).ok();
     writeln!(out, "optimal_temp:            {:.4}", actor.traits.optimal_temp).ok();
+    writeln!(out, "reproduction_cooldown:   {}", actor.traits.reproduction_cooldown).ok();
+    writeln!(out).ok();
+    writeln!(out, "cooldown_remaining:      {}", actor.cooldown_remaining).ok();
 
     out
 }
@@ -233,6 +237,10 @@ pub(super) fn format_config_info(
             writeln!(out, "thermal_sensitivity: {:.4}", ac.thermal_sensitivity).ok();
             writeln!(out, "optimal_temp: {:.4}", ac.optimal_temp).ok();
             writeln!(out, "trait_optimal_temp: {:.4}..{:.4}", ac.trait_optimal_temp_min, ac.trait_optimal_temp_max).ok();
+            writeln!(out, "reproduction_cooldown: {}", ac.reproduction_cooldown).ok();
+            writeln!(out, "trait_reproduction_cooldown: {}..{}", ac.trait_reproduction_cooldown_min, ac.trait_reproduction_cooldown_max).ok();
+            writeln!(out, "readiness_sensitivity: {:.4}", ac.readiness_sensitivity).ok();
+            writeln!(out, "reference_cooldown: {:.4}", ac.reference_cooldown).ok();
         }
         None => {
             writeln!(out, "Actors: disabled").ok();

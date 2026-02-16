@@ -613,6 +613,7 @@ pub(crate) fn generate_actors(
                 tumble_direction: 0,
                 tumble_remaining: 0,
                 traits: HeritableTraits::from_config(&actor_config),
+                cooldown_remaining: 0,
             };
             match grid.add_actor(actor) {
                 Ok(_) => {

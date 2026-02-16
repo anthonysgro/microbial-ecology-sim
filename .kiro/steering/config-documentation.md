@@ -13,10 +13,10 @@ This ensures configuration documentation stays in sync with the code at all time
 
 ## Heritable Trait Update Rule
 
-When any spec adds, removes, or renames a heritable trait on `Actor` (currently: `consumption_rate`, `base_energy_decay`, `levy_exponent`, `reproduction_threshold`, `max_tumble_steps`, `reproduction_cost`, `offspring_energy`, `mutation_rate`, `kin_tolerance`, `optimal_temp`):
+When any spec adds, removes, or renames a heritable trait on `Actor` (currently: `consumption_rate`, `base_energy_decay`, `levy_exponent`, `reproduction_threshold`, `max_tumble_steps`, `reproduction_cost`, `offspring_energy`, `mutation_rate`, `kin_tolerance`, `optimal_temp`, `reproduction_cooldown`):
 
 1. **`HeritableTraits` struct** — Update the struct in `src/grid/actor.rs` with the new/changed field.
-2. **Trait visualization stats** — Update `compute_trait_stats_from_actors` in `src/viz_bevy/systems.rs` to collect and compute statistics for the new trait. The `TraitStats.traits` array size (currently `[SingleTraitStats; 10]`) must match the trait count.
+2. **Trait visualization stats** — Update `compute_trait_stats_from_actors` in `src/viz_bevy/systems.rs` to collect and compute statistics for the new trait. The `TraitStats.traits` array size (currently `[SingleTraitStats; 11]`) must match the trait count.
 3. **Stats panel formatting** — Update `format_trait_stats` in `src/viz_bevy/setup.rs` to display the new trait row.
 4. **Actor inspector formatting** — Update `format_actor_info` in `src/viz_bevy/setup.rs` to display the new trait value.
 5. **Trait clamp config** — Add `trait_{name}_min` / `trait_{name}_max` fields to `ActorConfig` and follow the configuration update rules above.
@@ -144,6 +144,11 @@ Present as `Option<ActorConfig>`. Omitting the entire `[actor]` section disables
 | `optimal_temp` | `f32` | `0.5` | Seed genome default for heritable `optimal_temp` trait. Must be within `[trait_optimal_temp_min, trait_optimal_temp_max]`. |
 | `trait_optimal_temp_min` | `f32` | `0.0` | Minimum clamp bound for heritable `optimal_temp`. Must be `< trait_optimal_temp_max`. |
 | `trait_optimal_temp_max` | `f32` | `2.0` | Maximum clamp bound for heritable `optimal_temp`. Must be `> trait_optimal_temp_min`. |
+| `reproduction_cooldown` | `u16` | `5` | Seed genome default for heritable `reproduction_cooldown` trait. Minimum ticks between successive reproductions. Must be within `[trait_reproduction_cooldown_min, trait_reproduction_cooldown_max]`. |
+| `trait_reproduction_cooldown_min` | `u16` | `1` | Minimum clamp bound for heritable `reproduction_cooldown`. Must be `>= 1` and `< trait_reproduction_cooldown_max`. |
+| `trait_reproduction_cooldown_max` | `u16` | `100` | Maximum clamp bound for heritable `reproduction_cooldown`. Must be `> trait_reproduction_cooldown_min`. |
+| `readiness_sensitivity` | `f32` | `0.01` | Global sensitivity coefficient for reproductive readiness metabolic cost. `readiness_cost = readiness_sensitivity * (reproduction_cost + offspring_energy) / max(reproduction_cooldown, 1) / reference_cooldown`. `0.0` disables the mechanic. Must be `>= 0.0` and finite. |
+| `reference_cooldown` | `f32` | `5.0` | Neutral cooldown for readiness cost normalization. At this cooldown, the readiness multiplier equals `1.0 / reference_cooldown`. Actors with shorter cooldowns pay more; longer cooldowns pay less. Must be `> 0.0` and finite. |
 
 ### `[bevy]` — `BevyExtras`
 
@@ -188,5 +193,5 @@ Population-level statistics recomputed every `stats_update_interval` ticks by `c
 |---|---|---|
 | `actor_count` | `usize` | Number of non-inert actors at computation time. |
 | `tick` | `u64` | Simulation tick at computation time. |
-| `traits` | `Option<[SingleTraitStats; 10]>` | Per-trait population stats for the 10 heritable traits. `None` when no living actors. |
+| `traits` | `Option<[SingleTraitStats; 11]>` | Per-trait population stats for the 11 heritable traits. `None` when no living actors. |
 | `energy_stats` | `Option<SingleTraitStats>` | Population energy statistics (min, p25, p50, p75, max, mean). `None` when no living actors. Stored separately from `traits` because energy is a dynamic state variable, not a heritable trait. |

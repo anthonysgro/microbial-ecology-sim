@@ -780,9 +780,10 @@ pub fn compute_trait_stats_from_actors<'a>(
     let mut mutation_rate = Vec::with_capacity(capacity);
     let mut kin_tolerance = Vec::with_capacity(capacity);
     let mut optimal_temp = Vec::with_capacity(capacity);
+    let mut repro_cooldown = Vec::with_capacity(capacity);
     let mut energy = Vec::with_capacity(capacity);
 
-    // Single-pass collection: iterate actors once, push all 10 trait values
+    // Single-pass collection: iterate actors once, push all 11 trait values
     // per non-inert actor. This is explicit rather than relying on the
     // optimizer to fuse separate collection passes.
     for actor in actors {
@@ -799,6 +800,7 @@ pub fn compute_trait_stats_from_actors<'a>(
         mutation_rate.push(actor.traits.mutation_rate);
         kin_tolerance.push(actor.traits.kin_tolerance);
         optimal_temp.push(actor.traits.optimal_temp);
+        repro_cooldown.push(actor.traits.reproduction_cooldown as f32);
         energy.push(actor.energy);
     }
 
@@ -824,6 +826,7 @@ pub fn compute_trait_stats_from_actors<'a>(
         compute_single_stats(&mut mutation_rate),
         compute_single_stats(&mut kin_tolerance),
         compute_single_stats(&mut optimal_temp),
+        compute_single_stats(&mut repro_cooldown),
     ];
 
     let energy_stats = Some(compute_single_stats(&mut energy));

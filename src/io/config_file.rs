@@ -496,6 +496,56 @@ pub fn validate_world_config(config: &WorldConfig) -> Result<(), ConfigError> {
                 ),
             });
         }
+
+        // 3n. reproduction cooldown clamp range (u16).
+        if actor.trait_reproduction_cooldown_min < 1 {
+            return Err(ConfigError::Validation {
+                reason: format!(
+                    "trait_reproduction_cooldown_min ({}) must be >= 1",
+                    actor.trait_reproduction_cooldown_min,
+                ),
+            });
+        }
+        if actor.trait_reproduction_cooldown_min >= actor.trait_reproduction_cooldown_max {
+            return Err(ConfigError::Validation {
+                reason: format!(
+                    "trait_reproduction_cooldown_min ({}) must be < trait_reproduction_cooldown_max ({})",
+                    actor.trait_reproduction_cooldown_min, actor.trait_reproduction_cooldown_max,
+                ),
+            });
+        }
+        if actor.reproduction_cooldown < actor.trait_reproduction_cooldown_min
+            || actor.reproduction_cooldown > actor.trait_reproduction_cooldown_max
+        {
+            return Err(ConfigError::Validation {
+                reason: format!(
+                    "reproduction_cooldown ({}) must be within trait clamp range [{}, {}]",
+                    actor.reproduction_cooldown,
+                    actor.trait_reproduction_cooldown_min,
+                    actor.trait_reproduction_cooldown_max,
+                ),
+            });
+        }
+
+        // 3o. readiness_sensitivity must be non-negative and finite.
+        if actor.readiness_sensitivity < 0.0 || !actor.readiness_sensitivity.is_finite() {
+            return Err(ConfigError::Validation {
+                reason: format!(
+                    "readiness_sensitivity ({}) must be >= 0.0 and finite",
+                    actor.readiness_sensitivity,
+                ),
+            });
+        }
+
+        // 3p. reference_cooldown must be strictly positive and finite.
+        if actor.reference_cooldown <= 0.0 || !actor.reference_cooldown.is_finite() {
+            return Err(ConfigError::Validation {
+                reason: format!(
+                    "reference_cooldown ({}) must be > 0.0 and finite",
+                    actor.reference_cooldown,
+                ),
+            });
+        }
     }
 
     Ok(())

@@ -41,7 +41,7 @@ pub(crate) fn direction_to_target(cell_index: usize, direction: u8, w: usize, h:
 }
 
 /// Number of heritable traits used in genetic distance computation.
-const TRAIT_COUNT: usize = 10;
+const TRAIT_COUNT: usize = 11;
 
 /// Compute normalized Euclidean distance between two heritable trait vectors.
 ///
@@ -66,6 +66,7 @@ pub(crate) fn genetic_distance(a: &HeritableTraits, b: &HeritableTraits, config:
         (a.mutation_rate,           b.mutation_rate,           config.trait_mutation_rate_min,           config.trait_mutation_rate_max),
         (a.kin_tolerance,           b.kin_tolerance,           config.trait_kin_tolerance_min,           config.trait_kin_tolerance_max),
         (a.optimal_temp,            b.optimal_temp,            config.trait_optimal_temp_min,            config.trait_optimal_temp_max),
+        (a.reproduction_cooldown as f32, b.reproduction_cooldown as f32, config.trait_reproduction_cooldown_min as f32, config.trait_reproduction_cooldown_max as f32),
     ];
 
     let mut sum_sq: f32 = 0.0;
@@ -321,8 +322,20 @@ pub fn run_actor_metabolism(
             let delta = heat_read[ci] - actor.traits.optimal_temp;
             let thermal_cost = config.thermal_sensitivity * delta * delta;
 
-            actor.energy +=
-                consumed * effective_conversion - actor.traits.base_energy_decay - thermal_cost;
+            // Reproductive readiness cost: continuous metabolic drain for maintaining
+            // reproductive machinery. Scales with investment and inversely with cooldown.
+            let reproductive_investment =
+                actor.traits.reproduction_cost + actor.traits.offspring_energy;
+            let cooldown_factor =
+                1.0 / (actor.traits.reproduction_cooldown.max(1) as f32);
+            let readiness_cost = config.readiness_sensitivity * reproductive_investment
+                * cooldown_factor
+                / config.reference_cooldown;
+
+            actor.energy += consumed * effective_conversion
+                - actor.traits.base_energy_decay
+                - thermal_cost
+                - readiness_cost;
 
             if actor.energy.is_nan() || actor.energy.is_infinite() {
                 return Err(TickError::NumericalError {
@@ -495,6 +508,11 @@ pub fn run_actor_reproduction(
         if actor.inert {
             continue;
         }
+        // Cooldown gate: if still on cooldown, decrement and skip.
+        if actor.cooldown_remaining > 0 {
+            actor.cooldown_remaining -= 1;
+            continue;
+        }
         // Skip actors below per-actor reproduction threshold.
         if actor.energy < actor.traits.reproduction_threshold {
             continue;
@@ -541,6 +559,9 @@ pub fn run_actor_reproduction(
                 value: actor.energy,
             });
         }
+
+        // Set cooldown on parent after successful fission.
+        actor.cooldown_remaining = actor.traits.reproduction_cooldown;
 
         spawn_buffer.push((cell, actor.traits.offspring_energy, actor.traits));
     }
@@ -597,6 +618,7 @@ pub fn run_deferred_spawn(
             tumble_direction: 0,
             tumble_remaining: 0,
             traits: offspring_traits,
+            cooldown_remaining: 0,
         };
         actors.add(offspring, cell_count, occupancy).map_err(|e| {
             TickError::NumericalError {
@@ -745,7 +767,7 @@ mod tests {
     fn sensing_selects_max_gradient_neighbor() {
         let mut occupancy = vec![None; 9];
         let mut registry = ActorRegistry::with_capacity(4);
-        let actor = Actor { cell_index: 4, energy: 10.0, inert: false, tumble_direction: 0, tumble_remaining: 0, traits: HeritableTraits::from_config(&default_config()) };
+        let actor = Actor { cell_index: 4, energy: 10.0, inert: false, tumble_direction: 0, tumble_remaining: 0, traits: HeritableTraits::from_config(&default_config()), cooldown_remaining: 0 };
         let _id = registry.add(actor, 9, &mut occupancy).unwrap();
 
         let config = default_config();
@@ -773,7 +795,7 @@ mod tests {
     fn sensing_boundary_cell_treats_oob_as_zero() {
         let mut occupancy = vec![None; 9];
         let mut registry = ActorRegistry::with_capacity(4);
-        let actor = Actor { cell_index: 0, energy: 10.0, inert: false, tumble_direction: 0, tumble_remaining: 0, traits: HeritableTraits::from_config(&default_config()) };
+        let actor = Actor { cell_index: 0, energy: 10.0, inert: false, tumble_direction: 0, tumble_remaining: 0, traits: HeritableTraits::from_config(&default_config()), cooldown_remaining: 0 };
         let _id = registry.add(actor, 9, &mut occupancy).unwrap();
 
         let config = default_config();
@@ -798,7 +820,7 @@ mod tests {
     fn sensing_no_positive_gradient_initiates_tumble() {
         let mut occupancy = vec![None; 9];
         let mut registry = ActorRegistry::with_capacity(4);
-        let actor = Actor { cell_index: 4, energy: 10.0, inert: false, tumble_direction: 0, tumble_remaining: 0, traits: HeritableTraits::from_config(&default_config()) };
+        let actor = Actor { cell_index: 4, energy: 10.0, inert: false, tumble_direction: 0, tumble_remaining: 0, traits: HeritableTraits::from_config(&default_config()), cooldown_remaining: 0 };
         let _id = registry.add(actor, 9, &mut occupancy).unwrap();
 
         let config = default_config();
@@ -827,7 +849,7 @@ mod tests {
     fn sensing_tie_breaks_by_direction_priority() {
         let mut occupancy = vec![None; 9];
         let mut registry = ActorRegistry::with_capacity(4);
-        let actor = Actor { cell_index: 4, energy: 10.0, inert: false, tumble_direction: 0, tumble_remaining: 0, traits: HeritableTraits::from_config(&default_config()) };
+        let actor = Actor { cell_index: 4, energy: 10.0, inert: false, tumble_direction: 0, tumble_remaining: 0, traits: HeritableTraits::from_config(&default_config()), cooldown_remaining: 0 };
         let _id = registry.add(actor, 9, &mut occupancy).unwrap();
 
         let config = default_config();
@@ -867,6 +889,8 @@ mod tests {
             // Set reference_metabolic_rate == base_energy_decay so metabolic_ratio = 1.0,
             // preserving pre-scaling expected values in existing tests.
             reference_metabolic_rate: 0.5,
+            // Disable readiness cost so these tests focus on consumption/decay/thermal.
+            readiness_sensitivity: 0.0,
             ..ActorConfig::default()
         }
     }
@@ -878,7 +902,7 @@ mod tests {
         let mut occupancy = vec![None; 4];
         let mut registry = ActorRegistry::with_capacity(4);
         let config = default_config(); // rate=2.0, factor=1.5, decay=0.5
-        let actor = Actor { cell_index: 1, energy: 10.0, inert: false, tumble_direction: 0, tumble_remaining: 0, traits: HeritableTraits::from_config(&config) };
+        let actor = Actor { cell_index: 1, energy: 10.0, inert: false, tumble_direction: 0, tumble_remaining: 0, traits: HeritableTraits::from_config(&config), cooldown_remaining: 0 };
         let _id = registry.add(actor, 4, &mut occupancy).unwrap();
 
         let chemical_read = vec![0.0, 5.0, 0.0, 0.0]; // 5.0 at cell 1
@@ -925,9 +949,11 @@ mod tests {
             offspring_energy: 10.0,
             // Match reference to decay so metabolic_ratio = 1.0.
             reference_metabolic_rate: 0.05,
+            // Disable readiness cost so this test focuses on partial consumption.
+            readiness_sensitivity: 0.0,
             ..ActorConfig::default()
         };
-        let actor = Actor { cell_index: 0, energy: 10.0, inert: false, tumble_direction: 0, tumble_remaining: 0, traits: HeritableTraits::from_config(&config) };
+        let actor = Actor { cell_index: 0, energy: 10.0, inert: false, tumble_direction: 0, tumble_remaining: 0, traits: HeritableTraits::from_config(&config), cooldown_remaining: 0 };
         let _id = registry.add(actor, 4, &mut occupancy).unwrap();
 
         let chemical_read = vec![1.5, 0.0, 0.0, 0.0]; // only 1.5 available
@@ -973,7 +999,7 @@ mod tests {
             ..ActorConfig::default()
         };
         // Low energy actor — decay will push it to zero.
-        let actor = Actor { cell_index: 0, energy: 0.1, inert: false, tumble_direction: 0, tumble_remaining: 0, traits: HeritableTraits::from_config(&config) };
+        let actor = Actor { cell_index: 0, energy: 0.1, inert: false, tumble_direction: 0, tumble_remaining: 0, traits: HeritableTraits::from_config(&config), cooldown_remaining: 0 };
         let _id = registry.add(actor, 4, &mut occupancy).unwrap();
         let chemical_read = vec![0.0; 4]; // nothing to eat
         let mut chemical_write = chemical_read.clone();
@@ -996,7 +1022,7 @@ mod tests {
     fn metabolism_nan_energy_returns_error() {
         let mut occupancy = vec![None; 4];
         let mut registry = ActorRegistry::with_capacity(4);
-        let actor = Actor { cell_index: 0, energy: f32::NAN, inert: false, tumble_direction: 0, tumble_remaining: 0, traits: HeritableTraits::from_config(&default_config()) };
+        let actor = Actor { cell_index: 0, energy: f32::NAN, inert: false, tumble_direction: 0, tumble_remaining: 0, traits: HeritableTraits::from_config(&default_config()), cooldown_remaining: 0 };
         let _id = registry.add(actor, 4, &mut occupancy).unwrap();
 
         let config = default_config();
