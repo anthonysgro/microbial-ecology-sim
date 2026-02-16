@@ -75,6 +75,7 @@ All configuration is loaded from a TOML file. Omitted sections/fields fall back 
 | `respawn_enabled` | `bool` | `false` | Whether depleted non-renewable sources trigger respawns. |
 | `min_respawn_cooldown_ticks` | `u32` | `50` | Minimum ticks before a depleted source respawns. |
 | `max_respawn_cooldown_ticks` | `u32` | `150` | Maximum ticks before a depleted source respawns. When `respawn_enabled` is true, must be `> 0` and `>= min_respawn_cooldown_ticks`. |
+| `source_clustering` | `f32` | `0.0` | Spatial clustering of sources. `0.0` = uniform random, `1.0` = tight clusters around a single center. Range: `[0.0, 1.0]`. |
 
 ### `[world_init.chemical_source_config]` — `SourceFieldConfig` (chemical)
 
@@ -96,6 +97,7 @@ Present as `Option<ActorConfig>`. Omitting the entire `[actor]` section disables
 | `energy_conversion_factor` | `f32` | `2.0` | Energy gained per unit of chemical consumed. |
 | `extraction_cost` | `f32` | `0.2` | Energy cost per unit of chemical consumed. Net gain = `consumed * (energy_conversion_factor - extraction_cost)`. Must be `>= 0.0` and `< energy_conversion_factor`. |
 | `base_energy_decay` | `f32` | `0.05` | Energy subtracted every tick (basal metabolic cost). |
+| `reference_metabolic_rate` | `f32` | `0.05` | Metabolic rate at which all scaling multipliers equal 1.0. Higher `base_energy_decay` → better consumption, cheaper movement, stronger predation. Must be `> 0.0` and finite. |
 | `initial_energy` | `f32` | `10.0` | Energy assigned to newly spawned actors. Must be `<= max_energy`. |
 | `max_energy` | `f32` | `50.0` | Maximum energy an actor can hold. Clamped after each metabolic tick. Must be `> 0.0`, finite, `>= initial_energy`. |
 | `initial_actor_capacity` | `usize` | `64` | Pre-allocated slot capacity for the ActorRegistry. |

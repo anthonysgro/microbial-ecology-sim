@@ -178,6 +178,7 @@ pub(super) fn format_config_info(
     writeln!(out, "heat deceleration_threshold: {:.4}..{:.4}", hs.min_deceleration_threshold, hs.max_deceleration_threshold).ok();
     writeln!(out, "heat respawn_enabled: {}", hs.respawn_enabled).ok();
     writeln!(out, "heat respawn_cooldown_ticks: {}..{}", hs.min_respawn_cooldown_ticks, hs.max_respawn_cooldown_ticks).ok();
+    writeln!(out, "heat source_clustering: {:.4}", hs.source_clustering).ok();
 
     // Chemical sources
     let cs = &init_config.chemical_source_config;
@@ -188,6 +189,7 @@ pub(super) fn format_config_info(
     writeln!(out, "chemical deceleration_threshold: {:.4}..{:.4}", cs.min_deceleration_threshold, cs.max_deceleration_threshold).ok();
     writeln!(out, "chemical respawn_enabled: {}", cs.respawn_enabled).ok();
     writeln!(out, "chemical respawn_cooldown_ticks: {}..{}", cs.min_respawn_cooldown_ticks, cs.max_respawn_cooldown_ticks).ok();
+    writeln!(out, "chemical source_clustering: {:.4}", cs.source_clustering).ok();
 
     // Initial ranges
     writeln!(out, "initial_heat: {:.4}..{:.4}", init_config.min_initial_heat, init_config.max_initial_heat).ok();
@@ -204,6 +206,7 @@ pub(super) fn format_config_info(
             writeln!(out, "energy_conversion_factor: {:.4}", ac.energy_conversion_factor).ok();
             writeln!(out, "extraction_cost: {:.4}", ac.extraction_cost).ok();
             writeln!(out, "base_energy_decay: {:.4}", ac.base_energy_decay).ok();
+            writeln!(out, "reference_metabolic_rate: {:.4}", ac.reference_metabolic_rate).ok();
             writeln!(out, "initial_energy: {:.4}", ac.initial_energy).ok();
             writeln!(out, "initial_actor_capacity: {}", ac.initial_actor_capacity).ok();
             writeln!(out, "base_movement_cost: {:.4}", ac.base_movement_cost).ok();

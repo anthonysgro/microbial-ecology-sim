@@ -156,9 +156,11 @@ pub fn run_actor_sensing(
         let current_val = chemical_read[ci];
 
         // Break-even concentration: below this, consumption costs more energy than it yields.
-        // Per-actor: uses the actor's heritable base_energy_decay trait.
+        // With metabolic scaling, effective_conversion = (ecf - ec) * metabolic_ratio, so
+        // break_even = base_energy_decay / effective_conversion simplifies to
+        // reference_metabolic_rate / (ecf - ec), independent of individual actor metabolic rate.
         // Precondition: energy_conversion_factor > extraction_cost (enforced by config validation).
-        let break_even = actor.traits.base_energy_decay / (config.energy_conversion_factor - config.extraction_cost);
+        let break_even = config.reference_metabolic_rate / (config.energy_conversion_factor - config.extraction_cost);
 
         // Scan Von Neumann neighbors for the best above-threshold positive gradient.
         // Direction priority: N, S, W, E (first wins ties via strict `>`).
@@ -299,9 +301,14 @@ pub fn run_actor_metabolism(
             }
         } else {
             // Active actors: demand-driven consumption and energy balance.
+            let metabolic_ratio =
+                actor.traits.base_energy_decay / config.reference_metabolic_rate;
+            let effective_conversion =
+                (config.energy_conversion_factor - config.extraction_cost) * metabolic_ratio;
+
             let available = chemical_read[ci];
             let headroom = (config.max_energy - actor.energy).max(0.0);
-            let max_useful = headroom / (config.energy_conversion_factor - config.extraction_cost);
+            let max_useful = headroom / effective_conversion;
             let consumed = actor.traits.consumption_rate.min(available).min(max_useful);
 
             chemical_write[ci] -= consumed;
@@ -309,7 +316,8 @@ pub fn run_actor_metabolism(
                 chemical_write[ci] = 0.0;
             }
 
-            actor.energy += consumed * (config.energy_conversion_factor - config.extraction_cost) - actor.traits.base_energy_decay;
+            actor.energy +=
+                consumed * effective_conversion - actor.traits.base_energy_decay;
 
             if actor.energy.is_nan() || actor.energy.is_infinite() {
                 return Err(TickError::NumericalError {
@@ -387,8 +395,10 @@ pub fn run_actor_movement(
         occupancy[target] = Some(slot_index);
         actor.cell_index = target;
 
-        // Deduct energy-proportional movement cost after successful move.
-        let proportional = base * (actor.energy / reference);
+        // Deduct energy-proportional movement cost after successful move,
+        // scaled inversely by metabolic ratio so high-metabolism actors move cheaper.
+        let metabolic_ratio = actor.traits.base_energy_decay / actor_config.reference_metabolic_rate;
+        let proportional = base * (actor.energy / reference) / metabolic_ratio;
         let actual = if proportional > floor { proportional } else { floor };
         actor.energy -= actual;
 
@@ -676,7 +686,11 @@ pub fn run_contact_predation(
             }
 
             // Predation succeeds — record event.
-            let gained = neighbor.energy * config.absorption_efficiency;
+            let metabolic_ratio =
+                actor.traits.base_energy_decay / config.reference_metabolic_rate;
+            let effective_absorption =
+                (config.absorption_efficiency * metabolic_ratio).min(1.0);
+            let gained = neighbor.energy * effective_absorption;
             events.push((slot_idx, neighbor_slot, gained));
             participated[slot_idx] = true;
             participated[neighbor_slot] = true;
@@ -845,6 +859,9 @@ mod tests {
             reproduction_threshold: 20.0,
             reproduction_cost: 12.0,
             offspring_energy: 10.0,
+            // Set reference_metabolic_rate == base_energy_decay so metabolic_ratio = 1.0,
+            // preserving pre-scaling expected values in existing tests.
+            reference_metabolic_rate: 0.5,
             ..ActorConfig::default()
         }
     }
@@ -887,7 +904,7 @@ mod tests {
         let config = ActorConfig {
             consumption_rate: 5.0,
             energy_conversion_factor: 1.0,
-            base_energy_decay: 0.0,
+            base_energy_decay: 0.05,
             initial_energy: 10.0,
             max_energy: 1000.0,
             initial_actor_capacity: 4,
@@ -900,6 +917,8 @@ mod tests {
             reproduction_threshold: 20.0,
             reproduction_cost: 12.0,
             offspring_energy: 10.0,
+            // Match reference to decay so metabolic_ratio = 1.0.
+            reference_metabolic_rate: 0.05,
             ..ActorConfig::default()
         };
         let actor = Actor { cell_index: 0, energy: 10.0, inert: false, tumble_direction: 0, tumble_remaining: 0, traits: HeritableTraits::from_config(&config) };
@@ -914,9 +933,11 @@ mod tests {
             &config, &mut removal_buffer,
         ).unwrap();
 
+        // metabolic_ratio = 0.05 / 0.05 = 1.0
         // consumed = min(5.0, 1.5) = 1.5
+        // energy = 10.0 + 1.5 * 1.0 - 0.05 = 11.45
         let actor = registry.iter().next().unwrap().1;
-        assert!((actor.energy - 11.5).abs() < f32::EPSILON);
+        assert!((actor.energy - 11.45).abs() < 1e-5);
         assert!(chemical_write[0] < f32::EPSILON); // clamped to 0.0
     }
 

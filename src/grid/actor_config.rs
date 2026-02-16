@@ -24,6 +24,7 @@ fn default_absorption_efficiency() -> f32 { 0.5 }
 fn default_kin_tolerance() -> f32 { 0.5 }
 fn default_trait_kin_tolerance_min() -> f32 { 0.0 }
 fn default_trait_kin_tolerance_max() -> f32 { 1.0 }
+fn default_reference_metabolic_rate() -> f32 { 0.05 }
 
 /// Configuration parameters for Actor metabolism, sensing, and spawning.
 ///
@@ -157,6 +158,15 @@ pub struct ActorConfig {
     /// Maximum clamp bound for heritable `kin_tolerance`. Default: 1.0.
     #[serde(default = "default_trait_kin_tolerance_max")]
     pub trait_kin_tolerance_max: f32,
+
+    // ── Metabolic scaling config ───────────────────────────────────
+    /// Metabolic rate at which all scaling multipliers equal 1.0.
+    /// Actors with base_energy_decay above this value gain enhanced
+    /// consumption, cheaper movement, and stronger predation.
+    /// Actors below this value get the inverse.
+    /// Must be > 0.0 and finite. Default: 0.05.
+    #[serde(default = "default_reference_metabolic_rate")]
+    pub reference_metabolic_rate: f32,
 }
 
 impl Default for ActorConfig {
@@ -198,6 +208,7 @@ impl Default for ActorConfig {
             kin_tolerance: default_kin_tolerance(),
             trait_kin_tolerance_min: default_trait_kin_tolerance_min(),
             trait_kin_tolerance_max: default_trait_kin_tolerance_max(),
+            reference_metabolic_rate: default_reference_metabolic_rate(),
         }
     }
 }

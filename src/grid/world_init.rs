@@ -4,6 +4,7 @@
 use rand::Rng;
 use rand::SeedableRng;
 use rand_chacha::ChaCha8Rng;
+use rand_distr::{Distribution, Normal};
 use serde::{Deserialize, Serialize};
 
 use crate::grid::Grid;
@@ -40,6 +41,9 @@ pub struct SourceFieldConfig {
     pub min_respawn_cooldown_ticks: u32,
     /// Maximum cooldown ticks before a depleted source respawns.
     pub max_respawn_cooldown_ticks: u32,
+    /// Spatial clustering of sources. 0.0 = uniform random, 1.0 = tight clusters.
+    /// Range: [0.0, 1.0]. Default: 0.0.
+    pub source_clustering: f32,
 }
 
 /// Ranges and constraints for procedural world generation.
@@ -81,6 +85,7 @@ impl Default for SourceFieldConfig {
             respawn_enabled: false,
             min_respawn_cooldown_ticks: 50,
             max_respawn_cooldown_ticks: 150,
+            source_clustering: 0.0,
         }
     }
 }
@@ -139,6 +144,8 @@ struct SourceFieldLabels {
     deceleration_threshold: &'static str,
     respawn_cooldown: &'static str,
     respawn_zero_cooldown: &'static str,
+    source_clustering_range: &'static str,
+    source_clustering_finite: &'static str,
 }
 
 const HEAT_LABELS: SourceFieldLabels = SourceFieldLabels {
@@ -152,6 +159,8 @@ const HEAT_LABELS: SourceFieldLabels = SourceFieldLabels {
     deceleration_threshold: "heat_deceleration_threshold",
     respawn_cooldown: "heat_respawn_cooldown_ticks",
     respawn_zero_cooldown: "heat max_respawn_cooldown_ticks must be > 0 when respawn is enabled",
+    source_clustering_range: "heat source_clustering must be in [0.0, 1.0]",
+    source_clustering_finite: "heat source_clustering must be finite",
 };
 
 const CHEMICAL_LABELS: SourceFieldLabels = SourceFieldLabels {
@@ -165,6 +174,8 @@ const CHEMICAL_LABELS: SourceFieldLabels = SourceFieldLabels {
     deceleration_threshold: "chemical_deceleration_threshold",
     respawn_cooldown: "chemical_respawn_cooldown_ticks",
     respawn_zero_cooldown: "chemical max_respawn_cooldown_ticks must be > 0 when respawn is enabled",
+    source_clustering_range: "chemical source_clustering must be in [0.0, 1.0]",
+    source_clustering_finite: "chemical source_clustering must be finite",
 };
 
 /// Validate a single `SourceFieldConfig`. All error messages are prefixed
@@ -236,7 +247,60 @@ fn validate_source_field_config(
             });
         }
     }
+    // Source clustering validation.
+    if !config.source_clustering.is_finite() {
+        return Err(WorldInitError::InvalidConfig {
+            reason: labels.source_clustering_finite,
+        });
+    }
+    if !(0.0..=1.0).contains(&config.source_clustering) {
+        return Err(WorldInitError::InvalidConfig {
+            reason: labels.source_clustering_range,
+        });
+    }
     Ok(())
+}
+/// Sample a cell index for a source, clustered around (`center_col`, `center_row`).
+///
+/// When `source_clustering == 0.0`, returns a uniform random cell index (preserving
+/// legacy behavior). Otherwise, samples a 2D normal offset with
+/// `sigma = max(width, height) * (1.0 - source_clustering)` and applies toroidal
+/// wrapping via `rem_euclid`.
+///
+/// At `source_clustering == 1.0`, sigma drops below 0.5 and all sources land
+/// directly on the cluster center.
+fn sample_clustered_position(
+    rng: &mut impl Rng,
+    center_col: u32,
+    center_row: u32,
+    width: u32,
+    height: u32,
+    source_clustering: f32,
+) -> usize {
+    let cell_count = width as usize * height as usize;
+
+    // Fast path: uniform random (legacy behavior).
+    if source_clustering == 0.0 {
+        return rng.random_range(0..cell_count);
+    }
+
+    let max_dim = width.max(height) as f32;
+    let sigma = max_dim * (1.0 - source_clustering);
+
+    // When sigma is negligibly small, place directly on center.
+    if sigma < 0.5 {
+        return center_row as usize * width as usize + center_col as usize;
+    }
+
+    // SAFETY of unwrap: sigma >= 0.5 guarantees a valid (positive, finite) std dev.
+    let normal = Normal::new(0.0_f32, sigma).expect("sigma >= 0.5 is always valid for Normal");
+    let dx = normal.sample(rng).round() as i32;
+    let dy = normal.sample(rng).round() as i32;
+
+    let col = (center_col as i32 + dx).rem_euclid(width as i32) as usize;
+    let row = (center_row as i32 + dy).rem_euclid(height as i32) as usize;
+
+    row * width as usize + col
 }
 
 /// Validate all `WorldInitConfig` ranges. Returns first error found.
@@ -271,26 +335,41 @@ pub(crate) fn validate_config(config: &WorldInitConfig) -> Result<(), WorldInitE
 /// Generate and register heat and chemical sources into the grid.
 ///
 /// Samples source counts from the configured ranges, then for each source
-/// samples a cell position uniformly from `[0, cell_count)` and an emission
-/// rate from `[min_emission_rate, max_emission_rate]`. Each source is assigned
-/// as renewable or finite based on `renewable_fraction`. Finite sources get
-/// a reservoir sampled from the configured capacity range and a deceleration
+/// samples a cell position (uniform or clustered depending on `source_clustering`)
+/// and an emission rate from `[min_emission_rate, max_emission_rate]`. Each source
+/// is assigned as renewable or finite based on `renewable_fraction`. Finite sources
+/// get a reservoir sampled from the configured capacity range and a deceleration
 /// threshold from the configured threshold range. Registers each source
 /// via `Grid::add_source`, propagating any `SourceError`.
+///
+/// When `source_clustering > 0.0`, a single cluster center is chosen per batch
+/// (heat, each chemical species) and all sources in that batch are offset from
+/// the center using a 2D normal distribution with toroidal wrapping.
 pub(crate) fn generate_sources(
     grid: &mut Grid,
     rng: &mut impl Rng,
     config: &WorldInitConfig,
     num_chemicals: usize,
 ) -> Result<(), WorldInitError> {
-    let cell_count = grid.cell_count();
+    let width = grid.width();
+    let height = grid.height();
 
     // Heat sources
     let heat_cfg = &config.heat_source_config;
     let heat_renewable_prob = f64::from(heat_cfg.renewable_fraction);
     let heat_count = rng.random_range(heat_cfg.min_sources..=heat_cfg.max_sources);
+    // Pick a cluster center for the entire heat batch.
+    let heat_center_col = rng.random_range(0..width);
+    let heat_center_row = rng.random_range(0..height);
     for _ in 0..heat_count {
-        let cell_index = rng.random_range(0..cell_count);
+        let cell_index = sample_clustered_position(
+            rng,
+            heat_center_col,
+            heat_center_row,
+            width,
+            height,
+            heat_cfg.source_clustering,
+        );
         let emission_rate = rng.random_range(heat_cfg.min_emission_rate..=heat_cfg.max_emission_rate);
         let (reservoir, initial_capacity, deceleration_threshold) =
             sample_reservoir_params(rng, heat_cfg, heat_renewable_prob);
@@ -304,13 +383,22 @@ pub(crate) fn generate_sources(
         })?;
     }
 
-    // Chemical sources: one batch per species
+    // Chemical sources: one batch per species, each with its own cluster center.
     let chem_cfg = &config.chemical_source_config;
     let chem_renewable_prob = f64::from(chem_cfg.renewable_fraction);
     for species in 0..num_chemicals {
         let chem_count = rng.random_range(chem_cfg.min_sources..=chem_cfg.max_sources);
+        let chem_center_col = rng.random_range(0..width);
+        let chem_center_row = rng.random_range(0..height);
         for _ in 0..chem_count {
-            let cell_index = rng.random_range(0..cell_count);
+            let cell_index = sample_clustered_position(
+                rng,
+                chem_center_col,
+                chem_center_row,
+                width,
+                height,
+                chem_cfg.source_clustering,
+            );
             let emission_rate = rng.random_range(chem_cfg.min_emission_rate..=chem_cfg.max_emission_rate);
             let (reservoir, initial_capacity, deceleration_threshold) =
                 sample_reservoir_params(rng, chem_cfg, chem_renewable_prob);

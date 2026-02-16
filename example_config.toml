@@ -13,10 +13,10 @@
 seed = 773
 
 [grid]
-width  = 500
-height = 500
+width  = 50
+height = 50
 num_chemicals = 1                    # Actors sense and consume species 0 only
-diffusion_rate = 0.1                # Moderate spread — gradients persist 10–20 ticks
+diffusion_rate = 0.02                 # Moderate spread — gradients persist 10–20 ticks
 thermal_conductivity = 0.04          # Heat spreads slower than chemicals
 ambient_heat = 0.2                   # Mild ambient — edges don't become dead zones
 tick_duration = 1.0
@@ -31,13 +31,13 @@ max_initial_heat = 0.6               # Warm baseline — not uniform, creates ea
 min_initial_concentration = 0.0
 max_initial_concentration = 0.3      # Light chemical dusting — sources dominate quickly
 
-min_actors = 200
-max_actors = 400                      # Enough actors for competition without grid saturation
+min_actors = 2
+max_actors = 3                      # Enough actors for competition without grid saturation
 
 # Heat sources: a few strong emitters create thermal "hotspots"
 [world_init.heat_source_config]
-min_sources = 2
-max_sources = 6
+min_sources = 1
+max_sources = 3
 min_emission_rate = 0.5
 max_emission_rate = 3.0              # Strong enough to create visible thermal zones
 renewable_fraction = 0.5             # Half are permanent, half deplete over time
@@ -48,21 +48,23 @@ max_deceleration_threshold = 0.4     # Gradual tapering as sources deplete
 respawn_enabled = true               # Depleted non-renewable heat sources respawn after cooldown.
 min_respawn_cooldown_ticks = 50      # Minimum ticks before a depleted source respawns.
 max_respawn_cooldown_ticks = 150     # Maximum ticks before a depleted source respawns.
+source_clustering = 1                # Spatial clustering of sources. 0.0 = uniform random, 1.0 = tight clusters. [0.0, 1.0].
 
 # Chemical sources: moderate count, low emission — actors out-consume any single source
 [world_init.chemical_source_config]
-min_sources = 50
-max_sources = 75
+min_sources = 3
+max_sources = 3
 min_emission_rate = 0.2
-max_emission_rate = 0.8              # Below consumption_rate (1.5) — actors drain sources
-renewable_fraction = 0             # Mostly finite — forces migration as sources deplete
-min_reservoir_capacity = 150.0
-max_reservoir_capacity = 600.0
-min_deceleration_threshold = 0.15
-max_deceleration_threshold = 0.35
+max_emission_rate = 0.5              # Below consumption_rate (1.5) — actors drain sources
+renewable_fraction = 0               # Mostly finite — forces migration as sources deplete
+min_reservoir_capacity = 100.0
+max_reservoir_capacity = 300.0
+min_deceleration_threshold = 0.01
+max_deceleration_threshold = 0.03
 respawn_enabled = true               # Depleted non-renewable chemical sources respawn after cooldown.
 min_respawn_cooldown_ticks = 50      # Minimum ticks before a depleted source respawns.
 max_respawn_cooldown_ticks = 150     # Maximum ticks before a depleted source respawns.
+source_clustering = 1.0              # Spatial clustering of sources. 0.0 = uniform random, 1.0 = tight clusters. [0.0, 1.0].
 
 # ─── Actor Configuration ────────────────────────────────────────────
 #
@@ -76,11 +78,15 @@ max_respawn_cooldown_ticks = 150     # Maximum ticks before a depleted source re
 
 [actor]
 consumption_rate = 1.5
-energy_conversion_factor = 1.8
-extraction_cost = 0.2                # Energy cost per unit of chemical consumed. Reduces net gain:
+energy_conversion_factor = 1.0
+extraction_cost = 0.3                # Energy cost per unit of chemical consumed. Reduces net gain:
                                      # net = consumed * (energy_conversion_factor - extraction_cost).
                                      # Valid range: [0.0, energy_conversion_factor). Default: 0.2
-base_energy_decay = 0.01
+base_energy_decay = 0.1
+reference_metabolic_rate = 0.05   # Metabolic rate at which scaling multipliers equal 1.0.
+                                     # Actors with base_energy_decay above this extract more energy,
+                                     # move cheaper, and predate more effectively — but burn energy faster.
+                                     # Must be > 0.0 and finite. Default: 0.05
 initial_energy = 50.0
 initial_actor_capacity = 64
 base_movement_cost = 0.1             # Base energy cost for movement at the reference energy level.
@@ -90,7 +96,7 @@ reference_energy = 25.0              # Energy level at which movement cost equal
                                      # Actors above this are "heavier" and pay more to move;
                                      # actors below are "lighter" and pay less. Must be > 0.0.
 removal_threshold = -3.0
-max_energy = 500.0                    # Maximum energy an actor can hold. Must be > 0, finite, >= initial_energy.
+max_energy = 100.0                   # Maximum energy an actor can hold. Must be > 0, finite, >= initial_energy.
                                      # Caps reserves and makes consumption demand-driven: saturated actors
                                      # stop extracting chemical, preserving it for neighbors and diffusion.
 levy_exponent = 1.5                  # Power-law exponent α for Lévy flight step distribution.
@@ -124,7 +130,7 @@ mutation_stddev = 0.05               # Seed genome default for the per-actor her
 
 trait_consumption_rate_min = 0.1     # Minimum heritable consumption_rate. Must be > 0.0.
 trait_consumption_rate_max = 10.0    # Maximum heritable consumption_rate. Must be > min.
-trait_base_energy_decay_min = 0.001  # Minimum heritable base_energy_decay. Must be > 0.0.
+trait_base_energy_decay_min = 0.03  # Minimum heritable base_energy_decay. Must be > 0.0.
 trait_base_energy_decay_max = 1.0    # Maximum heritable base_energy_decay. Must be > min.
 trait_levy_exponent_min = 1.01       # Minimum heritable levy_exponent. Must be > 1.0.
 trait_levy_exponent_max = 3.0        # Maximum heritable levy_exponent. Must be > min.

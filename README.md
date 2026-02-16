@@ -86,12 +86,43 @@ seed = 42          # Global RNG seed
 
 Every field is documented with inline comments in `example_config.toml`. Press `i` in the Bevy visualization to see all active config values at runtime.
 
+## Config Analyzer
+
+A standalone CLI tool that statically analyzes a simulation config and prints a characterization of expected dynamics — without running the simulation. It computes numerical stability, chemical/energy budgets, carrying capacity, source density, and diffusion characteristics.
+
+```sh
+cargo run --release --bin config-analyzer -- --config example_config.toml
+```
+
+Sample output:
+
+```
+=== Config Analysis Report ===
+Grid: 30x30 (900 cells)  |  Seed: 773  |  Tick: 1s  |  Actors: enabled
+
+--- Numerical Stability ---
+  Diffusion number:          0.8000
+  [OK]   Chemical diffusion is stable
+
+--- Chemical Budget ---
+  Net chemical/tick:         8.0750
+  [OK]   Chemical budget is positive
+
+--- Energy Budget ---
+  Net energy/tick:           -0.0050
+  [WARN] Actors lose energy under average conditions
+...
+```
+
+Lines prefixed `[WARN]` flag potential issues. `[OK]` confirms healthy parameters. The tool reuses the same TOML parsing and validation as the main binary, so any config file that works with the simulation works here.
+
 ## Project structure
 
 ```
 src/
+├── bin/             # Standalone binaries (config-analyzer)
 ├── grid/           # Environment grid, cells, diffusion, heat, actors, tick orchestration
-├── io/             # CLI parsing, TOML config loading, validation
+├── io/             # CLI parsing, TOML config loading, validation, static analysis
 ├── viz_bevy/       # Bevy GPU visualization
 ├── lib.rs          # Public API surface
 └── main.rs         # Bevy binary entry point

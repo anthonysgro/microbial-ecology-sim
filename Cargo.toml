@@ -2,6 +2,7 @@
 name = "emergent-sovereignty"
 version = "0.1.0"
 edition = "2024"
+default-run = "emergent-sovereignty"
 
 [dependencies]
 anyhow = "1"
@@ -35,6 +36,10 @@ features = [
     "png",
     "default_font",
 ]
+
+[[bin]]
+name = "config-analyzer"
+path = "src/bin/config_analyzer.rs"
 
 [dev-dependencies]
 proptest = "1.6"

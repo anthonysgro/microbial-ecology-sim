@@ -486,6 +486,16 @@ pub fn validate_world_config(config: &WorldConfig) -> Result<(), ConfigError> {
                 ),
             });
         }
+
+        // 3m. reference_metabolic_rate must be strictly positive and finite.
+        if actor.reference_metabolic_rate <= 0.0 || !actor.reference_metabolic_rate.is_finite() {
+            return Err(ConfigError::Validation {
+                reason: format!(
+                    "reference_metabolic_rate ({}) must be > 0.0 and finite",
+                    actor.reference_metabolic_rate,
+                ),
+            });
+        }
     }
 
     Ok(())
