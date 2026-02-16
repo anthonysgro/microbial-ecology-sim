@@ -582,8 +582,10 @@ pub fn run_actor_reproduction(
             continue;
         };
 
-        // Deduct reproduction cost from parent.
-        actor.energy -= actor.traits.reproduction_cost;
+        // Energy conservation: deduct both the entropy cost (reproduction_cost)
+        // and the energy transferred to the offspring (offspring_energy).
+        // Invariant: parent_before = parent_after + reproduction_cost + offspring_energy
+        actor.energy -= actor.traits.reproduction_cost + actor.traits.offspring_energy;
 
         // NaN/Inf check on parent energy after deduction.
         if actor.energy.is_nan() || actor.energy.is_infinite() {
