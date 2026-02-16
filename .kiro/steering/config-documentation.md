@@ -13,10 +13,10 @@ This ensures configuration documentation stays in sync with the code at all time
 
 ## Heritable Trait Update Rule
 
-When any spec adds, removes, or renames a heritable trait on `Actor` (currently: `consumption_rate`, `base_energy_decay`, `levy_exponent`, `reproduction_threshold`, `max_tumble_steps`, `reproduction_cost`, `offspring_energy`, `mutation_rate`, `kin_tolerance`):
+When any spec adds, removes, or renames a heritable trait on `Actor` (currently: `consumption_rate`, `base_energy_decay`, `levy_exponent`, `reproduction_threshold`, `max_tumble_steps`, `reproduction_cost`, `offspring_energy`, `mutation_rate`, `kin_tolerance`, `optimal_temp`):
 
 1. **`HeritableTraits` struct** — Update the struct in `src/grid/actor.rs` with the new/changed field.
-2. **Trait visualization stats** — Update `compute_trait_stats_from_actors` in `src/viz_bevy/systems.rs` to collect and compute statistics for the new trait. The `TraitStats.traits` array size (currently `[SingleTraitStats; 9]`) must match the trait count.
+2. **Trait visualization stats** — Update `compute_trait_stats_from_actors` in `src/viz_bevy/systems.rs` to collect and compute statistics for the new trait. The `TraitStats.traits` array size (currently `[SingleTraitStats; 10]`) must match the trait count.
 3. **Stats panel formatting** — Update `format_trait_stats` in `src/viz_bevy/setup.rs` to display the new trait row.
 4. **Actor inspector formatting** — Update `format_actor_info` in `src/viz_bevy/setup.rs` to display the new trait value.
 5. **Trait clamp config** — Add `trait_{name}_min` / `trait_{name}_max` fields to `ActorConfig` and follow the configuration update rules above.
@@ -140,6 +140,10 @@ Present as `Option<ActorConfig>`. Omitting the entire `[actor]` section disables
 | `kin_tolerance` | `f32` | `0.5` | Seed genome default for heritable `kin_tolerance` trait. Controls genetic distance threshold below which predation is suppressed. Must be within `[trait_kin_tolerance_min, trait_kin_tolerance_max]`. |
 | `trait_kin_tolerance_min` | `f32` | `0.0` | Minimum clamp bound for heritable `kin_tolerance`. Must be `< trait_kin_tolerance_max`. |
 | `trait_kin_tolerance_max` | `f32` | `1.0` | Maximum clamp bound for heritable `kin_tolerance`. Must be `> trait_kin_tolerance_min`. |
+| `thermal_sensitivity` | `f32` | `0.01` | Quadratic penalty coefficient for thermal mismatch. `thermal_cost = thermal_sensitivity * (cell_heat - optimal_temp)^2`. Must be `>= 0.0` and finite. `0.0` disables the thermal penalty. |
+| `optimal_temp` | `f32` | `0.5` | Seed genome default for heritable `optimal_temp` trait. Must be within `[trait_optimal_temp_min, trait_optimal_temp_max]`. |
+| `trait_optimal_temp_min` | `f32` | `0.0` | Minimum clamp bound for heritable `optimal_temp`. Must be `< trait_optimal_temp_max`. |
+| `trait_optimal_temp_max` | `f32` | `2.0` | Maximum clamp bound for heritable `optimal_temp`. Must be `> trait_optimal_temp_min`. |
 
 ### `[bevy]` — `BevyExtras`
 
@@ -184,5 +188,5 @@ Population-level statistics recomputed every `stats_update_interval` ticks by `c
 |---|---|---|
 | `actor_count` | `usize` | Number of non-inert actors at computation time. |
 | `tick` | `u64` | Simulation tick at computation time. |
-| `traits` | `Option<[SingleTraitStats; 9]>` | Per-trait population stats for the 9 heritable traits. `None` when no living actors. |
+| `traits` | `Option<[SingleTraitStats; 10]>` | Per-trait population stats for the 10 heritable traits. `None` when no living actors. |
 | `energy_stats` | `Option<SingleTraitStats>` | Population energy statistics (min, p25, p50, p75, max, mean). `None` when no living actors. Stored separately from `traits` because energy is a dynamic state variable, not a heritable trait. |

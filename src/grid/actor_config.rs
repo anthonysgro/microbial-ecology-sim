@@ -163,6 +163,25 @@ pub struct ActorConfig {
     #[serde(default = "default_trait_kin_tolerance_max")]
     pub trait_kin_tolerance_max: f32,
 
+    // ── Thermal metabolism config ──────────────────────────────────
+    /// Quadratic penalty coefficient for thermal mismatch.
+    /// Extra energy cost per tick = thermal_sensitivity * (cell_heat - optimal_temp)^2.
+    /// Must be >= 0.0 and finite. Default: 0.01.
+    #[serde(default = "default_thermal_sensitivity")]
+    pub thermal_sensitivity: f32,
+
+    /// Seed genome default for heritable `optimal_temp` trait.
+    /// Must be within [trait_optimal_temp_min, trait_optimal_temp_max]. Default: 0.5.
+    #[serde(default = "default_optimal_temp")]
+    pub optimal_temp: f32,
+
+    /// Minimum clamp bound for heritable `optimal_temp`. Default: 0.0.
+    #[serde(default = "default_trait_optimal_temp_min")]
+    pub trait_optimal_temp_min: f32,
+    /// Maximum clamp bound for heritable `optimal_temp`. Default: 2.0.
+    #[serde(default = "default_trait_optimal_temp_max")]
+    pub trait_optimal_temp_max: f32,
+
     // ── Metabolic scaling config ───────────────────────────────────
     /// Metabolic rate at which all scaling multipliers equal 1.0.
     /// Actors with base_energy_decay above this value gain enhanced
@@ -212,6 +231,10 @@ impl Default for ActorConfig {
             kin_tolerance: default_kin_tolerance(),
             trait_kin_tolerance_min: default_trait_kin_tolerance_min(),
             trait_kin_tolerance_max: default_trait_kin_tolerance_max(),
+            thermal_sensitivity: default_thermal_sensitivity(),
+            optimal_temp: default_optimal_temp(),
+            trait_optimal_temp_min: default_trait_optimal_temp_min(),
+            trait_optimal_temp_max: default_trait_optimal_temp_max(),
             reference_metabolic_rate: default_reference_metabolic_rate(),
         }
     }

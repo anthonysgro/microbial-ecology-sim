@@ -41,7 +41,7 @@ pub(crate) fn direction_to_target(cell_index: usize, direction: u8, w: usize, h:
 }
 
 /// Number of heritable traits used in genetic distance computation.
-const TRAIT_COUNT: usize = 9;
+const TRAIT_COUNT: usize = 10;
 
 /// Compute normalized Euclidean distance between two heritable trait vectors.
 ///
@@ -65,6 +65,7 @@ pub(crate) fn genetic_distance(a: &HeritableTraits, b: &HeritableTraits, config:
         (a.offspring_energy,        b.offspring_energy,        config.trait_offspring_energy_min,        config.trait_offspring_energy_max),
         (a.mutation_rate,           b.mutation_rate,           config.trait_mutation_rate_min,           config.trait_mutation_rate_max),
         (a.kin_tolerance,           b.kin_tolerance,           config.trait_kin_tolerance_min,           config.trait_kin_tolerance_max),
+        (a.optimal_temp,            b.optimal_temp,            config.trait_optimal_temp_min,            config.trait_optimal_temp_max),
     ];
 
     let mut sum_sq: f32 = 0.0;
@@ -274,6 +275,7 @@ pub fn run_actor_metabolism(
     actors: &mut ActorRegistry,
     chemical_read: &[f32],
     chemical_write: &mut [f32],
+    heat_read: &[f32],
     config: &ActorConfig,
     removal_buffer: &mut Vec<ActorId>,
 ) -> Result<(), TickError> {
@@ -316,8 +318,11 @@ pub fn run_actor_metabolism(
                 chemical_write[ci] = 0.0;
             }
 
+            let delta = heat_read[ci] - actor.traits.optimal_temp;
+            let thermal_cost = config.thermal_sensitivity * delta * delta;
+
             actor.energy +=
-                consumed * effective_conversion - actor.traits.base_energy_decay;
+                consumed * effective_conversion - actor.traits.base_energy_decay - thermal_cost;
 
             if actor.energy.is_nan() || actor.energy.is_infinite() {
                 return Err(TickError::NumericalError {
@@ -878,11 +883,12 @@ mod tests {
 
         let chemical_read = vec![0.0, 5.0, 0.0, 0.0]; // 5.0 at cell 1
         let mut chemical_write = chemical_read.clone();
+        let heat_read = vec![config.optimal_temp; 4]; // match optimal_temp → zero thermal cost
         let mut removal_buffer = Vec::new();
 
         run_actor_metabolism(
             &mut registry, &chemical_read, &mut chemical_write,
-            &config, &mut removal_buffer,
+            &heat_read, &config, &mut removal_buffer,
         ).unwrap();
 
         // consumed = min(2.0, 5.0) = 2.0
@@ -926,11 +932,12 @@ mod tests {
 
         let chemical_read = vec![1.5, 0.0, 0.0, 0.0]; // only 1.5 available
         let mut chemical_write = chemical_read.clone();
+        let heat_read = vec![config.optimal_temp; 4]; // match optimal_temp → zero thermal cost
         let mut removal_buffer = Vec::new();
 
         run_actor_metabolism(
             &mut registry, &chemical_read, &mut chemical_write,
-            &config, &mut removal_buffer,
+            &heat_read, &config, &mut removal_buffer,
         ).unwrap();
 
         // metabolic_ratio = 0.05 / 0.05 = 1.0
@@ -970,11 +977,12 @@ mod tests {
         let _id = registry.add(actor, 4, &mut occupancy).unwrap();
         let chemical_read = vec![0.0; 4]; // nothing to eat
         let mut chemical_write = chemical_read.clone();
+        let heat_read = vec![config.optimal_temp; 4]; // match optimal_temp → zero thermal cost
         let mut removal_buffer = Vec::new();
 
         run_actor_metabolism(
             &mut registry, &chemical_read, &mut chemical_write,
-            &config, &mut removal_buffer,
+            &heat_read, &config, &mut removal_buffer,
         ).unwrap();
 
         // energy = 0.1 + 0.0 * 0.0 - 1.0 = -0.9 → inert, not removed
@@ -994,11 +1002,12 @@ mod tests {
         let config = default_config();
         let chemical_read = vec![1.0; 4];
         let mut chemical_write = chemical_read.clone();
+        let heat_read = vec![config.optimal_temp; 4]; // match optimal_temp → zero thermal cost
         let mut removal_buffer = Vec::new();
 
         let result = run_actor_metabolism(
             &mut registry, &chemical_read, &mut chemical_write,
-            &config, &mut removal_buffer,
+            &heat_read, &config, &mut removal_buffer,
         );
 
         assert!(result.is_err());

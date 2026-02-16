@@ -409,6 +409,26 @@ impl Grid {
             })
     }
 
+    /// Returns `(heat_read, chemical_read, chemical_write)` for the given species.
+    /// Splits borrows between `heat` (immutable) and `chemicals` (mutable) so both
+    /// can be accessed simultaneously without conflicting borrows on `&mut self`.
+    pub fn heat_read_and_chemical_rw(
+        &mut self,
+        species: usize,
+    ) -> Result<(&[f32], &[f32], &mut [f32]), GridError> {
+        let num = self.chemicals.len();
+        let (chem_read, chem_write) = self
+            .chemicals
+            .get_mut(species)
+            .map(FieldBuffer::read_write)
+            .ok_or(GridError::InvalidChemicalSpecies {
+                species,
+                num_chemicals: num,
+            })?;
+        let heat_read = self.heat.read();
+        Ok((heat_read, chem_read, chem_write))
+    }
+
     // ── Partition access ───────────────────────────────────────────
 
     pub fn partitions(&self) -> &[Partition] {

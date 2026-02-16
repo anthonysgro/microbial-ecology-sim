@@ -10,7 +10,7 @@ use rand::Rng;
 use rand_distr::{Distribution, Normal};
 
 /// Per-actor heritable trait values. Inherited from parent during fission
-/// with proportional gaussian mutation. 36 bytes (includes 2 bytes padding after u16).
+/// with proportional gaussian mutation. 40 bytes (includes 2 bytes padding after u16).
 ///
 /// Plain data struct — no methods beyond construction and mutation.
 /// Stored inline in `Actor`.
@@ -27,9 +27,11 @@ pub struct HeritableTraits {
     /// Genetic distance threshold below which predation is suppressed.
     /// Low values → xenophobic; high values → cosmopolitan.
     pub kin_tolerance: f32,
+    /// Preferred cell heat for minimal thermal penalty.
+    pub optimal_temp: f32,
 }
 
-const _: () = assert!(std::mem::size_of::<HeritableTraits>() == 36);
+const _: () = assert!(std::mem::size_of::<HeritableTraits>() == 40);
 
 impl HeritableTraits {
     /// Create traits from global config defaults (seed genome).
@@ -44,6 +46,7 @@ impl HeritableTraits {
             offspring_energy: config.offspring_energy,
             mutation_rate: config.mutation_stddev,
             kin_tolerance: config.kin_tolerance,
+            optimal_temp: config.optimal_temp,
         }
     }
 
@@ -97,6 +100,9 @@ impl HeritableTraits {
 
         self.kin_tolerance = (self.kin_tolerance * (1.0 + normal.sample(rng) as f32))
             .clamp(config.trait_kin_tolerance_min, config.trait_kin_tolerance_max);
+
+        self.optimal_temp = (self.optimal_temp * (1.0 + normal.sample(rng) as f32))
+            .clamp(config.trait_optimal_temp_min, config.trait_optimal_temp_max);
     }
 }
 

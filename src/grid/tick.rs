@@ -280,17 +280,20 @@ fn run_actor_phases(grid: &mut Grid, _config: &GridConfig, tick: u64) -> Result<
 
     // Phase 2: Metabolism (WARM) — consume chemicals, update energy, mark dead.
     // Copy read→write before metabolism so consumption subtracts from current state.
+    // Use heat_read_and_chemical_rw to split borrows between heat (immutable) and
+    // chemicals (mutable) without conflicting borrows on &mut grid.
     {
         if let Some(buf) = grid.chemical_buffer_mut(0) {
             buf.copy_read_to_write();
         }
-        let (chemical_read, chemical_write) = grid
-            .read_write_chemical(0)
+        let (heat_read, chemical_read, chemical_write) = grid
+            .heat_read_and_chemical_rw(0)
             .expect("at least one chemical species required for actor metabolism");
         run_actor_metabolism(
             &mut actors,
             chemical_read,
             chemical_write,
+            heat_read,
             &actor_config,
             &mut removal_buffer,
         )?;

@@ -159,6 +159,24 @@ kin_tolerance = 0.5                      # Seed genome default for heritable kin
 trait_kin_tolerance_min = 0.0            # Minimum clamp bound for heritable kin_tolerance.
 trait_kin_tolerance_max = 1.0            # Maximum clamp bound for heritable kin_tolerance. Must be > min.
 
+# ── Thermal Metabolism ──────────────────────────────────────────
+# Actors pay an extra energy cost based on the squared mismatch between
+# local cell heat and their heritable optimal_temp trait:
+#   thermal_cost = thermal_sensitivity * (cell_heat - optimal_temp)^2
+# This creates selective pressure for thermal specialization — populations
+# near heat sources evolve higher optimal_temp, cooler regions evolve lower.
+
+thermal_sensitivity = 0.01              # Quadratic penalty coefficient for thermal mismatch.
+                                         # Higher values impose harsher penalties. Must be >= 0.0 and finite.
+                                         # 0.0 disables the thermal penalty entirely.
+optimal_temp = 0.5                       # Seed genome default for heritable optimal_temp trait.
+                                         # Must be within [trait_optimal_temp_min, trait_optimal_temp_max].
+trait_optimal_temp_min = 0.0             # Minimum clamp bound for heritable optimal_temp.
+                                         # Must be < trait_optimal_temp_max.
+trait_optimal_temp_max = 2.0             # Maximum clamp bound for heritable optimal_temp.
+                                         # Must be > trait_optimal_temp_min. Headroom above typical
+                                         # max_initial_heat allows adaptation to strong heat sources.
+
 # ─── Bevy Visualization ────────────────────────────────────────────
 
 [bevy]

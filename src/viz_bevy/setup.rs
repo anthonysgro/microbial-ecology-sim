@@ -27,7 +27,7 @@ pub(super) fn overlay_label_text(overlay: &ActiveOverlay) -> String {
 }
 
 /// Trait names in display order, matching `TraitStats::traits` array indices.
-const TRAIT_NAMES: [&str; 9] = [
+const TRAIT_NAMES: [&str; 10] = [
     "consumption_rate",
     "base_energy_decay",
     "levy_exponent",
@@ -37,6 +37,7 @@ const TRAIT_NAMES: [&str; 9] = [
     "offspring_energy",
     "mutation_rate",
     "kin_tolerance",
+    "optimal_temp",
 ];
 
 /// Format `TraitStats` into a display string for the stats panel.
@@ -120,6 +121,7 @@ pub fn format_actor_info(
     writeln!(out, "offspring_energy:        {:.4}", actor.traits.offspring_energy).ok();
     writeln!(out, "mutation_rate:           {:.4}", actor.traits.mutation_rate).ok();
     writeln!(out, "kin_tolerance:           {:.4}", actor.traits.kin_tolerance).ok();
+    writeln!(out, "optimal_temp:            {:.4}", actor.traits.optimal_temp).ok();
 
     out
 }
@@ -228,6 +230,9 @@ pub(super) fn format_config_info(
             writeln!(out, "absorption_efficiency: {:.4}", ac.absorption_efficiency).ok();
             writeln!(out, "kin_tolerance: {:.4}", ac.kin_tolerance).ok();
             writeln!(out, "trait_kin_tolerance: {:.4}..{:.4}", ac.trait_kin_tolerance_min, ac.trait_kin_tolerance_max).ok();
+            writeln!(out, "thermal_sensitivity: {:.4}", ac.thermal_sensitivity).ok();
+            writeln!(out, "optimal_temp: {:.4}", ac.optimal_temp).ok();
+            writeln!(out, "trait_optimal_temp: {:.4}..{:.4}", ac.trait_optimal_temp_min, ac.trait_optimal_temp_max).ok();
         }
         None => {
             writeln!(out, "Actors: disabled").ok();
