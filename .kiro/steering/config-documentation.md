@@ -195,5 +195,21 @@ Population-level statistics recomputed every `stats_update_interval` ticks by `c
 |---|---|---|
 | `actor_count` | `usize` | Number of non-inert actors at computation time. |
 | `tick` | `u64` | Simulation tick at computation time. |
-| `traits` | `Option<[SingleTraitStats; 11]>` | Per-trait population stats for the 11 heritable traits. `None` when no living actors. |
-| `energy_stats` | `Option<SingleTraitStats>` | Population energy statistics (min, p25, p50, p75, max, mean). `None` when no living actors. Stored separately from `traits` because energy is a dynamic state variable, not a heritable trait. |
+| `traits` | `Option<[SingleTraitStats; 12]>` | Per-trait population stats for the 12 heritable traits. `None` when no living actors. |
+| `energy_stats` | `Option<SingleTraitStats>` | Population energy statistics (min, p25, p50, p75, max, mean, std_dev). `None` when no living actors. Stored separately from `traits` because energy is a dynamic state variable, not a heritable trait. |
+
+### `SingleTraitStats`
+
+**File:** `src/viz_bevy/resources.rs`
+
+Per-trait aggregate statistics computed by `compute_single_stats` in `src/viz_bevy/systems.rs`. Used as elements of `TraitStats::traits` and `TraitStats::energy_stats`.
+
+| Field | Type | Description |
+|---|---|---|
+| `min` | `f32` | Minimum value across all living actors. |
+| `max` | `f32` | Maximum value across all living actors. |
+| `mean` | `f32` | Arithmetic mean across all living actors. |
+| `p25` | `f32` | 25th percentile. |
+| `p50` | `f32` | 50th percentile (median). |
+| `p75` | `f32` | 75th percentile. |
+| `std_dev` | `f32` | Population standard deviation: `sqrt(sum((x_i - mean)^2) / n)`. `0.0` when only one actor exists. |

@@ -30,7 +30,7 @@ Single-line bugfix in `run_actor_reproduction` to deduct `reproduction_cost + of
     - Run `run_actor_reproduction` and assert fission succeeds and parent energy is exactly 0.0
     - _Requirements: 2.1, 2.2_
 
-- [-] 2. Checkpoint - Ensure all tests pass
+- [x] 2. Checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 3. Property-based tests for energy conservation

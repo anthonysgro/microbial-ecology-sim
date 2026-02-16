@@ -188,6 +188,7 @@ pub struct SingleTraitStats {
     pub p25: f32,
     pub p50: f32,
     pub p75: f32,
+    pub std_dev: f32,
 }
 
 /// Pre-computed population statistics for heritable traits.

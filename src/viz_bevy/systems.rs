@@ -897,6 +897,10 @@ fn compute_single_stats(values: &mut [f32]) -> SingleTraitStats {
         values[p75_idx]
     };
 
+    // Second pass: population variance. Acceptable on COLD path.
+    let variance = values.iter().map(|&v| (v - mean).powi(2)).sum::<f32>() / n as f32;
+    let std_dev = variance.sqrt();
+
     SingleTraitStats {
         min,
         max,
@@ -904,6 +908,7 @@ fn compute_single_stats(values: &mut [f32]) -> SingleTraitStats {
         p25,
         p50,
         p75,
+        std_dev,
     }
 }
 

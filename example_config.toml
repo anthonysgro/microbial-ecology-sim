@@ -13,8 +13,8 @@
 seed = 773
 
 [grid]
-width  = 100
-height = 100
+width  = 400
+height = 400
 num_chemicals = 1                    # Actors sense and consume species 0 only
 thermal_conductivity = 0.04          # Heat spreads slower than chemicals
 ambient_heat = 0.2                   # Mild ambient — edges don't become dead zones
@@ -29,18 +29,18 @@ max_initial_heat = 0.6               # Warm baseline — not uniform, creates ea
 min_initial_concentration = 0.0
 max_initial_concentration = 0.3      # Light chemical dusting — sources dominate quickly
 
-min_actors = 5
-max_actors = 5                      # Enough actors for competition without grid saturation
+min_actors = 50
+max_actors = 100                      # Enough actors for competition without grid saturation
 
 # Heat sources: a few strong emitters create thermal "hotspots"
 [world_init.heat_source_config]
-min_sources = 2
-max_sources = 3
+min_sources = 4
+max_sources = 5
 min_emission_rate = 0.5
 max_emission_rate = 3.0              # Strong enough to create visible thermal zones
 renewable_fraction = 0.5             # Half are permanent, half deplete over time
-min_reservoir_capacity = 100.0
-max_reservoir_capacity = 1000.0      # Finite sources last 30–500 ticks depending on rate
+min_reservoir_capacity = 800.0
+max_reservoir_capacity = 2000.0      # Finite sources last 30–500 ticks depending on rate
 min_deceleration_threshold = 0.01
 max_deceleration_threshold = 0.1     # Gradual tapering as sources deplete
 respawn_enabled = true               # Depleted non-renewable heat sources respawn after cooldown.
@@ -57,8 +57,8 @@ decay_rate = 0.005                   # Slow decay — sources must outpace it to
 diffusion_rate = 0.03                # Moderate spread — gradients persist 10–20 ticks
 
 [world_init.chemical_species_configs.source_config]
-min_sources = 15
-max_sources = 20
+min_sources = 125
+max_sources = 150
 min_emission_rate = 0.6
 max_emission_rate = 0.7              # Below consumption_rate (1.5) — actors drain sources
 renewable_fraction = 0               # Mostly finite — forces migration as sources deplete
@@ -69,8 +69,8 @@ max_deceleration_threshold = 0.01
 respawn_enabled = true               # Depleted non-renewable chemical sources respawn after cooldown.
 min_respawn_cooldown_ticks = 25      # Minimum ticks before a depleted source respawns.
 max_respawn_cooldown_ticks = 100     # Maximum ticks before a depleted source respawns.
-source_clustering = 0.95             # Spatial clustering of sources. 0.0 = uniform random, 1.0 = tight clusters. [0.0, 1.0].
-source_dispersion = 0.6              # Inter-cluster dispersion. Controls how many distinct cluster centers sources
+source_clustering = 0.97             # Spatial clustering of sources. 0.0 = uniform random, 1.0 = tight clusters. [0.0, 1.0].
+source_dispersion = 0.05              # Inter-cluster dispersion. Controls how many distinct cluster centers sources
                                      # are distributed across. 0.0 = one shared center, 1.0 = one center per source.
                                      # Formula: num_clusters = max(1, round(source_dispersion * num_sources)). [0.0, 1.0].
 
@@ -138,7 +138,7 @@ mutation_stddev = 0.1                # Seed genome default for the per-actor her
 
 trait_consumption_rate_min = 0.1     # Minimum heritable consumption_rate. Must be > 0.0.
 trait_consumption_rate_max = 10.0    # Maximum heritable consumption_rate. Must be > min.
-trait_base_energy_decay_min = 0.05  # Minimum heritable base_energy_decay. Must be > 0.0.
+trait_base_energy_decay_min = 0.05   # Minimum heritable base_energy_decay. Must be > 0.0.
 trait_base_energy_decay_max = 1.0    # Maximum heritable base_energy_decay. Must be > min.
 trait_levy_exponent_min = 1.01       # Minimum heritable levy_exponent. Must be > 1.0.
 trait_levy_exponent_max = 3.0        # Maximum heritable levy_exponent. Must be > min.
@@ -207,7 +207,7 @@ optimal_temp = 0.5                       # Seed genome default for heritable opt
                                          # Must be within [trait_optimal_temp_min, trait_optimal_temp_max].
 trait_optimal_temp_min = 0.0             # Minimum clamp bound for heritable optimal_temp.
                                          # Must be < trait_optimal_temp_max.
-trait_optimal_temp_max = 2.0             # Maximum clamp bound for heritable optimal_temp.
+trait_optimal_temp_max = 100.0           # Maximum clamp bound for heritable optimal_temp.
                                          # Must be > trait_optimal_temp_min. Headroom above typical
                                          # max_initial_heat allows adaptation to strong heat sources.
 thermal_fitness_width = 0.5              # Width of the Gaussian thermal fitness curve. Controls how quickly

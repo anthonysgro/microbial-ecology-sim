@@ -75,16 +75,16 @@ pub fn format_trait_stats(
         let s = &traits[i];
         writeln!(
             out,
-            "{:<20} min: {:>6.2}  p25: {:>6.2}  p50: {:>6.2}  p75: {:>6.2}  max: {:>6.2}  mean: {:>6.2}",
-            name, s.min, s.p25, s.p50, s.p75, s.max, s.mean,
+            "{:<20} min: {:>6.2}  p25: {:>6.2}  p50: {:>6.2}  p75: {:>6.2}  max: {:>6.2}  mean: {:>6.2}  std: {:>6.2}",
+            name, s.min, s.p25, s.p50, s.p75, s.max, s.mean, s.std_dev,
         ).ok();
     }
 
     if let Some(ref energy) = stats.energy_stats {
         writeln!(
             out,
-            "{:<20} min: {:>6.2}  p25: {:>6.2}  p50: {:>6.2}  p75: {:>6.2}  max: {:>6.2}  mean: {:>6.2}",
-            "energy", energy.min, energy.p25, energy.p50, energy.p75, energy.max, energy.mean,
+            "{:<20} min: {:>6.2}  p25: {:>6.2}  p50: {:>6.2}  p75: {:>6.2}  max: {:>6.2}  mean: {:>6.2}  std: {:>6.2}",
+            "energy", energy.min, energy.p25, energy.p50, energy.p75, energy.max, energy.mean, energy.std_dev,
         ).ok();
     }
 
