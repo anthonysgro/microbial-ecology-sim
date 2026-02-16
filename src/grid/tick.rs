@@ -375,11 +375,14 @@ fn run_actor_phases(grid: &mut Grid, _config: &GridConfig, tick: u64) -> Result<
     }
 
     // Phase 5: Movement (WARM) — relocate actors toward sensed gradients.
+    // Thermal fitness scales movement cost: actors in hostile thermal zones pay more.
+    let heat_read = grid.read_heat();
     run_actor_movement(
         &mut actors,
         &mut occupancy,
         &movement_targets,
         &actor_config,
+        heat_read,
     )?;
 
     // Return actor data to the grid.

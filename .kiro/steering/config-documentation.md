@@ -144,6 +144,8 @@ Present as `Option<ActorConfig>`. Omitting the entire `[actor]` section disables
 | `optimal_temp` | `f32` | `0.5` | Seed genome default for heritable `optimal_temp` trait. Must be within `[trait_optimal_temp_min, trait_optimal_temp_max]`. |
 | `trait_optimal_temp_min` | `f32` | `0.0` | Minimum clamp bound for heritable `optimal_temp`. Must be `< trait_optimal_temp_max`. |
 | `trait_optimal_temp_max` | `f32` | `2.0` | Maximum clamp bound for heritable `optimal_temp`. Must be `> trait_optimal_temp_min`. |
+| `thermal_fitness_width` | `f32` | `0.5` | Width of the Gaussian thermal fitness curve. Controls how quickly consumption efficiency and movement cost degrade with thermal mismatch. `0.0` disables the mechanic (fitness always 1.0). Must be `>= 0.0` and finite. |
+| `thermal_movement_cap` | `f32` | `5.0` | Maximum movement cost multiplier when thermal fitness approaches zero. Caps the divisor to prevent infinite movement cost. Must be `> 1.0` and finite. |
 | `reproduction_cooldown` | `u16` | `5` | Seed genome default for heritable `reproduction_cooldown` trait. Minimum ticks between successive reproductions. Must be within `[trait_reproduction_cooldown_min, trait_reproduction_cooldown_max]`. |
 | `trait_reproduction_cooldown_min` | `u16` | `1` | Minimum clamp bound for heritable `reproduction_cooldown`. Must be `>= 1` and `< trait_reproduction_cooldown_max`. |
 | `trait_reproduction_cooldown_max` | `u16` | `100` | Maximum clamp bound for heritable `reproduction_cooldown`. Must be `> trait_reproduction_cooldown_min`. |

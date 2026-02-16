@@ -90,12 +90,12 @@ energy_conversion_factor = 1.0
 extraction_cost = 0.3                # Energy cost per unit of chemical consumed. Reduces net gain:
                                      # net = consumed * (energy_conversion_factor - extraction_cost).
                                      # Valid range: [0.0, energy_conversion_factor). Default: 0.2
-base_energy_decay = 0.1
+base_energy_decay = 0.12
 reference_metabolic_rate = 0.05   # Metabolic rate at which scaling multipliers equal 1.0.
                                      # Actors with base_energy_decay above this extract more energy,
                                      # move cheaper, and predate more effectively — but burn energy faster.
                                      # Must be > 0.0 and finite. Default: 0.05
-initial_energy = 50.0
+initial_energy = 15.0
 initial_actor_capacity = 64
 base_movement_cost = 0.1             # Base energy cost for movement at the reference energy level.
                                      # Actual cost = base_movement_cost * (actor.energy / reference_energy),
@@ -110,11 +110,11 @@ max_energy = 100.0                   # Maximum energy an actor can hold. Must be
 levy_exponent = 1.5                  # Power-law exponent α for Lévy flight step distribution.
                                      # Controls the mix of short vs long tumble runs. Must be > 1.0.
                                      # Lower values (closer to 1.0) → more long runs. Higher → shorter runs.
-max_tumble_steps = 20                # Maximum steps in a single tumble run. Clamps the power-law sample.
+max_tumble_steps = 10                 # Maximum steps in a single tumble run. Clamps the power-law sample.
                                      # Must be >= 1. Larger values allow longer ballistic exploration runs.
-reproduction_threshold = 20.0        # Minimum energy for binary fission. Must be > 0 and >= reproduction_cost.
+reproduction_threshold = 25.0        # Minimum energy for binary fission. Must be > 0 and >= reproduction_cost.
 reproduction_cost = 12.0             # Energy deducted from parent upon fission. Must be > 0 and >= offspring_energy.
-offspring_energy = 10.0              # Energy assigned to offspring at creation. Must be > 0 and <= max_energy.
+offspring_energy = 8.0               # Energy assigned to offspring at creation. Must be > 0 and <= max_energy.
 
 # ── Contact Predation ───────────────────────────────────────────
 # Adjacent actors may predate each other when the predator has strictly higher
@@ -132,31 +132,31 @@ absorption_efficiency = 0.5          # Fraction of prey energy transferred to pr
 # reproduction_cost, offspring_energy, mutation_rate, kin_tolerance.
 # Each is clamped to its range.
 
-mutation_stddev = 0.05               # Seed genome default for the per-actor heritable mutation_rate trait.
+mutation_stddev = 0.1                # Seed genome default for the per-actor heritable mutation_rate trait.
                                      # Each actor carries its own mutation_rate which evolves via self-referential
                                      # proportional mutation. Must be within [trait_mutation_rate_min, trait_mutation_rate_max].
 
 trait_consumption_rate_min = 0.1     # Minimum heritable consumption_rate. Must be > 0.0.
 trait_consumption_rate_max = 10.0    # Maximum heritable consumption_rate. Must be > min.
-trait_base_energy_decay_min = 0.03  # Minimum heritable base_energy_decay. Must be > 0.0.
+trait_base_energy_decay_min = 0.05  # Minimum heritable base_energy_decay. Must be > 0.0.
 trait_base_energy_decay_max = 1.0    # Maximum heritable base_energy_decay. Must be > min.
 trait_levy_exponent_min = 1.01       # Minimum heritable levy_exponent. Must be > 1.0.
 trait_levy_exponent_max = 3.0        # Maximum heritable levy_exponent. Must be > min.
-trait_reproduction_threshold_min = 1.0   # Minimum heritable reproduction_threshold. Must be > 0.0.
+trait_reproduction_threshold_min = 8.0   # Minimum heritable reproduction_threshold. Must be > 0.0.
 trait_reproduction_threshold_max = 100.0 # Maximum heritable reproduction_threshold. Must be > min.
 trait_max_tumble_steps_min = 1           # Minimum heritable max_tumble_steps. Must be >= 1.
 trait_max_tumble_steps_max = 50          # Maximum heritable max_tumble_steps. Must be > min.
-trait_reproduction_cost_min = 0.1        # Minimum heritable reproduction_cost. Must be > 0.0.
+trait_reproduction_cost_min = 3.0        # Minimum heritable reproduction_cost. Must be > 0.0.
 trait_reproduction_cost_max = 100.0      # Maximum heritable reproduction_cost. Must be > min.
 trait_offspring_energy_min = 0.1         # Minimum heritable offspring_energy. Must be > 0.0.
 trait_offspring_energy_max = 100.0       # Maximum heritable offspring_energy. Must be > min and <= max_energy.
-trait_mutation_rate_min = 0.001          # Minimum heritable mutation_rate. Must be > 0.0.
+trait_mutation_rate_min = 0.03          # Minimum heritable mutation_rate. Must be > 0.0.
 trait_mutation_rate_max = 0.5            # Maximum heritable mutation_rate. Must be > min.
 kin_tolerance = 0.5                      # Seed genome default for heritable kin_tolerance trait.
                                          # Controls the genetic distance threshold below which predation
                                          # is suppressed. Low values → xenophobic; high → cosmopolitan.
                                          # Must be within [trait_kin_tolerance_min, trait_kin_tolerance_max].
-trait_kin_tolerance_min = 0.0            # Minimum clamp bound for heritable kin_tolerance.
+trait_kin_tolerance_min = 0.03            # Minimum clamp bound for heritable kin_tolerance.
 trait_kin_tolerance_max = 1.0            # Maximum clamp bound for heritable kin_tolerance. Must be > min.
 
 # ── Reproduction Cooldown ───────────────────────────────────────
@@ -171,11 +171,11 @@ trait_reproduction_cooldown_min = 1      # Minimum clamp bound for heritable rep
                                          # Must be >= 1 and < trait_reproduction_cooldown_max.
 trait_reproduction_cooldown_max = 100    # Maximum clamp bound for heritable reproduction_cooldown.
                                          # Must be > trait_reproduction_cooldown_min.
-readiness_sensitivity = 0.01            # Global sensitivity coefficient for reproductive readiness metabolic cost.
+readiness_sensitivity = 0.15             # Global sensitivity coefficient for reproductive readiness metabolic cost.
                                          # readiness_cost = readiness_sensitivity * (reproduction_cost + offspring_energy)
                                          #   / max(reproduction_cooldown, 1) / reference_cooldown
                                          # 0.0 disables the mechanic. Must be >= 0.0 and finite.
-reference_cooldown = 5.0                 # Neutral cooldown for readiness cost normalization. At this cooldown,
+reference_cooldown = 10.0                # Neutral cooldown for readiness cost normalization. At this cooldown,
                                          # the readiness multiplier equals 1.0 / reference_cooldown. Actors with
                                          # shorter cooldowns pay more; longer cooldowns pay less.
                                          # Must be > 0.0 and finite.
@@ -197,6 +197,14 @@ trait_optimal_temp_min = 0.0             # Minimum clamp bound for heritable opt
 trait_optimal_temp_max = 2.0             # Maximum clamp bound for heritable optimal_temp.
                                          # Must be > trait_optimal_temp_min. Headroom above typical
                                          # max_initial_heat allows adaptation to strong heat sources.
+thermal_fitness_width = 0.5              # Width of the Gaussian thermal fitness curve. Controls how quickly
+                                         # consumption efficiency and movement cost degrade with thermal mismatch.
+                                         # Larger values = wider comfort zone (more tolerant actors).
+                                         # 0.0 disables the mechanic (fitness always 1.0).
+                                         # Must be >= 0.0 and finite. Default: 0.5.
+thermal_movement_cap = 5.0               # Maximum movement cost multiplier when thermal fitness approaches zero.
+                                         # Caps the divisor to prevent infinite movement cost.
+                                         # Must be > 1.0 and finite. Default: 5.0.
 
 # ─── Bevy Visualization ────────────────────────────────────────────
 

@@ -85,6 +85,26 @@ pub(crate) fn genetic_distance(a: &HeritableTraits, b: &HeritableTraits, config:
     (sum_sq.sqrt()) / (TRAIT_COUNT as f32).sqrt()
 }
 
+/// Compute the thermal fitness factor for an actor.
+///
+/// Returns a value in [0.0, 1.0]:
+///   - 1.0 when cell_heat == optimal_temp (zero mismatch)
+///   - Decays toward 0.0 as |cell_heat - optimal_temp| increases
+///   - Exactly 1.0 when width == 0.0 (mechanic disabled)
+///
+/// Formula: exp(-mismatch² / (2 * width²))
+///
+/// HOT PATH: No allocation, no branching beyond the width==0 guard.
+/// Deterministic for identical inputs.
+#[inline]
+pub(crate) fn thermal_fitness(cell_heat: f32, optimal_temp: f32, width: f32) -> f32 {
+    if width == 0.0 {
+        return 1.0;
+    }
+    let delta = cell_heat - optimal_temp;
+    (-delta * delta / (2.0 * width * width)).exp()
+}
+
 // WARM PATH: Executes once per tick over the actor list.
 // No heap allocation. No dynamic dispatch. Sequential iteration.
 
@@ -319,6 +339,12 @@ pub fn run_actor_metabolism(
                 chemical_write[ci] = 0.0;
             }
 
+            let fitness = thermal_fitness(
+                heat_read[ci],
+                actor.traits.optimal_temp,
+                config.thermal_fitness_width,
+            );
+
             let delta = heat_read[ci] - actor.traits.optimal_temp;
             let thermal_cost = config.thermal_sensitivity * delta * delta;
 
@@ -332,7 +358,7 @@ pub fn run_actor_metabolism(
                 * cooldown_factor
                 / config.reference_cooldown;
 
-            actor.energy += consumed * effective_conversion
+            actor.energy += consumed * effective_conversion * fitness
                 - actor.traits.base_energy_decay
                 - thermal_cost
                 - readiness_cost;
@@ -386,6 +412,7 @@ pub fn run_actor_movement(
     occupancy: &mut [Option<usize>],
     movement_targets: &[Option<usize>],
     actor_config: &ActorConfig,
+    heat_read: &[f32],
 ) -> Result<(), TickError> {
     let base = actor_config.base_movement_cost;
     let reference = actor_config.reference_energy;
@@ -415,8 +442,15 @@ pub fn run_actor_movement(
 
         // Deduct energy-proportional movement cost after successful move,
         // scaled inversely by metabolic ratio so high-metabolism actors move cheaper.
+        // Thermal fitness degrades movement efficiency: cost is divided by capped fitness.
         let metabolic_ratio = actor.traits.base_energy_decay / actor_config.reference_metabolic_rate;
-        let proportional = base * (actor.energy / reference) / metabolic_ratio;
+        let fitness = thermal_fitness(
+            heat_read[target],
+            actor.traits.optimal_temp,
+            actor_config.thermal_fitness_width,
+        );
+        let capped_fitness = fitness.max(1.0 / actor_config.thermal_movement_cap);
+        let proportional = base * (actor.energy / reference) / metabolic_ratio / capped_fitness;
         let actual = if proportional > floor { proportional } else { floor };
         actor.energy -= actual;
 
@@ -891,6 +925,9 @@ mod tests {
             reference_metabolic_rate: 0.5,
             // Disable readiness cost so these tests focus on consumption/decay/thermal.
             readiness_sensitivity: 0.0,
+            // Disable thermal fitness so existing tests preserve pre-feature behavior.
+            // When width == 0.0, thermal_fitness() returns 1.0 unconditionally.
+            thermal_fitness_width: 0.0,
             ..ActorConfig::default()
         }
     }

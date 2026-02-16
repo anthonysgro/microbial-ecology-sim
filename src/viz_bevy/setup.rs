@@ -237,6 +237,8 @@ pub(super) fn format_config_info(
             writeln!(out, "thermal_sensitivity: {:.4}", ac.thermal_sensitivity).ok();
             writeln!(out, "optimal_temp: {:.4}", ac.optimal_temp).ok();
             writeln!(out, "trait_optimal_temp: {:.4}..{:.4}", ac.trait_optimal_temp_min, ac.trait_optimal_temp_max).ok();
+            writeln!(out, "thermal_fitness_width: {:.4}", ac.thermal_fitness_width).ok();
+            writeln!(out, "thermal_movement_cap: {:.4}", ac.thermal_movement_cap).ok();
             writeln!(out, "reproduction_cooldown: {}", ac.reproduction_cooldown).ok();
             writeln!(out, "trait_reproduction_cooldown: {}..{}", ac.trait_reproduction_cooldown_min, ac.trait_reproduction_cooldown_max).ok();
             writeln!(out, "readiness_sensitivity: {:.4}", ac.readiness_sensitivity).ok();

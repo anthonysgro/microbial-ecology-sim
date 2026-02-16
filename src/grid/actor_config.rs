@@ -34,6 +34,8 @@ fn default_trait_reproduction_cooldown_min() -> u16 { 1 }
 fn default_trait_reproduction_cooldown_max() -> u16 { 100 }
 fn default_readiness_sensitivity() -> f32 { 0.01 }
 fn default_reference_cooldown() -> f32 { 5.0 }
+fn default_thermal_fitness_width() -> f32 { 0.5 }
+fn default_thermal_movement_cap() -> f32 { 5.0 }
 
 /// Configuration parameters for Actor metabolism, sensing, and spawning.
 ///
@@ -187,6 +189,19 @@ pub struct ActorConfig {
     #[serde(default = "default_trait_optimal_temp_max")]
     pub trait_optimal_temp_max: f32,
 
+    /// Width of the Gaussian thermal fitness curve. Controls how quickly
+    /// capabilities degrade with thermal mismatch. Larger = wider comfort zone.
+    /// 0.0 disables the mechanic (fitness always 1.0).
+    /// Must be >= 0.0 and finite. Default: 0.5.
+    #[serde(default = "default_thermal_fitness_width")]
+    pub thermal_fitness_width: f32,
+
+    /// Maximum movement cost multiplier when thermal fitness approaches zero.
+    /// Caps the divisor to prevent infinite movement cost.
+    /// Must be > 1.0 and finite. Default: 5.0.
+    #[serde(default = "default_thermal_movement_cap")]
+    pub thermal_movement_cap: f32,
+
     // ── Metabolic scaling config ───────────────────────────────────
     /// Metabolic rate at which all scaling multipliers equal 1.0.
     /// Actors with base_energy_decay above this value gain enhanced
@@ -267,6 +282,8 @@ impl Default for ActorConfig {
             optimal_temp: default_optimal_temp(),
             trait_optimal_temp_min: default_trait_optimal_temp_min(),
             trait_optimal_temp_max: default_trait_optimal_temp_max(),
+            thermal_fitness_width: default_thermal_fitness_width(),
+            thermal_movement_cap: default_thermal_movement_cap(),
             reference_metabolic_rate: default_reference_metabolic_rate(),
             reproduction_cooldown: default_reproduction_cooldown(),
             trait_reproduction_cooldown_min: default_trait_reproduction_cooldown_min(),

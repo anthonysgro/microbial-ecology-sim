@@ -546,6 +546,26 @@ pub fn validate_world_config(config: &WorldConfig) -> Result<(), ConfigError> {
                 ),
             });
         }
+
+        // 3q. thermal_fitness_width must be non-negative and finite.
+        if actor.thermal_fitness_width < 0.0 || !actor.thermal_fitness_width.is_finite() {
+            return Err(ConfigError::Validation {
+                reason: format!(
+                    "thermal_fitness_width ({}) must be >= 0.0 and finite",
+                    actor.thermal_fitness_width,
+                ),
+            });
+        }
+
+        // 3r. thermal_movement_cap must be > 1.0 and finite.
+        if actor.thermal_movement_cap <= 1.0 || !actor.thermal_movement_cap.is_finite() {
+            return Err(ConfigError::Validation {
+                reason: format!(
+                    "thermal_movement_cap ({}) must be > 1.0 and finite",
+                    actor.thermal_movement_cap,
+                ),
+            });
+        }
     }
 
     Ok(())
