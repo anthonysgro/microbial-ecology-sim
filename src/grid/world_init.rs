@@ -306,8 +306,8 @@ fn validate_source_field_config(
 ///
 /// When `source_clustering == 0.0`, returns a uniform random cell index (preserving
 /// legacy behavior). Otherwise, samples a 2D normal offset with
-/// `sigma = max(width, height) * (1.0 - source_clustering)` and applies toroidal
-/// wrapping via `rem_euclid`.
+/// `sigma = max(width, height) * (1.0 - source_clustering)` and clamps to grid
+/// bounds.
 ///
 /// At `source_clustering == 1.0`, sigma drops below 0.5 and all sources land
 /// directly on the cluster center.
@@ -339,8 +339,8 @@ pub(crate) fn sample_clustered_position(
     let dx = normal.sample(rng).round() as i32;
     let dy = normal.sample(rng).round() as i32;
 
-    let col = (center_col as i32 + dx).rem_euclid(width as i32) as usize;
-    let row = (center_row as i32 + dy).rem_euclid(height as i32) as usize;
+    let col = (center_col as i32 + dx).clamp(0, width as i32 - 1) as usize;
+    let row = (center_row as i32 + dy).clamp(0, height as i32 - 1) as usize;
 
     row * width as usize + col
 }

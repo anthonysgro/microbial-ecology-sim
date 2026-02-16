@@ -551,69 +551,55 @@ pub fn run_respawn_phase(
             SourceField::Chemical(i) => &chemical_species_configs[i].source_config,
         };
 
-        // Collect occupied cell indices for this field type.
-        // WARM frequency, small set — allocation acceptable.
-        let occupied: std::collections::HashSet<usize> = grid
-            .sources()
-            .iter()
-            .filter(|s| s.field == entry.field)
-            .map(|s| s.cell_index)
-            .collect();
-
-        if occupied.len() >= cell_count {
-            // All cells occupied — defer to next tick.
-            grid.respawn_queue_mut().push(RespawnEntry {
-                field: entry.field,
-                respawn_tick: entry.respawn_tick + 1,
-            });
-            continue;
-        }
-
-        // Select an unoccupied cell. If a cluster center was stored for this
-        // field type (source_clustering > 0.0 at init), sample near that center
-        // using the same Gaussian offset used during world init. Otherwise fall
-        // back to uniform-random placement (pre-feature behavior).
+        // Select a cell for the respawned source. If a cluster center was
+        // stored for this field type (source_clustering > 0.0 at init), sample
+        // near that center — allowing stacking (multiple sources on the same
+        // cell). This prevents tight clustering from degenerating into uniform
+        // random placement when the center cell is already occupied.
+        // When no cluster center exists, fall back to uniform-random placement
+        // on an unoccupied cell (pre-feature behavior).
         let center = lookup_cluster_center(grid.cluster_centers(), entry.field);
 
         let cell_index = match center {
             Some(c) => {
-                // Clustered respawn: rejection-sample near the stored center.
-                // Cap retries to avoid infinite loops when the cluster region
-                // is densely occupied (high source_clustering concentrates
-                // candidates into a small area). After the cap, fall back to
-                // uniform selection from unoccupied cells.
-                const MAX_CLUSTER_RETRIES: u32 = 64;
-                let mut found = None;
-                for _ in 0..MAX_CLUSTER_RETRIES {
-                    let candidate = sample_clustered_position(
-                        rng,
-                        c.col,
-                        c.row,
-                        grid.width(),
-                        grid.height(),
-                        config.source_clustering,
-                    );
-                    if !occupied.contains(&candidate) {
-                        found = Some(candidate);
-                        break;
-                    }
-                }
-                found.unwrap_or_else(|| {
-                    // Fallback: uniform sample from unoccupied cells.
-                    let unoccupied: Vec<usize> = (0..cell_count)
-                        .filter(|i| !occupied.contains(i))
-                        .collect();
-                    unoccupied[rng.random_range(0..unoccupied.len())]
-                })
+                // Clustered respawn: sample near the stored center.
+                // Sources may stack on the same cell — this is intentional.
+                // With high clustering, multiple sources naturally concentrate
+                // at the same location, which is physically valid (multiple
+                // emitters at one site).
+                sample_clustered_position(
+                    rng,
+                    c.col,
+                    c.row,
+                    grid.width(),
+                    grid.height(),
+                    config.source_clustering,
+                )
             }
             None => {
-                // No cluster center → uniform random (existing logic).
+                // No cluster center → uniform random on unoccupied cell.
+                // Build occupied set only for this path.
+                let occupied: std::collections::HashSet<usize> = grid
+                    .sources()
+                    .iter()
+                    .filter(|s| s.field == entry.field)
+                    .map(|s| s.cell_index)
+                    .collect();
+
+                if occupied.len() >= cell_count {
+                    // All cells occupied — defer to next tick.
+                    grid.respawn_queue_mut().push(RespawnEntry {
+                        field: entry.field,
+                        respawn_tick: entry.respawn_tick + 1,
+                    });
+                    continue;
+                }
+
                 if occupied.len() * 2 > cell_count {
                     // Dense: build unoccupied list and sample.
                     let unoccupied: Vec<usize> = (0..cell_count)
                         .filter(|i| !occupied.contains(i))
                         .collect();
-                    // Non-empty: saturation check above guarantees occupied < cell_count.
                     unoccupied[rng.random_range(0..unoccupied.len())]
                 } else {
                     // Sparse: rejection-sample random indices.

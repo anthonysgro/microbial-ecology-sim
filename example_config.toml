@@ -54,8 +54,8 @@ decay_rate = 0.005                   # Slow decay — sources must outpace it to
 diffusion_rate = 0.02                # Moderate spread — gradients persist 10–20 ticks
 
 [world_init.chemical_species_configs.source_config]
-min_sources = 2
-max_sources = 2
+min_sources = 5
+max_sources = 5
 min_emission_rate = 0.2
 max_emission_rate = 0.5              # Below consumption_rate (1.5) — actors drain sources
 renewable_fraction = 0               # Mostly finite — forces migration as sources deplete
@@ -66,7 +66,7 @@ max_deceleration_threshold = 0.03
 respawn_enabled = true               # Depleted non-renewable chemical sources respawn after cooldown.
 min_respawn_cooldown_ticks = 50      # Minimum ticks before a depleted source respawns.
 max_respawn_cooldown_ticks = 150     # Maximum ticks before a depleted source respawns.
-source_clustering = 1.0              # Spatial clustering of sources. 0.0 = uniform random, 1.0 = tight clusters. [0.0, 1.0].
+source_clustering = 0.9              # Spatial clustering of sources. 0.0 = uniform random, 1.0 = tight clusters. [0.0, 1.0].
 
 # ─── Actor Configuration ────────────────────────────────────────────
 #
