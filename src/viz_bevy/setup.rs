@@ -13,9 +13,9 @@ use crate::grid::world_init::WorldInitConfig;
 
 use super::resources::{
     ActiveOverlay, ActorInspector, BevyVizConfig, GridSprite, HoverTooltip, InfoPanel,
-    InfoPanelVisible, MainCamera, OverlayLabel, RateLabel, RenderState, ScaleBar, ScaleMaxLabel,
-    ScaleMinLabel, SelectedActor, SimRateController, SimulationState, StatsPanel,
-    StatsPanelVisible, StatsTickCounter, TraitStats,
+    InfoPanelVisible, MainCamera, OverlayLabel, PredationCounter, RateLabel, RenderState,
+    ScaleBar, ScaleMaxLabel, ScaleMinLabel, SelectedActor, SimRateController, SimulationState,
+    StatsPanel, StatsPanelVisible, StatsTickCounter, TraitStats,
 };
 
 /// Format the overlay name for the UI label.
@@ -27,7 +27,7 @@ pub(super) fn overlay_label_text(overlay: &ActiveOverlay) -> String {
 }
 
 /// Trait names in display order, matching `TraitStats::traits` array indices.
-const TRAIT_NAMES: [&str; 8] = [
+const TRAIT_NAMES: [&str; 9] = [
     "consumption_rate",
     "base_energy_decay",
     "levy_exponent",
@@ -36,6 +36,7 @@ const TRAIT_NAMES: [&str; 8] = [
     "reproduction_cost",
     "offspring_energy",
     "mutation_rate",
+    "kin_tolerance",
 ];
 
 /// Format `TraitStats` into a display string for the stats panel.
@@ -47,11 +48,19 @@ const TRAIT_NAMES: [&str; 8] = [
 /// "No living actors." message with tick number.
 ///
 /// Requirements: 2.2, 2.3
-pub fn format_trait_stats(stats: &super::resources::TraitStats) -> String {
+pub fn format_trait_stats(
+    stats: &super::resources::TraitStats,
+    predation: &super::resources::PredationCounter,
+) -> String {
     use std::fmt::Write;
 
     let mut out = String::new();
-    writeln!(out, "Tick: {}  |  Actors: {}", stats.tick, stats.actor_count).ok();
+    writeln!(
+        out,
+        "Tick: {}  |  Actors: {}  |  Predations: {} (total: {})",
+        stats.tick, stats.actor_count, predation.last_tick, predation.total,
+    )
+    .ok();
 
     let Some(ref traits) = stats.traits else {
         writeln!(out, "\nNo living actors.").ok();
@@ -65,6 +74,14 @@ pub fn format_trait_stats(stats: &super::resources::TraitStats) -> String {
             out,
             "{:<20} min: {:>6.2}  p25: {:>6.2}  p50: {:>6.2}  p75: {:>6.2}  max: {:>6.2}  mean: {:>6.2}",
             name, s.min, s.p25, s.p50, s.p75, s.max, s.mean,
+        ).ok();
+    }
+
+    if let Some(ref energy) = stats.energy_stats {
+        writeln!(
+            out,
+            "{:<20} min: {:>6.2}  p25: {:>6.2}  p50: {:>6.2}  p75: {:>6.2}  max: {:>6.2}  mean: {:>6.2}",
+            "energy", energy.min, energy.p25, energy.p50, energy.p75, energy.max, energy.mean,
         ).ok();
     }
 
@@ -102,6 +119,7 @@ pub fn format_actor_info(
     writeln!(out, "reproduction_cost:       {:.4}", actor.traits.reproduction_cost).ok();
     writeln!(out, "offspring_energy:        {:.4}", actor.traits.offspring_energy).ok();
     writeln!(out, "mutation_rate:           {:.4}", actor.traits.mutation_rate).ok();
+    writeln!(out, "kin_tolerance:           {:.4}", actor.traits.kin_tolerance).ok();
 
     out
 }
@@ -206,6 +224,9 @@ pub(super) fn format_config_info(
             writeln!(out, "trait_reproduction_cost: {:.4}..{:.4}", ac.trait_reproduction_cost_min, ac.trait_reproduction_cost_max).ok();
             writeln!(out, "trait_offspring_energy: {:.4}..{:.4}", ac.trait_offspring_energy_min, ac.trait_offspring_energy_max).ok();
             writeln!(out, "trait_mutation_rate: {:.4}..{:.4}", ac.trait_mutation_rate_min, ac.trait_mutation_rate_max).ok();
+            writeln!(out, "absorption_efficiency: {:.4}", ac.absorption_efficiency).ok();
+            writeln!(out, "kin_tolerance: {:.4}", ac.kin_tolerance).ok();
+            writeln!(out, "trait_kin_tolerance: {:.4}..{:.4}", ac.trait_kin_tolerance_min, ac.trait_kin_tolerance_max).ok();
         }
         None => {
             writeln!(out, "Actors: disabled").ok();
@@ -480,7 +501,11 @@ pub fn setup(
         actor_count: 0,
         tick: 0,
         traits: None,
+        energy_stats: None,
     });
+
+    // ── Insert predation counter resource ──────────────────────────
+    commands.insert_resource(PredationCounter::default());
 
     // ── Insert stats throttle counter ──────────────────────────────
     commands.insert_resource(StatsTickCounter {

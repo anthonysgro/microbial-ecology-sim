@@ -10,7 +10,7 @@ use rand::Rng;
 use rand_distr::{Distribution, Normal};
 
 /// Per-actor heritable trait values. Inherited from parent during fission
-/// with proportional gaussian mutation. 32 bytes (includes 2 bytes padding after u16).
+/// with proportional gaussian mutation. 36 bytes (includes 2 bytes padding after u16).
 ///
 /// Plain data struct — no methods beyond construction and mutation.
 /// Stored inline in `Actor`.
@@ -24,9 +24,12 @@ pub struct HeritableTraits {
     pub reproduction_cost: f32,
     pub offspring_energy: f32,
     pub mutation_rate: f32,
+    /// Genetic distance threshold below which predation is suppressed.
+    /// Low values → xenophobic; high values → cosmopolitan.
+    pub kin_tolerance: f32,
 }
 
-const _: () = assert!(std::mem::size_of::<HeritableTraits>() == 32);
+const _: () = assert!(std::mem::size_of::<HeritableTraits>() == 36);
 
 impl HeritableTraits {
     /// Create traits from global config defaults (seed genome).
@@ -40,6 +43,7 @@ impl HeritableTraits {
             reproduction_cost: config.reproduction_cost,
             offspring_energy: config.offspring_energy,
             mutation_rate: config.mutation_stddev,
+            kin_tolerance: config.kin_tolerance,
         }
     }
 
@@ -90,6 +94,9 @@ impl HeritableTraits {
         // Uses the pre-mutation rate (captured in `normal` above) as σ.
         self.mutation_rate = (self.mutation_rate * (1.0 + normal.sample(rng) as f32))
             .clamp(config.trait_mutation_rate_min, config.trait_mutation_rate_max);
+
+        self.kin_tolerance = (self.kin_tolerance * (1.0 + normal.sample(rng) as f32))
+            .clamp(config.trait_kin_tolerance_min, config.trait_kin_tolerance_max);
     }
 }
 
@@ -363,6 +370,37 @@ impl ActorRegistry {
             slot.actor.as_mut().map(|actor| {
                 (ActorId { index: i, generation }, actor)
             })
+        })
+    }
+
+    /// Get a shared reference to an Actor by raw slot index.
+    ///
+    /// Returns `None` if the slot is empty (freed). Used by the predation
+    /// phase to look up neighbors via the occupancy map without requiring
+    /// a full `ActorId`.
+    pub fn get_by_slot(&self, slot_index: usize) -> Option<&Actor> {
+        self.slots.get(slot_index).and_then(|s| s.actor.as_ref())
+    }
+
+    /// Get a mutable reference to an Actor by raw slot index.
+    ///
+    /// Returns `None` if the slot is empty. Used by the predation phase
+    /// to apply energy transfers after the read-only collection pass.
+    pub fn get_mut_by_slot(&mut self, slot_index: usize) -> Option<&mut Actor> {
+        self.slots.get_mut(slot_index).and_then(|s| s.actor.as_mut())
+    }
+
+    /// Construct the current `ActorId` for a given slot index.
+    ///
+    /// Returns `None` if the slot is empty. The returned id uses the
+    /// slot's current generation, so it is valid for immediate use
+    /// (e.g., queuing into a removal buffer).
+    pub fn actor_id_for_slot(&self, slot_index: usize) -> Option<ActorId> {
+        let slot = self.slots.get(slot_index)?;
+        slot.actor.as_ref()?;
+        Some(ActorId {
+            index: slot_index,
+            generation: slot.generation,
         })
     }
 }

@@ -259,7 +259,7 @@ pub fn validate_world_config(config: &WorldConfig) -> Result<(), ConfigError> {
         }
 
         // 3h. Trait clamp ranges (f32): min must be strictly less than max.
-        let clamp_ranges: [(&str, f32, f32); 7] = [
+        let clamp_ranges: [(&str, f32, f32); 8] = [
             ("trait_consumption_rate", actor.trait_consumption_rate_min, actor.trait_consumption_rate_max),
             ("trait_base_energy_decay", actor.trait_base_energy_decay_min, actor.trait_base_energy_decay_max),
             ("trait_levy_exponent", actor.trait_levy_exponent_min, actor.trait_levy_exponent_max),
@@ -267,6 +267,7 @@ pub fn validate_world_config(config: &WorldConfig) -> Result<(), ConfigError> {
             ("trait_reproduction_cost", actor.trait_reproduction_cost_min, actor.trait_reproduction_cost_max),
             ("trait_offspring_energy", actor.trait_offspring_energy_min, actor.trait_offspring_energy_max),
             ("trait_mutation_rate", actor.trait_mutation_rate_min, actor.trait_mutation_rate_max),
+            ("trait_kin_tolerance", actor.trait_kin_tolerance_min, actor.trait_kin_tolerance_max),
         ];
         for (name, min, max) in &clamp_ranges {
             if min >= max {
@@ -458,6 +459,30 @@ pub fn validate_world_config(config: &WorldConfig) -> Result<(), ConfigError> {
                     actor.mutation_stddev,
                     actor.trait_mutation_rate_min,
                     actor.trait_mutation_rate_max,
+                ),
+            });
+        }
+
+        // 3k. absorption_efficiency must be in (0.0, 1.0].
+        if actor.absorption_efficiency <= 0.0 || actor.absorption_efficiency > 1.0 {
+            return Err(ConfigError::Validation {
+                reason: format!(
+                    "absorption_efficiency ({}) must be in (0.0, 1.0]",
+                    actor.absorption_efficiency,
+                ),
+            });
+        }
+
+        // 3l. kin_tolerance seed value must be within clamp range.
+        if actor.kin_tolerance < actor.trait_kin_tolerance_min
+            || actor.kin_tolerance > actor.trait_kin_tolerance_max
+        {
+            return Err(ConfigError::Validation {
+                reason: format!(
+                    "kin_tolerance ({}) must be within trait clamp range [{}, {}]",
+                    actor.kin_tolerance,
+                    actor.trait_kin_tolerance_min,
+                    actor.trait_kin_tolerance_max,
                 ),
             });
         }

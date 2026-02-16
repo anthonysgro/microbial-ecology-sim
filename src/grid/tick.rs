@@ -4,7 +4,7 @@
 
 use crate::grid::actor_systems::{
     run_actor_metabolism, run_actor_movement, run_actor_reproduction, run_actor_sensing,
-    run_deferred_removal, run_deferred_spawn,
+    run_contact_predation, run_deferred_removal, run_deferred_spawn,
 };
 use crate::grid::config::GridConfig;
 use crate::grid::decay::run_decay;
@@ -235,7 +235,7 @@ fn run_emission_phase(
 /// 4.2 — read from read buffers, write to write buffers
 /// 4.3 — swap chemical buffers after actor consumption, before diffusion
 /// 4.4 — deterministic slot-index order
-fn run_actor_phases(grid: &mut Grid, _config: &GridConfig, tick: u64) -> Result<(), TickError> {
+fn run_actor_phases(grid: &mut Grid, _config: &GridConfig, tick: u64) -> Result<usize, TickError> {
     let actor_config = grid
         .actor_config()
         .expect("actor_config must be set when actors are registered")
@@ -335,6 +335,35 @@ fn run_actor_phases(grid: &mut Grid, _config: &GridConfig, tick: u64) -> Result<
         )?;
     }
 
+    // Phase 4.75: Contact Predation (WARM) — adjacent actors evaluate
+    // predation eligibility based on energy dominance and genetic distance.
+    // Runs after spawn so offspring are eligible; before movement so
+    // predation outcomes influence which actors move.
+    let predation_count;
+    {
+        let w = grid.width() as usize;
+        let h = grid.height() as usize;
+        predation_count = run_contact_predation(
+            &mut actors,
+            &occupancy,
+            &actor_config,
+            &mut removal_buffer,
+            w,
+            h,
+        )?;
+    }
+
+    // Phase 4.8: Deferred removal — remove predated actors before movement.
+    if !removal_buffer.is_empty() {
+        run_deferred_removal(&mut actors, &mut occupancy, &mut removal_buffer)
+            .map_err(|_| TickError::NumericalError {
+                system: "predation_deferred_removal",
+                cell_index: 0,
+                field: "actor_id",
+                value: f32::NAN,
+            })?;
+    }
+
     // Phase 5: Movement (WARM) — relocate actors toward sensed gradients.
     run_actor_movement(
         &mut actors,
@@ -357,7 +386,7 @@ fn run_actor_phases(grid: &mut Grid, _config: &GridConfig, tick: u64) -> Result<
     // Swap chemical buffers so diffusion reads post-consumption state.
     grid.swap_chemicals();
 
-    Ok(())
+    Ok(predation_count)
 }
 
 impl TickOrchestrator {
@@ -372,7 +401,7 @@ impl TickOrchestrator {
         tick: u64,
         heat_source_config: &SourceFieldConfig,
         chemical_source_config: &SourceFieldConfig,
-    ) -> Result<(), TickError> {
+    ) -> Result<usize, TickError> {
         // Per-tick RNG for emission-phase cooldown sampling and respawn-phase
         // source parameter sampling. Seeded deterministically from grid seed +
         // tick, offset by a domain constant to avoid correlation with the
@@ -396,9 +425,11 @@ impl TickOrchestrator {
         //
         // Requirements: 4.1 (phase ordering), 4.2 (read/write discipline),
         //               4.3 (swap before diffusion), 4.4 (deterministic), 4.5 (zero-actor skip)
-        if !grid.actors().is_empty() {
-            run_actor_phases(grid, config, tick)?;
-        }
+        let predation_count = if !grid.actors().is_empty() {
+            run_actor_phases(grid, config, tick)?
+        } else {
+            0
+        };
 
         // Phase 5: Chemical diffusion
         run_diffusion(grid, config)?;
@@ -439,6 +470,6 @@ impl TickOrchestrator {
         validate_buffer(grid.write_heat(), "heat", "heat")?;
         grid.swap_heat();
 
-        Ok(())
+        Ok(predation_count)
     }
 }

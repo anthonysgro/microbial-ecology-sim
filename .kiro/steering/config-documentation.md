@@ -13,10 +13,10 @@ This ensures configuration documentation stays in sync with the code at all time
 
 ## Heritable Trait Update Rule
 
-When any spec adds, removes, or renames a heritable trait on `Actor` (currently: `consumption_rate`, `base_energy_decay`, `levy_exponent`, `reproduction_threshold`, `max_tumble_steps`, `reproduction_cost`, `offspring_energy`, `mutation_rate`):
+When any spec adds, removes, or renames a heritable trait on `Actor` (currently: `consumption_rate`, `base_energy_decay`, `levy_exponent`, `reproduction_threshold`, `max_tumble_steps`, `reproduction_cost`, `offspring_energy`, `mutation_rate`, `kin_tolerance`):
 
 1. **`HeritableTraits` struct** — Update the struct in `src/grid/actor.rs` with the new/changed field.
-2. **Trait visualization stats** — Update `compute_trait_stats_from_actors` in `src/viz_bevy/systems.rs` to collect and compute statistics for the new trait. The `TraitStats.traits` array size (currently `[SingleTraitStats; 8]`) must match the trait count.
+2. **Trait visualization stats** — Update `compute_trait_stats_from_actors` in `src/viz_bevy/systems.rs` to collect and compute statistics for the new trait. The `TraitStats.traits` array size (currently `[SingleTraitStats; 9]`) must match the trait count.
 3. **Stats panel formatting** — Update `format_trait_stats` in `src/viz_bevy/setup.rs` to display the new trait row.
 4. **Actor inspector formatting** — Update `format_actor_info` in `src/viz_bevy/setup.rs` to display the new trait value.
 5. **Trait clamp config** — Add `trait_{name}_min` / `trait_{name}_max` fields to `ActorConfig` and follow the configuration update rules above.
@@ -124,6 +124,10 @@ Present as `Option<ActorConfig>`. Omitting the entire `[actor]` section disables
 | `trait_offspring_energy_max` | `f32` | `100.0` | Maximum clamp bound for heritable `offspring_energy`. Must be `> trait_offspring_energy_min` and `<= max_energy`. |
 | `trait_mutation_rate_min` | `f32` | `0.001` | Minimum clamp bound for heritable `mutation_rate`. Must be `> 0.0` and `< trait_mutation_rate_max`. |
 | `trait_mutation_rate_max` | `f32` | `0.5` | Maximum clamp bound for heritable `mutation_rate`. Must be `> trait_mutation_rate_min`. |
+| `absorption_efficiency` | `f32` | `0.5` | Fraction of prey energy transferred to predator on successful predation. Must be in `(0.0, 1.0]`. |
+| `kin_tolerance` | `f32` | `0.5` | Seed genome default for heritable `kin_tolerance` trait. Controls genetic distance threshold below which predation is suppressed. Must be within `[trait_kin_tolerance_min, trait_kin_tolerance_max]`. |
+| `trait_kin_tolerance_min` | `f32` | `0.0` | Minimum clamp bound for heritable `kin_tolerance`. Must be `< trait_kin_tolerance_max`. |
+| `trait_kin_tolerance_max` | `f32` | `1.0` | Maximum clamp bound for heritable `kin_tolerance`. Must be `> trait_kin_tolerance_min`. |
 
 ### `[bevy]` — `BevyExtras`
 
@@ -138,3 +142,35 @@ Optional. Only consumed by the Bevy visualization binary.
 | `pan_speed` | `f32` | `1.0` | Camera pan speed. |
 | `color_scale_max` | `f32` | `10.0` | Fixed upper bound for color mapping. Values above this render as full intensity. |
 | `stats_update_interval` | `u64` | `10` | Ticks between trait stats recomputations. 0 or 1 = every tick (no throttling). Higher values reduce CPU cost of the stats panel. |
+
+---
+
+## Bevy Runtime Resources
+
+These are not TOML-configurable. They are Bevy `Resource` structs managed at runtime by the visualization layer.
+
+### `PredationCounter`
+
+**File:** `src/viz_bevy/resources.rs`
+
+Tracks per-tick and cumulative predation events for HUD display. Updated once per tick in `tick_simulation`. Read by `update_stats_panel` → `format_trait_stats`.
+
+| Field | Type | Description |
+|---|---|---|
+| `last_tick` | `usize` | Number of predation events in the most recent completed tick. |
+| `total` | `u64` | Cumulative predation events since simulation start. `u64` to avoid overflow on long runs. |
+
+Displayed in the stats panel header line as: `Tick: N  |  Actors: N  |  Predations: N (total: N)`.
+
+### `TraitStats`
+
+**File:** `src/viz_bevy/resources.rs`
+
+Population-level statistics recomputed every `stats_update_interval` ticks by `compute_trait_stats_from_actors`.
+
+| Field | Type | Description |
+|---|---|---|
+| `actor_count` | `usize` | Number of non-inert actors at computation time. |
+| `tick` | `u64` | Simulation tick at computation time. |
+| `traits` | `Option<[SingleTraitStats; 9]>` | Per-trait population stats for the 9 heritable traits. `None` when no living actors. |
+| `energy_stats` | `Option<SingleTraitStats>` | Population energy statistics (min, p25, p50, p75, max, mean). `None` when no living actors. Stored separately from `traits` because energy is a dynamic state variable, not a heritable trait. |

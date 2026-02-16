@@ -197,15 +197,17 @@ pub struct SingleTraitStats {
 ///
 /// Array order: [consumption_rate, base_energy_decay, levy_exponent,
 /// reproduction_threshold, max_tumble_steps, reproduction_cost,
-/// offspring_energy, mutation_rate].
+/// offspring_energy, mutation_rate, kin_tolerance].
 ///
-/// Requirements: 1.2, 1.3, 7.5, 8.1
+/// Requirements: 1.2, 1.3, 7.1, 7.5, 8.1
 #[derive(Resource, Debug, Clone)]
 pub struct TraitStats {
     pub actor_count: usize,
     pub tick: u64,
     /// `None` when `actor_count == 0`.
-    pub traits: Option<[SingleTraitStats; 8]>,
+    pub traits: Option<[SingleTraitStats; 9]>,
+    /// Population energy statistics. `None` when `actor_count == 0`.
+    pub energy_stats: Option<SingleTraitStats>,
 }
 
 /// Tracks the currently selected actor for inspection (by slot index).
@@ -231,6 +233,21 @@ pub struct StatsPanel;
 /// Marker for the actor inspector panel text entity.
 #[derive(Component)]
 pub struct ActorInspector;
+
+// ── Predation Counter Resource ──────────────────────────────────────
+
+/// Tracks per-tick and cumulative predation events for HUD display.
+///
+/// COLD: Updated once per tick in `tick_simulation`. Read by `update_stats_panel`.
+///
+/// Requirements: 2.1, 2.2
+#[derive(Resource, Default)]
+pub struct PredationCounter {
+    /// Predation events in the most recent tick.
+    pub last_tick: usize,
+    /// Cumulative predation events since simulation start.
+    pub total: u64,
+}
 
 // ── Stats Throttle Resource ────────────────────────────────────────
 

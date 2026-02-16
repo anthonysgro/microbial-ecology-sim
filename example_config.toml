@@ -102,12 +102,21 @@ reproduction_threshold = 20.0        # Minimum energy for binary fission. Must b
 reproduction_cost = 12.0             # Energy deducted from parent upon fission. Must be > 0 and >= offspring_energy.
 offspring_energy = 10.0              # Energy assigned to offspring at creation. Must be > 0 and <= max_energy.
 
+# ── Contact Predation ───────────────────────────────────────────
+# Adjacent actors may predate each other when the predator has strictly higher
+# energy and the genetic distance between them meets the predator's kin_tolerance
+# threshold. Prey energy is partially absorbed by the predator.
+
+absorption_efficiency = 0.5          # Fraction of prey energy transferred to predator on successful
+                                     # predation. Must be in (0.0, 1.0]. Default: 0.5.
+
 # ── Heritable Trait Mutation ────────────────────────────────────
 # Offspring inherit parent traits with proportional (multiplicative) mutation
 # during fission: new_value = old_value * (1.0 + Normal(0, mutation_rate)).
-# Eight traits are heritable: consumption_rate, base_energy_decay,
+# Nine traits are heritable: consumption_rate, base_energy_decay,
 # levy_exponent, reproduction_threshold, max_tumble_steps,
-# reproduction_cost, offspring_energy, mutation_rate. Each is clamped to its range.
+# reproduction_cost, offspring_energy, mutation_rate, kin_tolerance.
+# Each is clamped to its range.
 
 mutation_stddev = 0.05               # Seed genome default for the per-actor heritable mutation_rate trait.
                                      # Each actor carries its own mutation_rate which evolves via self-referential
@@ -129,6 +138,12 @@ trait_offspring_energy_min = 0.1         # Minimum heritable offspring_energy. M
 trait_offspring_energy_max = 100.0       # Maximum heritable offspring_energy. Must be > min and <= max_energy.
 trait_mutation_rate_min = 0.001          # Minimum heritable mutation_rate. Must be > 0.0.
 trait_mutation_rate_max = 0.5            # Maximum heritable mutation_rate. Must be > min.
+kin_tolerance = 0.5                      # Seed genome default for heritable kin_tolerance trait.
+                                         # Controls the genetic distance threshold below which predation
+                                         # is suppressed. Low values → xenophobic; high → cosmopolitan.
+                                         # Must be within [trait_kin_tolerance_min, trait_kin_tolerance_max].
+trait_kin_tolerance_min = 0.0            # Minimum clamp bound for heritable kin_tolerance.
+trait_kin_tolerance_max = 1.0            # Maximum clamp bound for heritable kin_tolerance. Must be > min.
 
 # ─── Bevy Visualization ────────────────────────────────────────────
 

@@ -20,6 +20,10 @@ fn default_trait_mutation_rate_min() -> f32 { 0.001 }
 fn default_trait_mutation_rate_max() -> f32 { 0.5 }
 fn default_base_movement_cost() -> f32 { 0.5 }
 fn default_reference_energy() -> f32 { 25.0 }
+fn default_absorption_efficiency() -> f32 { 0.5 }
+fn default_kin_tolerance() -> f32 { 0.5 }
+fn default_trait_kin_tolerance_min() -> f32 { 0.0 }
+fn default_trait_kin_tolerance_max() -> f32 { 1.0 }
 
 /// Configuration parameters for Actor metabolism, sensing, and spawning.
 ///
@@ -136,6 +140,23 @@ pub struct ActorConfig {
     /// Maximum clamp bound for heritable `mutation_rate`.
     #[serde(default = "default_trait_mutation_rate_max")]
     pub trait_mutation_rate_max: f32,
+
+    // ── Contact predation config ───────────────────────────────────
+    /// Fraction of prey energy absorbed by predator on successful predation.
+    /// Must be in (0.0, 1.0]. Default: 0.5.
+    #[serde(default = "default_absorption_efficiency")]
+    pub absorption_efficiency: f32,
+
+    /// Seed genome default for kin_tolerance. Default: 0.5.
+    #[serde(default = "default_kin_tolerance")]
+    pub kin_tolerance: f32,
+
+    /// Minimum clamp bound for heritable `kin_tolerance`. Default: 0.0.
+    #[serde(default = "default_trait_kin_tolerance_min")]
+    pub trait_kin_tolerance_min: f32,
+    /// Maximum clamp bound for heritable `kin_tolerance`. Default: 1.0.
+    #[serde(default = "default_trait_kin_tolerance_max")]
+    pub trait_kin_tolerance_max: f32,
 }
 
 impl Default for ActorConfig {
@@ -173,6 +194,10 @@ impl Default for ActorConfig {
             trait_offspring_energy_max: default_trait_offspring_energy_max(),
             trait_mutation_rate_min: default_trait_mutation_rate_min(),
             trait_mutation_rate_max: default_trait_mutation_rate_max(),
+            absorption_efficiency: default_absorption_efficiency(),
+            kin_tolerance: default_kin_tolerance(),
+            trait_kin_tolerance_min: default_trait_kin_tolerance_min(),
+            trait_kin_tolerance_max: default_trait_kin_tolerance_max(),
         }
     }
 }

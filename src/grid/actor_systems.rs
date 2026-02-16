@@ -5,7 +5,7 @@
 //! borrowed slices and registry references — no owned state, no
 //! dynamic dispatch, no heap allocation.
 
-use crate::grid::actor::{ActorId, ActorRegistry};
+use crate::grid::actor::{ActorId, ActorRegistry, HeritableTraits};
 use crate::grid::actor_config::ActorConfig;
 use crate::grid::error::TickError;
 use rand::Rng;
@@ -38,6 +38,49 @@ pub(crate) fn direction_to_target(cell_index: usize, direction: u8, w: usize, h:
         3 if x + 1 < w => Some(y * w + (x + 1)),    // East
         _ => None,                                    // Out of bounds or invalid direction
     }
+}
+
+/// Number of heritable traits used in genetic distance computation.
+const TRAIT_COUNT: usize = 9;
+
+/// Compute normalized Euclidean distance between two heritable trait vectors.
+///
+/// Each of the 9 traits is normalized to [0, 1] using its configured clamp bounds:
+///   `normalized = (value - min) / (max - min)`
+/// If `max == min` for a trait, both actors contribute 0.0 for that dimension.
+///
+/// Returns `euclidean_distance / sqrt(TRAIT_COUNT)`, guaranteed in [0.0, 1.0].
+///
+/// Pure function. No side effects. No heap allocation.
+#[inline]
+pub(crate) fn genetic_distance(a: &HeritableTraits, b: &HeritableTraits, config: &ActorConfig) -> f32 {
+    // Trait values paired with their (min, max) clamp bounds.
+    let traits: [(f32, f32, f32, f32); TRAIT_COUNT] = [
+        (a.consumption_rate,        b.consumption_rate,        config.trait_consumption_rate_min,        config.trait_consumption_rate_max),
+        (a.base_energy_decay,       b.base_energy_decay,       config.trait_base_energy_decay_min,       config.trait_base_energy_decay_max),
+        (a.levy_exponent,           b.levy_exponent,           config.trait_levy_exponent_min,           config.trait_levy_exponent_max),
+        (a.reproduction_threshold,  b.reproduction_threshold,  config.trait_reproduction_threshold_min,  config.trait_reproduction_threshold_max),
+        (a.max_tumble_steps as f32, b.max_tumble_steps as f32, config.trait_max_tumble_steps_min as f32, config.trait_max_tumble_steps_max as f32),
+        (a.reproduction_cost,       b.reproduction_cost,       config.trait_reproduction_cost_min,       config.trait_reproduction_cost_max),
+        (a.offspring_energy,        b.offspring_energy,        config.trait_offspring_energy_min,        config.trait_offspring_energy_max),
+        (a.mutation_rate,           b.mutation_rate,           config.trait_mutation_rate_min,           config.trait_mutation_rate_max),
+        (a.kin_tolerance,           b.kin_tolerance,           config.trait_kin_tolerance_min,           config.trait_kin_tolerance_max),
+    ];
+
+    let mut sum_sq: f32 = 0.0;
+    for (val_a, val_b, min, max) in traits {
+        let range = max - min;
+        if range == 0.0 {
+            // Zero-range trait: both actors contribute 0.0 difference.
+            continue;
+        }
+        let norm_a = (val_a - min) / range;
+        let norm_b = (val_b - min) / range;
+        let diff = norm_a - norm_b;
+        sum_sq += diff * diff;
+    }
+
+    (sum_sq.sqrt()) / (TRAIT_COUNT as f32).sqrt()
 }
 
 // WARM PATH: Executes once per tick over the actor list.
@@ -557,8 +600,117 @@ pub fn run_deferred_spawn(
     Ok(())
 }
 
+// WARM PATH: Executes once per tick over the actor list.
+// No heap allocation (SmallVec inline, removal_buffer pre-allocated).
+// No dynamic dispatch.
 
+/// Execute contact predation for all active actors in deterministic order.
+///
+/// Two-pass approach to avoid mutable aliasing:
+/// - Pass 1 (read-only): iterate actors by ascending slot index, scan
+///   4-neighborhood, collect predation events into a stack-local SmallVec.
+/// - Pass 2 (mutate): apply events — add energy to predator, mark prey
+///   inert, queue prey for deferred removal.
+///
+/// Each actor participates in at most one predation event per tick
+/// (either as predator or as prey). Determinism is guaranteed by
+/// ascending slot-index iteration order and first-match-wins semantics.
+pub fn run_contact_predation(
+    actors: &mut ActorRegistry,
+    occupancy: &[Option<usize>],
+    config: &ActorConfig,
+    removal_buffer: &mut Vec<ActorId>,
+    w: usize,
+    h: usize,
+) -> Result<usize, TickError> {
+    use smallvec::SmallVec;
 
+    // (predator_slot, prey_slot, energy_gain)
+    let mut events: SmallVec<[(usize, usize, f32); 64]> = SmallVec::new();
+
+    // Track which slots have already been claimed as predator or prey
+    // this tick. Indexed by slot index. Reuses stack for small registries.
+    let slot_count = actors.slot_count();
+    let mut participated: SmallVec<[bool; 256]> = SmallVec::new();
+    participated.resize(slot_count, false);
+
+    // Pass 1: collect predation events (read-only iteration).
+    for (slot_idx, actor) in actors.iter() {
+        if actor.inert || participated[slot_idx] {
+            continue;
+        }
+
+        for dir in 0..4u8 {
+            let neighbor_cell = match direction_to_target(actor.cell_index, dir, w, h) {
+                Some(c) => c,
+                None => continue,
+            };
+
+            let neighbor_slot = match occupancy[neighbor_cell] {
+                Some(s) => s,
+                None => continue,
+            };
+
+            if participated[neighbor_slot] {
+                continue;
+            }
+
+            let neighbor = match actors.get_by_slot(neighbor_slot) {
+                Some(a) => a,
+                None => continue,
+            };
+
+            if neighbor.inert {
+                continue;
+            }
+
+            // Energy dominance: this actor must have strictly more energy.
+            if actor.energy <= neighbor.energy {
+                continue;
+            }
+
+            // Kin recognition: genetic distance must meet predator's threshold.
+            let dist = genetic_distance(&actor.traits, &neighbor.traits, config);
+            if dist < actor.traits.kin_tolerance {
+                continue;
+            }
+
+            // Predation succeeds — record event.
+            let gained = neighbor.energy * config.absorption_efficiency;
+            events.push((slot_idx, neighbor_slot, gained));
+            participated[slot_idx] = true;
+            participated[neighbor_slot] = true;
+            break; // one predation per predator per tick
+        }
+    }
+
+    // Pass 2: apply predation events.
+    for &(predator_slot, prey_slot, gained) in &events {
+        // Apply energy gain to predator, clamped to max_energy.
+        if let Some(predator) = actors.get_mut_by_slot(predator_slot) {
+            predator.energy = (predator.energy + gained).min(config.max_energy);
+
+            if predator.energy.is_nan() || predator.energy.is_infinite() {
+                return Err(TickError::NumericalError {
+                    system: "contact_predation",
+                    cell_index: predator.cell_index,
+                    field: "energy",
+                    value: predator.energy,
+                });
+            }
+        }
+
+        // Mark prey inert and queue for removal.
+        if let Some(prey) = actors.get_mut_by_slot(prey_slot) {
+            prey.inert = true;
+        }
+        if let Some(prey_id) = actors.actor_id_for_slot(prey_slot) {
+            removal_buffer.push(prey_id);
+        }
+    }
+
+    Ok(events.len())
+}
 
 #[cfg(test)]
 mod tests {

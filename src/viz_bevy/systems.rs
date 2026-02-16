@@ -11,9 +11,9 @@ use crate::grid::tick::TickOrchestrator;
 use super::{color, normalize};
 use super::resources::{
     ActiveOverlay, ActorInspector, BevyVizConfig, GridSprite, HoverTooltip, InfoPanel,
-    InfoPanelVisible, MainCamera, OverlayLabel, RateLabel, RenderState, ScaleBar, ScaleMaxLabel,
-    SelectedActor, SimRateController, SimulationState, SingleTraitStats, StatsPanel,
-    StatsPanelVisible, StatsTickCounter, TraitStats,
+    InfoPanelVisible, MainCamera, OverlayLabel, PredationCounter, RateLabel, RenderState,
+    ScaleBar, ScaleMaxLabel, SelectedActor, SimRateController, SimulationState, SingleTraitStats,
+    StatsPanel, StatsPanelVisible, StatsTickCounter, TraitStats,
 };
 use super::setup::{build_scale_image, format_actor_info, format_trait_stats, overlay_label_text};
 
@@ -31,6 +31,7 @@ pub fn tick_simulation(
     mut sim: ResMut<SimulationState>,
     rate: Res<SimRateController>,
     viz_config: Res<BevyVizConfig>,
+    mut counter: ResMut<PredationCounter>,
 ) {
     if !sim.running || rate.paused {
         return;
@@ -44,8 +45,10 @@ pub fn tick_simulation(
         &viz_config.init_config.heat_source_config,
         &viz_config.init_config.chemical_source_config,
     ) {
-        Ok(()) => {
+        Ok(predation_count) => {
             sim.tick += 1;
+            counter.last_tick = predation_count;
+            counter.total += predation_count as u64;
         }
         Err(err) => {
             error!("tick {} failed: {err}", sim.tick);
@@ -652,10 +655,11 @@ pub fn stats_panel_input(
 /// Requirements: 2.1, 2.4, 2.5, 2.6
 pub fn update_stats_panel(
     stats: Res<TraitStats>,
+    predation: Res<PredationCounter>,
     visible: Res<StatsPanelVisible>,
     mut query: Query<(&mut Text, &mut Visibility), With<StatsPanel>>,
 ) {
-    if !stats.is_changed() && !visible.is_changed() {
+    if !stats.is_changed() && !visible.is_changed() && !predation.is_changed() {
         return;
     }
 
@@ -665,7 +669,7 @@ pub fn update_stats_panel(
         Visibility::Hidden
     };
 
-    let content = format_trait_stats(&stats);
+    let content = format_trait_stats(&stats, &predation);
 
     for (mut text, mut vis) in &mut query {
         if **text != content {
@@ -774,8 +778,10 @@ pub fn compute_trait_stats_from_actors<'a>(
     let mut repro_cost = Vec::with_capacity(capacity);
     let mut offspring = Vec::with_capacity(capacity);
     let mut mutation_rate = Vec::with_capacity(capacity);
+    let mut kin_tolerance = Vec::with_capacity(capacity);
+    let mut energy = Vec::with_capacity(capacity);
 
-    // Single-pass collection: iterate actors once, push all 8 trait values
+    // Single-pass collection: iterate actors once, push all 9 trait values
     // per non-inert actor. This is explicit rather than relying on the
     // optimizer to fuse separate collection passes.
     for actor in actors {
@@ -790,6 +796,8 @@ pub fn compute_trait_stats_from_actors<'a>(
         repro_cost.push(actor.traits.reproduction_cost);
         offspring.push(actor.traits.offspring_energy);
         mutation_rate.push(actor.traits.mutation_rate);
+        kin_tolerance.push(actor.traits.kin_tolerance);
+        energy.push(actor.energy);
     }
 
     let actor_count = consumption.len();
@@ -799,6 +807,7 @@ pub fn compute_trait_stats_from_actors<'a>(
             actor_count: 0,
             tick,
             traits: None,
+            energy_stats: None,
         };
     }
 
@@ -811,12 +820,16 @@ pub fn compute_trait_stats_from_actors<'a>(
         compute_single_stats(&mut repro_cost),
         compute_single_stats(&mut offspring),
         compute_single_stats(&mut mutation_rate),
+        compute_single_stats(&mut kin_tolerance),
     ];
+
+    let energy_stats = Some(compute_single_stats(&mut energy));
 
     TraitStats {
         actor_count,
         tick,
         traits: Some(traits),
+        energy_stats,
     }
 }
 
