@@ -40,13 +40,13 @@ min_emission_rate = 0.5
 max_emission_rate = 3.0              # Strong enough to create visible thermal zones
 renewable_fraction = 0.5             # Half are permanent, half deplete over time
 min_reservoir_capacity = 100.0
-max_reservoir_capacity = 1000.0       # Finite sources last 30–500 ticks depending on rate
+max_reservoir_capacity = 1000.0      # Finite sources last 30–500 ticks depending on rate
 min_deceleration_threshold = 0.01
 max_deceleration_threshold = 0.1     # Gradual tapering as sources deplete
 respawn_enabled = true               # Depleted non-renewable heat sources respawn after cooldown.
 min_respawn_cooldown_ticks = 0       # Minimum ticks before a depleted source respawns.
 max_respawn_cooldown_ticks = 10      # Maximum ticks before a depleted source respawns.
-source_clustering = 0.96                # Spatial clustering of sources. 0.0 = uniform random, 1.0 = tight clusters. [0.0, 1.0].
+source_clustering = 0.96             # Spatial clustering of sources. 0.0 = uniform random, 1.0 = tight clusters. [0.0, 1.0].
 source_dispersion = 1.0              # Inter-cluster dispersion. Controls how many distinct cluster centers sources
                                      # are distributed across. 0.0 = one shared center, 1.0 = one center per source.
                                      # Formula: num_clusters = max(1, round(source_dispersion * num_sources)). [0.0, 1.0].
@@ -69,7 +69,7 @@ max_deceleration_threshold = 0.01
 respawn_enabled = true               # Depleted non-renewable chemical sources respawn after cooldown.
 min_respawn_cooldown_ticks = 25      # Minimum ticks before a depleted source respawns.
 max_respawn_cooldown_ticks = 100     # Maximum ticks before a depleted source respawns.
-source_clustering = 0.95              # Spatial clustering of sources. 0.0 = uniform random, 1.0 = tight clusters. [0.0, 1.0].
+source_clustering = 0.95             # Spatial clustering of sources. 0.0 = uniform random, 1.0 = tight clusters. [0.0, 1.0].
 source_dispersion = 0.6              # Inter-cluster dispersion. Controls how many distinct cluster centers sources
                                      # are distributed across. 0.0 = one shared center, 1.0 = one center per source.
                                      # Formula: num_clusters = max(1, round(source_dispersion * num_sources)). [0.0, 1.0].
@@ -110,7 +110,7 @@ max_energy = 100.0                   # Maximum energy an actor can hold. Must be
 levy_exponent = 1.5                  # Power-law exponent α for Lévy flight step distribution.
                                      # Controls the mix of short vs long tumble runs. Must be > 1.0.
                                      # Lower values (closer to 1.0) → more long runs. Higher → shorter runs.
-max_tumble_steps = 10                 # Maximum steps in a single tumble run. Clamps the power-law sample.
+max_tumble_steps = 10                # Maximum steps in a single tumble run. Clamps the power-law sample.
                                      # Must be >= 1. Larger values allow longer ballistic exploration runs.
 reproduction_threshold = 25.0        # Minimum energy for binary fission. Must be > 0 and >= reproduction_cost.
 reproduction_cost = 12.0             # Energy deducted from parent upon fission. Must be > 0 and >= offspring_energy.
@@ -150,14 +150,27 @@ trait_reproduction_cost_min = 3.0        # Minimum heritable reproduction_cost. 
 trait_reproduction_cost_max = 100.0      # Maximum heritable reproduction_cost. Must be > min.
 trait_offspring_energy_min = 0.1         # Minimum heritable offspring_energy. Must be > 0.0.
 trait_offspring_energy_max = 100.0       # Maximum heritable offspring_energy. Must be > min and <= max_energy.
-trait_mutation_rate_min = 0.03          # Minimum heritable mutation_rate. Must be > 0.0.
+trait_mutation_rate_min = 0.03           # Minimum heritable mutation_rate. Must be > 0.0.
 trait_mutation_rate_max = 0.5            # Maximum heritable mutation_rate. Must be > min.
 kin_tolerance = 0.5                      # Seed genome default for heritable kin_tolerance trait.
                                          # Controls the genetic distance threshold below which predation
                                          # is suppressed. Low values → xenophobic; high → cosmopolitan.
                                          # Must be within [trait_kin_tolerance_min, trait_kin_tolerance_max].
-trait_kin_tolerance_min = 0.03            # Minimum clamp bound for heritable kin_tolerance.
+trait_kin_tolerance_min = 0.03           # Minimum clamp bound for heritable kin_tolerance.
 trait_kin_tolerance_max = 1.0            # Maximum clamp bound for heritable kin_tolerance. Must be > min.
+
+# ── Kin Group Defense ───────────────────────────────────────────
+# Controls how much defense an actor contributes to allied neighbors during
+# predation. When a predator attempts to eat prey, the prey's Von Neumann
+# neighbors that are genetically close contribute their kin_group_defense
+# trait value to reduce predation success probability:
+#   success_probability = 1.0 / (1.0 + ally_defense_sum)
+# 0.0 = no defense contribution, 1.0 = full defense point per ally.
+
+kin_group_defense = 0.5                  # Seed genome default for heritable kin_group_defense trait.
+                                         # Must be within [trait_kin_group_defense_min, trait_kin_group_defense_max].
+trait_kin_group_defense_min = 0.0        # Minimum clamp bound for heritable kin_group_defense.
+trait_kin_group_defense_max = 1.0        # Maximum clamp bound for heritable kin_group_defense. Must be > min.
 
 # ── Reproduction Cooldown ───────────────────────────────────────
 # Minimum ticks between successive reproductions. Creates a temporal gate

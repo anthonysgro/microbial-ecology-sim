@@ -25,6 +25,9 @@ fn default_kin_tolerance() -> f32 { 0.5 }
 fn default_trait_kin_tolerance_min() -> f32 { 0.0 }
 fn default_trait_kin_tolerance_max() -> f32 { 1.0 }
 fn default_reference_metabolic_rate() -> f32 { 0.05 }
+fn default_kin_group_defense() -> f32 { 0.5 }
+fn default_trait_kin_group_defense_min() -> f32 { 0.0 }
+fn default_trait_kin_group_defense_max() -> f32 { 1.0 }
 fn default_thermal_sensitivity() -> f32 { 0.01 }
 fn default_optimal_temp() -> f32 { 0.5 }
 fn default_trait_optimal_temp_min() -> f32 { 0.0 }
@@ -170,6 +173,22 @@ pub struct ActorConfig {
     #[serde(default = "default_trait_kin_tolerance_max")]
     pub trait_kin_tolerance_max: f32,
 
+    /// Seed genome default for heritable `kin_group_defense` trait.
+    /// Controls how much defense an actor contributes to allied neighbors
+    /// during predation. 0.0 = no defense contribution, 1.0 = full defense point.
+    /// Must be within [trait_kin_group_defense_min, trait_kin_group_defense_max].
+    /// Default: 0.5.
+    #[serde(default = "default_kin_group_defense")]
+    pub kin_group_defense: f32,
+
+    /// Minimum clamp bound for heritable `kin_group_defense`. Default: 0.0.
+    #[serde(default = "default_trait_kin_group_defense_min")]
+    pub trait_kin_group_defense_min: f32,
+
+    /// Maximum clamp bound for heritable `kin_group_defense`. Default: 1.0.
+    #[serde(default = "default_trait_kin_group_defense_max")]
+    pub trait_kin_group_defense_max: f32,
+
     // ── Thermal metabolism config ──────────────────────────────────
     /// Quadratic penalty coefficient for thermal mismatch.
     /// Extra energy cost per tick = thermal_sensitivity * (cell_heat - optimal_temp)^2.
@@ -278,6 +297,9 @@ impl Default for ActorConfig {
             kin_tolerance: default_kin_tolerance(),
             trait_kin_tolerance_min: default_trait_kin_tolerance_min(),
             trait_kin_tolerance_max: default_trait_kin_tolerance_max(),
+            kin_group_defense: default_kin_group_defense(),
+            trait_kin_group_defense_min: default_trait_kin_group_defense_min(),
+            trait_kin_group_defense_max: default_trait_kin_group_defense_max(),
             thermal_sensitivity: default_thermal_sensitivity(),
             optimal_temp: default_optimal_temp(),
             trait_optimal_temp_min: default_trait_optimal_temp_min(),

@@ -259,7 +259,7 @@ pub fn validate_world_config(config: &WorldConfig) -> Result<(), ConfigError> {
         }
 
         // 3h. Trait clamp ranges (f32): min must be strictly less than max.
-        let clamp_ranges: [(&str, f32, f32); 8] = [
+        let clamp_ranges: [(&str, f32, f32); 9] = [
             ("trait_consumption_rate", actor.trait_consumption_rate_min, actor.trait_consumption_rate_max),
             ("trait_base_energy_decay", actor.trait_base_energy_decay_min, actor.trait_base_energy_decay_max),
             ("trait_levy_exponent", actor.trait_levy_exponent_min, actor.trait_levy_exponent_max),
@@ -268,6 +268,7 @@ pub fn validate_world_config(config: &WorldConfig) -> Result<(), ConfigError> {
             ("trait_offspring_energy", actor.trait_offspring_energy_min, actor.trait_offspring_energy_max),
             ("trait_mutation_rate", actor.trait_mutation_rate_min, actor.trait_mutation_rate_max),
             ("trait_kin_tolerance", actor.trait_kin_tolerance_min, actor.trait_kin_tolerance_max),
+            ("trait_kin_group_defense", actor.trait_kin_group_defense_min, actor.trait_kin_group_defense_max),
         ];
         for (name, min, max) in &clamp_ranges {
             if min >= max {
@@ -483,6 +484,20 @@ pub fn validate_world_config(config: &WorldConfig) -> Result<(), ConfigError> {
                     actor.kin_tolerance,
                     actor.trait_kin_tolerance_min,
                     actor.trait_kin_tolerance_max,
+                ),
+            });
+        }
+
+        // 3l-2. kin_group_defense seed value must be within clamp range.
+        if actor.kin_group_defense < actor.trait_kin_group_defense_min
+            || actor.kin_group_defense > actor.trait_kin_group_defense_max
+        {
+            return Err(ConfigError::Validation {
+                reason: format!(
+                    "kin_group_defense ({}) must be within trait clamp range [{}, {}]",
+                    actor.kin_group_defense,
+                    actor.trait_kin_group_defense_min,
+                    actor.trait_kin_group_defense_max,
                 ),
             });
         }

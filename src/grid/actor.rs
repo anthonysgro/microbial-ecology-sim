@@ -27,13 +27,16 @@ pub struct HeritableTraits {
     /// Genetic distance threshold below which predation is suppressed.
     /// Low values → xenophobic; high values → cosmopolitan.
     pub kin_tolerance: f32,
+    /// Defense contribution to allied neighbors during predation.
+    /// Higher values reduce predation success probability for nearby kin.
+    pub kin_group_defense: f32,
     /// Preferred cell heat for minimal thermal penalty.
     pub optimal_temp: f32,
     /// Minimum ticks between successive reproductions.
     pub reproduction_cooldown: u16,
 }
 
-const _: () = assert!(std::mem::size_of::<HeritableTraits>() == 40);
+const _: () = assert!(std::mem::size_of::<HeritableTraits>() == 44);
 
 impl HeritableTraits {
     /// Create traits from global config defaults (seed genome).
@@ -48,6 +51,7 @@ impl HeritableTraits {
             offspring_energy: config.offspring_energy,
             mutation_rate: config.mutation_stddev,
             kin_tolerance: config.kin_tolerance,
+            kin_group_defense: config.kin_group_defense,
             optimal_temp: config.optimal_temp,
             reproduction_cooldown: config.reproduction_cooldown,
         }
@@ -103,6 +107,9 @@ impl HeritableTraits {
 
         self.kin_tolerance = (self.kin_tolerance * (1.0 + normal.sample(rng) as f32))
             .clamp(config.trait_kin_tolerance_min, config.trait_kin_tolerance_max);
+
+        self.kin_group_defense = (self.kin_group_defense * (1.0 + normal.sample(rng) as f32))
+            .clamp(config.trait_kin_group_defense_min, config.trait_kin_group_defense_max);
 
         self.optimal_temp = (self.optimal_temp * (1.0 + normal.sample(rng) as f32))
             .clamp(config.trait_optimal_temp_min, config.trait_optimal_temp_max);

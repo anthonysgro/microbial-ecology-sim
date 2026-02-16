@@ -41,7 +41,7 @@ pub(crate) fn direction_to_target(cell_index: usize, direction: u8, w: usize, h:
 }
 
 /// Number of heritable traits used in genetic distance computation.
-const TRAIT_COUNT: usize = 11;
+const TRAIT_COUNT: usize = 12;
 
 /// Compute normalized Euclidean distance between two heritable trait vectors.
 ///
@@ -65,6 +65,7 @@ pub(crate) fn genetic_distance(a: &HeritableTraits, b: &HeritableTraits, config:
         (a.offspring_energy,        b.offspring_energy,        config.trait_offspring_energy_min,        config.trait_offspring_energy_max),
         (a.mutation_rate,           b.mutation_rate,           config.trait_mutation_rate_min,           config.trait_mutation_rate_max),
         (a.kin_tolerance,           b.kin_tolerance,           config.trait_kin_tolerance_min,           config.trait_kin_tolerance_max),
+        (a.kin_group_defense,       b.kin_group_defense,       config.trait_kin_group_defense_min,       config.trait_kin_group_defense_max),
         (a.optimal_temp,            b.optimal_temp,            config.trait_optimal_temp_min,            config.trait_optimal_temp_max),
         (a.reproduction_cooldown as f32, b.reproduction_cooldown as f32, config.trait_reproduction_cooldown_min as f32, config.trait_reproduction_cooldown_max as f32),
     ];
@@ -693,6 +694,7 @@ pub fn run_contact_predation(
     removal_buffer: &mut Vec<ActorId>,
     w: usize,
     h: usize,
+    rng: &mut impl Rng,
 ) -> Result<usize, TickError> {
     use smallvec::SmallVec;
 
@@ -746,6 +748,26 @@ pub fn run_contact_predation(
                 continue;
             }
 
+            // Group defense: prey's allied neighbors reduce predation success.
+            // ally_defense_sum ∈ [0.0, 3.0], success_probability ∈ [0.25, 1.0].
+            let ally_defense_sum = sum_allied_defense(
+                neighbor.cell_index,
+                &neighbor.traits,
+                slot_idx,
+                occupancy,
+                actors,
+                config,
+                w,
+                h,
+            );
+            let success_probability = 1.0 / (1.0 + ally_defense_sum);
+            let roll: f32 = rng.random::<f32>();
+            if roll >= success_probability {
+                // Predation failed — predator participated but prey remains eligible.
+                participated[slot_idx] = true;
+                break;
+            }
+
             // Predation succeeds — record event.
             let metabolic_ratio =
                 actor.traits.base_energy_decay / config.reference_metabolic_rate;
@@ -786,6 +808,53 @@ pub fn run_contact_predation(
 
     Ok(events.len())
 }
+/// Sum the `kin_group_defense` trait values of non-inert actors in the prey's
+/// Von Neumann 4-neighborhood (excluding the predator) whose genetic distance
+/// to the prey is below the prey's `kin_tolerance`.
+///
+/// Returns the sum as f32. Maximum possible value is 3.0 (3 allies × max 1.0 each).
+/// Pure function. No heap allocation. Stack-only.
+///
+/// WARM PATH: Called once per predation attempt. At most 3 occupancy lookups +
+/// 3 genetic distance computations per call.
+fn sum_allied_defense(
+    prey_cell: usize,
+    prey_traits: &HeritableTraits,
+    predator_slot: usize,
+    occupancy: &[Option<usize>],
+    actors: &ActorRegistry,
+    config: &ActorConfig,
+    w: usize,
+    h: usize,
+) -> f32 {
+    let mut defense_sum: f32 = 0.0;
+    for dir in 0..4u8 {
+        let neighbor_cell = match direction_to_target(prey_cell, dir, w, h) {
+            Some(c) => c,
+            None => continue,
+        };
+        let neighbor_slot = match occupancy[neighbor_cell] {
+            Some(s) => s,
+            None => continue,
+        };
+        if neighbor_slot == predator_slot {
+            continue;
+        }
+        let neighbor = match actors.get_by_slot(neighbor_slot) {
+            Some(a) => a,
+            None => continue,
+        };
+        if neighbor.inert {
+            continue;
+        }
+        let dist = genetic_distance(&neighbor.traits, prey_traits, config);
+        if dist < prey_traits.kin_tolerance {
+            defense_sum += neighbor.traits.kin_group_defense;
+        }
+    }
+    defense_sum
+}
+
 
 #[cfg(test)]
 mod tests {

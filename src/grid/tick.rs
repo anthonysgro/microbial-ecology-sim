@@ -360,6 +360,7 @@ fn run_actor_phases(grid: &mut Grid, _config: &GridConfig, tick: u64) -> Result<
             &mut removal_buffer,
             w,
             h,
+            &mut tick_rng,
         )?;
     }
 
