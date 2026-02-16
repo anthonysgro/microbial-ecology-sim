@@ -782,6 +782,7 @@ pub fn compute_trait_stats_from_actors<'a>(
     let mut optimal_temp = Vec::with_capacity(capacity);
     let mut repro_cooldown = Vec::with_capacity(capacity);
     let mut kin_group_defense = Vec::with_capacity(capacity);
+    let mut memory_capacity = Vec::with_capacity(capacity);
     let mut energy = Vec::with_capacity(capacity);
 
     // Single-pass collection: iterate actors once, push all 11 trait values
@@ -803,6 +804,7 @@ pub fn compute_trait_stats_from_actors<'a>(
         optimal_temp.push(actor.traits.optimal_temp);
         repro_cooldown.push(actor.traits.reproduction_cooldown as f32);
         kin_group_defense.push(actor.traits.kin_group_defense);
+        memory_capacity.push(actor.traits.memory_capacity as f32);
         energy.push(actor.energy);
     }
 
@@ -830,6 +832,7 @@ pub fn compute_trait_stats_from_actors<'a>(
         compute_single_stats(&mut optimal_temp),
         compute_single_stats(&mut repro_cooldown),
         compute_single_stats(&mut kin_group_defense),
+        compute_single_stats(&mut memory_capacity),
     ];
 
     let energy_stats = Some(compute_single_stats(&mut energy));

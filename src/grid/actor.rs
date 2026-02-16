@@ -34,9 +34,11 @@ pub struct HeritableTraits {
     pub optimal_temp: f32,
     /// Minimum ticks between successive reproductions.
     pub reproduction_cooldown: u16,
+    /// Maximum number of memory entries this actor can retain. 0 = memoryless.
+    pub memory_capacity: u8,
 }
 
-const _: () = assert!(std::mem::size_of::<HeritableTraits>() == 44);
+const _: () = assert!(std::mem::size_of::<HeritableTraits>() == 48);
 
 impl HeritableTraits {
     /// Create traits from global config defaults (seed genome).
@@ -54,6 +56,7 @@ impl HeritableTraits {
             kin_group_defense: config.kin_group_defense,
             optimal_temp: config.optimal_temp,
             reproduction_cooldown: config.reproduction_cooldown,
+            memory_capacity: config.memory_capacity,
         }
     }
 
@@ -120,6 +123,13 @@ impl HeritableTraits {
             .round()
             .clamp(config.trait_reproduction_cooldown_min as f32, config.trait_reproduction_cooldown_max as f32)
             as u16;
+
+        // memory_capacity: proportional in f32 space, round, clamp to u8 range.
+        let mem_f32 = self.memory_capacity as f32 * (1.0 + normal.sample(rng) as f32);
+        self.memory_capacity = mem_f32
+            .round()
+            .clamp(config.trait_memory_capacity_min as f32, config.trait_memory_capacity_max as f32)
+            as u8;
     }
 }
 

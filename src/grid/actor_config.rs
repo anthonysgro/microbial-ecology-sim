@@ -39,6 +39,10 @@ fn default_readiness_sensitivity() -> f32 { 0.01 }
 fn default_reference_cooldown() -> f32 { 5.0 }
 fn default_thermal_fitness_width() -> f32 { 0.5 }
 fn default_thermal_movement_cap() -> f32 { 5.0 }
+fn default_memory_capacity() -> u8 { 4 }
+fn default_trait_memory_capacity_min() -> u8 { 0 }
+fn default_trait_memory_capacity_max() -> u8 { 16 }
+fn default_cognitive_cost_per_slot() -> f32 { 0.005 }
 
 /// Configuration parameters for Actor metabolism, sensing, and spawning.
 ///
@@ -256,6 +260,28 @@ pub struct ActorConfig {
     /// Must be > 0.0 and finite. Default: 5.0.
     #[serde(default = "default_reference_cooldown")]
     pub reference_cooldown: f32,
+
+    // ── Brain / cognitive cost config ──────────────────────────────
+    /// Seed genome default for heritable `memory_capacity` trait.
+    /// Maximum number of memory entries an actor can retain. 0 = memoryless.
+    /// Must be within [trait_memory_capacity_min, trait_memory_capacity_max]. Default: 4.
+    #[serde(default = "default_memory_capacity")]
+    pub memory_capacity: u8,
+
+    /// Minimum clamp bound for heritable `memory_capacity`. Default: 0.
+    #[serde(default = "default_trait_memory_capacity_min")]
+    pub trait_memory_capacity_min: u8,
+
+    /// Maximum clamp bound for heritable `memory_capacity`.
+    /// Must be <= MAX_MEMORY_CAPACITY. Default: 16.
+    #[serde(default = "default_trait_memory_capacity_max")]
+    pub trait_memory_capacity_max: u8,
+
+    /// Energy cost per memory slot per tick. Cognitive upkeep scales with
+    /// the actor's heritable memory_capacity.
+    /// Must be >= 0.0 and finite. Default: 0.005.
+    #[serde(default = "default_cognitive_cost_per_slot")]
+    pub cognitive_cost_per_slot: f32,
 }
 
 impl Default for ActorConfig {
@@ -312,6 +338,10 @@ impl Default for ActorConfig {
             trait_reproduction_cooldown_max: default_trait_reproduction_cooldown_max(),
             readiness_sensitivity: default_readiness_sensitivity(),
             reference_cooldown: default_reference_cooldown(),
+            memory_capacity: default_memory_capacity(),
+            trait_memory_capacity_min: default_trait_memory_capacity_min(),
+            trait_memory_capacity_max: default_trait_memory_capacity_max(),
+            cognitive_cost_per_slot: default_cognitive_cost_per_slot(),
         }
     }
 }

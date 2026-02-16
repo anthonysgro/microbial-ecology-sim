@@ -199,7 +199,7 @@ pub struct SingleTraitStats {
 /// Array order: [consumption_rate, base_energy_decay, levy_exponent,
 /// reproduction_threshold, max_tumble_steps, reproduction_cost,
 /// offspring_energy, mutation_rate, kin_tolerance, optimal_temp,
-/// reproduction_cooldown, kin_group_defense].
+/// reproduction_cooldown, kin_group_defense, memory_capacity].
 ///
 /// Requirements: 1.2, 1.3, 7.1, 7.5, 8.1
 #[derive(Resource, Debug, Clone)]
@@ -207,7 +207,7 @@ pub struct TraitStats {
     pub actor_count: usize,
     pub tick: u64,
     /// `None` when `actor_count == 0`.
-    pub traits: Option<[SingleTraitStats; 12]>,
+    pub traits: Option<[SingleTraitStats; 13]>,
     /// Population energy statistics. `None` when `actor_count == 0`.
     pub energy_stats: Option<SingleTraitStats>,
 }

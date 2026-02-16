@@ -6,6 +6,7 @@ use crate::grid::actor_systems::{
     run_actor_metabolism, run_actor_movement, run_actor_reproduction, run_actor_sensing,
     run_contact_predation, run_deferred_removal, run_deferred_spawn,
 };
+use crate::grid::brain::brain_empty;
 use crate::grid::config::GridConfig;
 use crate::grid::decay::run_decay;
 use crate::grid::diffusion::run_diffusion;
@@ -249,13 +250,17 @@ fn run_actor_phases(grid: &mut Grid, _config: &GridConfig, tick: u64) -> Result<
         .clone();
 
     // Extract actor data to split borrows with field buffers.
-    let (mut actors, mut occupancy, mut removal_buffer, mut spawn_buffer, mut movement_targets) =
+    let (mut actors, mut brains, mut occupancy, mut removal_buffer, mut spawn_buffer, mut movement_targets) =
         grid.take_actors();
 
     // Ensure movement_targets covers all registry slots.
     let slot_count = actors.slot_count();
     if movement_targets.len() < slot_count {
         movement_targets.resize(slot_count, None);
+    }
+    // Ensure brains Vec covers all registry slots (lockstep with ActorRegistry).
+    if brains.len() < slot_count {
+        brains.resize_with(slot_count, brain_empty);
     }
 
     // Phase 1: Sensing (WARM) — read chemical gradients, compute movement targets.
@@ -296,6 +301,8 @@ fn run_actor_phases(grid: &mut Grid, _config: &GridConfig, tick: u64) -> Result<
             heat_read,
             &actor_config,
             &mut removal_buffer,
+            &mut brains,
+            tick,
         )?;
     }
 
@@ -338,6 +345,7 @@ fn run_actor_phases(grid: &mut Grid, _config: &GridConfig, tick: u64) -> Result<
             &mut actors,
             &mut occupancy,
             &mut spawn_buffer,
+            &mut brains,
             cell_count,
             &actor_config,
             seed,
@@ -361,6 +369,8 @@ fn run_actor_phases(grid: &mut Grid, _config: &GridConfig, tick: u64) -> Result<
             w,
             h,
             &mut tick_rng,
+            &mut brains,
+            tick,
         )?;
     }
 
@@ -387,7 +397,7 @@ fn run_actor_phases(grid: &mut Grid, _config: &GridConfig, tick: u64) -> Result<
     )?;
 
     // Return actor data to the grid.
-    grid.put_actors(actors, occupancy, removal_buffer, spawn_buffer, movement_targets);
+    grid.put_actors(actors, brains, occupancy, removal_buffer, spawn_buffer, movement_targets);
 
     // Validate chemical write buffer after actor consumption (NaN/Inf check).
     {

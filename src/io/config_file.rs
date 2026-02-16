@@ -581,6 +581,47 @@ pub fn validate_world_config(config: &WorldConfig) -> Result<(), ConfigError> {
                 ),
             });
         }
+
+        // 3s. memory_capacity clamp range (u8).
+        if actor.trait_memory_capacity_min > actor.trait_memory_capacity_max {
+            return Err(ConfigError::Validation {
+                reason: format!(
+                    "trait_memory_capacity_min ({}) must be <= trait_memory_capacity_max ({})",
+                    actor.trait_memory_capacity_min, actor.trait_memory_capacity_max,
+                ),
+            });
+        }
+        if actor.trait_memory_capacity_max as usize > crate::grid::brain::MAX_MEMORY_CAPACITY {
+            return Err(ConfigError::Validation {
+                reason: format!(
+                    "trait_memory_capacity_max ({}) must be <= MAX_MEMORY_CAPACITY ({})",
+                    actor.trait_memory_capacity_max,
+                    crate::grid::brain::MAX_MEMORY_CAPACITY,
+                ),
+            });
+        }
+        if actor.memory_capacity < actor.trait_memory_capacity_min
+            || actor.memory_capacity > actor.trait_memory_capacity_max
+        {
+            return Err(ConfigError::Validation {
+                reason: format!(
+                    "memory_capacity ({}) must be within trait clamp range [{}, {}]",
+                    actor.memory_capacity,
+                    actor.trait_memory_capacity_min,
+                    actor.trait_memory_capacity_max,
+                ),
+            });
+        }
+
+        // 3t. cognitive_cost_per_slot must be non-negative and finite.
+        if actor.cognitive_cost_per_slot < 0.0 || !actor.cognitive_cost_per_slot.is_finite() {
+            return Err(ConfigError::Validation {
+                reason: format!(
+                    "cognitive_cost_per_slot ({}) must be >= 0.0 and finite",
+                    actor.cognitive_cost_per_slot,
+                ),
+            });
+        }
     }
 
     Ok(())

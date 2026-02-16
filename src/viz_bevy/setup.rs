@@ -27,7 +27,7 @@ pub(super) fn overlay_label_text(overlay: &ActiveOverlay) -> String {
 }
 
 /// Trait names in display order, matching `TraitStats::traits` array indices.
-const TRAIT_NAMES: [&str; 12] = [
+const TRAIT_NAMES: [&str; 13] = [
     "consumption_rate",
     "base_energy_decay",
     "levy_exponent",
@@ -40,6 +40,7 @@ const TRAIT_NAMES: [&str; 12] = [
     "optimal_temp",
     "repro_cooldown",
     "kin_group_defense",
+    "memory_capacity",
 ];
 
 /// Format `TraitStats` into a display string for the stats panel.
@@ -126,6 +127,7 @@ pub fn format_actor_info(
     writeln!(out, "kin_group_defense:       {:.4}", actor.traits.kin_group_defense).ok();
     writeln!(out, "optimal_temp:            {:.4}", actor.traits.optimal_temp).ok();
     writeln!(out, "reproduction_cooldown:   {}", actor.traits.reproduction_cooldown).ok();
+    writeln!(out, "memory_capacity:         {}", actor.traits.memory_capacity).ok();
     writeln!(out).ok();
     writeln!(out, "cooldown_remaining:      {}", actor.cooldown_remaining).ok();
 
@@ -247,6 +249,9 @@ pub(super) fn format_config_info(
             writeln!(out, "trait_reproduction_cooldown: {}..{}", ac.trait_reproduction_cooldown_min, ac.trait_reproduction_cooldown_max).ok();
             writeln!(out, "readiness_sensitivity: {:.4}", ac.readiness_sensitivity).ok();
             writeln!(out, "reference_cooldown: {:.4}", ac.reference_cooldown).ok();
+            writeln!(out, "memory_capacity: {}", ac.memory_capacity).ok();
+            writeln!(out, "trait_memory_capacity: {}..{}", ac.trait_memory_capacity_min, ac.trait_memory_capacity_max).ok();
+            writeln!(out, "cognitive_cost_per_slot: {:.4}", ac.cognitive_cost_per_slot).ok();
         }
         None => {
             writeln!(out, "Actors: disabled").ok();

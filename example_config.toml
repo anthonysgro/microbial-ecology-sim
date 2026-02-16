@@ -193,6 +193,21 @@ reference_cooldown = 10.0                # Neutral cooldown for readiness cost n
                                          # shorter cooldowns pay more; longer cooldowns pay less.
                                          # Must be > 0.0 and finite.
 
+# ── Brain / Cognitive Cost ──────────────────────────────────────
+# Actors carry a circular buffer of past interaction memories. Memory capacity
+# is a heritable trait subject to evolutionary pressure: larger buffers cost
+# more energy per tick via cognitive metabolic cost.
+
+memory_capacity = 4                      # Seed genome default for heritable memory_capacity trait.
+                                         # Maximum memory entries an actor can retain. 0 = memoryless.
+                                         # Must be within [trait_memory_capacity_min, trait_memory_capacity_max].
+trait_memory_capacity_min = 0            # Minimum clamp bound for heritable memory_capacity.
+trait_memory_capacity_max = 16           # Maximum clamp bound for heritable memory_capacity.
+                                         # Must be <= MAX_MEMORY_CAPACITY (16).
+cognitive_cost_per_slot = 0.005          # Energy cost per memory slot per tick. Cognitive upkeep scales
+                                         # with the actor's heritable memory_capacity.
+                                         # Must be >= 0.0 and finite.
+
 # ── Thermal Metabolism ──────────────────────────────────────────
 # Actors pay an extra energy cost based on the squared mismatch between
 # local cell heat and their heritable optimal_temp trait:

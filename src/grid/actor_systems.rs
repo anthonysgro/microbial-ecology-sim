@@ -7,6 +7,7 @@
 
 use crate::grid::actor::{ActorId, ActorRegistry, HeritableTraits};
 use crate::grid::actor_config::ActorConfig;
+use crate::grid::brain::{brain_empty, brain_write, genome_hash, Brain, MemoryEntry, MemoryOutcome};
 use crate::grid::error::TickError;
 use rand::Rng;
 
@@ -41,7 +42,7 @@ pub(crate) fn direction_to_target(cell_index: usize, direction: u8, w: usize, h:
 }
 
 /// Number of heritable traits used in genetic distance computation.
-const TRAIT_COUNT: usize = 12;
+const TRAIT_COUNT: usize = 13;
 
 /// Compute normalized Euclidean distance between two heritable trait vectors.
 ///
@@ -68,6 +69,7 @@ pub(crate) fn genetic_distance(a: &HeritableTraits, b: &HeritableTraits, config:
         (a.kin_group_defense,       b.kin_group_defense,       config.trait_kin_group_defense_min,       config.trait_kin_group_defense_max),
         (a.optimal_temp,            b.optimal_temp,            config.trait_optimal_temp_min,            config.trait_optimal_temp_max),
         (a.reproduction_cooldown as f32, b.reproduction_cooldown as f32, config.trait_reproduction_cooldown_min as f32, config.trait_reproduction_cooldown_max as f32),
+        (a.memory_capacity as f32, b.memory_capacity as f32, config.trait_memory_capacity_min as f32, config.trait_memory_capacity_max as f32),
     ];
 
     let mut sum_sq: f32 = 0.0;
@@ -300,6 +302,8 @@ pub fn run_actor_metabolism(
     heat_read: &[f32],
     config: &ActorConfig,
     removal_buffer: &mut Vec<ActorId>,
+    brains: &mut [Brain],
+    tick: u64,
 ) -> Result<(), TickError> {
     removal_buffer.clear();
 
@@ -359,10 +363,15 @@ pub fn run_actor_metabolism(
                 * cooldown_factor
                 / config.reference_cooldown;
 
+            // Cognitive cost: per-tick energy drain proportional to memory capacity.
+            let cognitive_cost =
+                config.cognitive_cost_per_slot * actor.traits.memory_capacity as f32;
+
             actor.energy += consumed * effective_conversion * fitness
                 - actor.traits.base_energy_decay
                 - thermal_cost
-                - readiness_cost;
+                - readiness_cost
+                - cognitive_cost;
 
             if actor.energy.is_nan() || actor.energy.is_infinite() {
                 return Err(TickError::NumericalError {
@@ -376,6 +385,22 @@ pub fn run_actor_metabolism(
             // Safety clamp: floating-point arithmetic may marginally exceed max_energy.
             // Placed after NaN/Inf check because f32::min swallows NaN.
             actor.energy = actor.energy.min(config.max_energy);
+
+            // Write food memory entry when the actor consumed chemical.
+            if consumed > 0.0 {
+                let slot_index = id.index;
+                let entry = MemoryEntry {
+                    tick,
+                    cell_index: ci as u32,
+                    genome_hash: 0,
+                    outcome: MemoryOutcome::Food,
+                };
+                brain_write(
+                    &mut brains[slot_index],
+                    entry,
+                    actor.traits.memory_capacity,
+                );
+            }
 
             // Transition to inert instead of immediate removal.
             if actor.energy <= 0.0 {
@@ -628,6 +653,7 @@ pub fn run_deferred_spawn(
     actors: &mut ActorRegistry,
     occupancy: &mut [Option<usize>],
     spawn_buffer: &mut Vec<(usize, f32, crate::grid::actor::HeritableTraits)>,
+    brains: &mut Vec<Brain>,
     cell_count: usize,
     config: &ActorConfig,
     seed: u64,
@@ -657,7 +683,7 @@ pub fn run_deferred_spawn(
             traits: offspring_traits,
             cooldown_remaining: 0,
         };
-        actors.add(offspring, cell_count, occupancy).map_err(|e| {
+        let id = actors.add(offspring, cell_count, occupancy).map_err(|e| {
             TickError::NumericalError {
                 system: "actor_deferred_spawn",
                 cell_index,
@@ -669,6 +695,15 @@ pub fn run_deferred_spawn(
                 },
             }
         })?;
+
+        // Initialize offspring brain: empty buffer, no inherited memories.
+        // If the slot was reused from the free list, overwrite the stale brain.
+        // If a new slot was appended, grow the brains Vec to match.
+        let slot = id.index;
+        if slot >= brains.len() {
+            brains.resize_with(slot + 1, brain_empty);
+        }
+        brains[slot] = brain_empty();
     }
     spawn_buffer.clear();
     Ok(())
@@ -697,6 +732,8 @@ pub fn run_contact_predation(
     w: usize,
     h: usize,
     rng: &mut impl Rng,
+    brains: &mut [Brain],
+    tick: u64,
 ) -> Result<usize, TickError> {
     use smallvec::SmallVec;
 
@@ -808,6 +845,47 @@ pub fn run_contact_predation(
         }
     }
 
+    // Pass 3: write memory entries for both predator and prey.
+    // Separate pass because brain_write needs the actor's traits (for genome_hash)
+    // and cell_index, which requires immutable borrows that conflict with pass 2's
+    // mutable borrows.
+    for &(predator_slot, prey_slot, _) in &events {
+        let predator_ci = actors.get_by_slot(predator_slot).map(|a| a.cell_index as u32);
+        let predator_cap = actors.get_by_slot(predator_slot).map(|a| a.traits.memory_capacity);
+        let predator_traits = actors.get_by_slot(predator_slot).map(|a| a.traits);
+        let prey_ci = actors.get_by_slot(prey_slot).map(|a| a.cell_index as u32);
+        let prey_cap = actors.get_by_slot(prey_slot).map(|a| a.traits.memory_capacity);
+        let prey_traits = actors.get_by_slot(prey_slot).map(|a| a.traits);
+
+        // Predator remembers successful hunt.
+        if let (Some(ci), Some(cap), Some(prey_t)) = (predator_ci, predator_cap, prey_traits) {
+            brain_write(
+                &mut brains[predator_slot],
+                MemoryEntry {
+                    tick,
+                    cell_index: ci,
+                    genome_hash: genome_hash(&prey_t),
+                    outcome: MemoryOutcome::PredationSuccess,
+                },
+                cap,
+            );
+        }
+
+        // Prey remembers threat (still in registry, marked inert but not yet removed).
+        if let (Some(ci), Some(cap), Some(pred_t)) = (prey_ci, prey_cap, predator_traits) {
+            brain_write(
+                &mut brains[prey_slot],
+                MemoryEntry {
+                    tick,
+                    cell_index: ci,
+                    genome_hash: genome_hash(&pred_t),
+                    outcome: MemoryOutcome::PredationThreat,
+                },
+                cap,
+            );
+        }
+    }
+
     Ok(events.len())
 }
 /// Sum the `kin_group_defense` trait values of non-inert actors in the prey's
@@ -863,6 +941,7 @@ mod tests {
     use super::*;
     use crate::grid::actor::{Actor, ActorRegistry, HeritableTraits};
     use crate::grid::actor_config::ActorConfig;
+    use crate::grid::brain::brain_empty;
     use rand::SeedableRng;
     use rand_chacha::ChaCha8Rng;
 
@@ -999,6 +1078,8 @@ mod tests {
             // Disable thermal fitness so existing tests preserve pre-feature behavior.
             // When width == 0.0, thermal_fitness() returns 1.0 unconditionally.
             thermal_fitness_width: 0.0,
+            // Disable cognitive cost so existing tests preserve pre-brain behavior.
+            cognitive_cost_per_slot: 0.0,
             ..ActorConfig::default()
         }
     }
@@ -1017,10 +1098,12 @@ mod tests {
         let mut chemical_write = chemical_read.clone();
         let heat_read = vec![config.optimal_temp; 4]; // match optimal_temp → zero thermal cost
         let mut removal_buffer = Vec::new();
+        let mut brains = vec![brain_empty(); registry.slot_count()];
 
         run_actor_metabolism(
             &mut registry, &chemical_read, &mut chemical_write,
             &heat_read, &config, &mut removal_buffer,
+            &mut brains, 0,
         ).unwrap();
 
         // consumed = min(2.0, 5.0) = 2.0
@@ -1059,6 +1142,8 @@ mod tests {
             reference_metabolic_rate: 0.05,
             // Disable readiness cost so this test focuses on partial consumption.
             readiness_sensitivity: 0.0,
+            // Disable cognitive cost so this test focuses on partial consumption.
+            cognitive_cost_per_slot: 0.0,
             ..ActorConfig::default()
         };
         let actor = Actor { cell_index: 0, energy: 10.0, inert: false, tumble_direction: 0, tumble_remaining: 0, traits: HeritableTraits::from_config(&config), cooldown_remaining: 0 };
@@ -1068,10 +1153,12 @@ mod tests {
         let mut chemical_write = chemical_read.clone();
         let heat_read = vec![config.optimal_temp; 4]; // match optimal_temp → zero thermal cost
         let mut removal_buffer = Vec::new();
+        let mut brains = vec![brain_empty(); registry.slot_count()];
 
         run_actor_metabolism(
             &mut registry, &chemical_read, &mut chemical_write,
             &heat_read, &config, &mut removal_buffer,
+            &mut brains, 0,
         ).unwrap();
 
         // metabolic_ratio = 0.05 / 0.05 = 1.0
@@ -1104,6 +1191,8 @@ mod tests {
             reproduction_threshold: 20.0,
             reproduction_cost: 12.0,
             offspring_energy: 10.0,
+            // Disable cognitive cost so this test focuses on decay-driven inertness.
+            cognitive_cost_per_slot: 0.0,
             ..ActorConfig::default()
         };
         // Low energy actor — decay will push it to zero.
@@ -1113,10 +1202,12 @@ mod tests {
         let mut chemical_write = chemical_read.clone();
         let heat_read = vec![config.optimal_temp; 4]; // match optimal_temp → zero thermal cost
         let mut removal_buffer = Vec::new();
+        let mut brains = vec![brain_empty(); registry.slot_count()];
 
         run_actor_metabolism(
             &mut registry, &chemical_read, &mut chemical_write,
             &heat_read, &config, &mut removal_buffer,
+            &mut brains, 0,
         ).unwrap();
 
         // energy = 0.1 + 0.0 * 0.0 - 1.0 = -0.9 → inert, not removed
@@ -1138,10 +1229,12 @@ mod tests {
         let mut chemical_write = chemical_read.clone();
         let heat_read = vec![config.optimal_temp; 4]; // match optimal_temp → zero thermal cost
         let mut removal_buffer = Vec::new();
+        let mut brains = vec![brain_empty(); registry.slot_count()];
 
         let result = run_actor_metabolism(
             &mut registry, &chemical_read, &mut chemical_write,
             &heat_read, &config, &mut removal_buffer,
+            &mut brains, 0,
         );
 
         assert!(result.is_err());

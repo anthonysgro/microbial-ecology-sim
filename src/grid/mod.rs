@@ -1,6 +1,7 @@
 pub mod actor;
 pub mod actor_config;
 pub mod actor_systems;
+pub mod brain;
 pub mod config;
 pub mod decay;
 pub mod diffusion;
@@ -14,6 +15,7 @@ pub mod world_init;
 
 use actor::{Actor, ActorError, ActorId, ActorRegistry, HeritableTraits};
 use actor_config::ActorConfig;
+use brain::{Brain, brain_empty};
 use config::{CellDefaults, GridConfig};
 use error::GridError;
 use field_buffer::FieldBuffer;
@@ -45,6 +47,9 @@ pub struct Grid {
     spawn_buffer: Vec<(usize, f32, HeritableTraits)>,
     /// Pre-allocated buffer: slot index → target cell index for movement.
     movement_targets: Vec<Option<usize>>,
+    /// Cold-data cognitive component for each actor, indexed by actor slot.
+    /// Managed in lockstep with `ActorRegistry::slots`.
+    brains: Vec<Brain>,
     /// Per-field-type cluster centers, populated during `generate_sources`
     /// when `source_clustering > 0.0`. Used by `run_respawn_phase`.
     cluster_centers: ClusterCenterMap,
@@ -285,6 +290,10 @@ impl Grid {
         let spawn_buffer = Vec::with_capacity(initial_cap);
         let movement_targets = vec![None; initial_cap];
 
+        // Pre-allocate brain storage in lockstep with actor slots.
+        let mut brains = Vec::with_capacity(initial_cap);
+        brains.resize_with(initial_cap, brain_empty);
+
         Ok(Self {
             config,
             chemicals,
@@ -298,6 +307,7 @@ impl Grid {
             removal_buffer,
             spawn_buffer,
             movement_targets,
+            brains,
             cluster_centers: SmallVec::new(),
             seed,
         })
@@ -491,6 +501,11 @@ impl Grid {
         &mut self.actors
     }
 
+    /// Read-only access to the parallel brain storage.
+    pub fn brains(&self) -> &[Brain] {
+        &self.brains
+    }
+
     pub fn occupancy(&self) -> &[Option<usize>] {
         &self.occupancy
     }
@@ -500,43 +515,60 @@ impl Grid {
     }
 
     /// Add an Actor to the grid, validating cell_index against grid dimensions.
+    /// Allocates or resets a corresponding Brain slot at the same index.
     pub fn add_actor(&mut self, actor: Actor) -> Result<ActorId, ActorError> {
         let cell_count = self.cell_count();
-        self.actors.add(actor, cell_count, &mut self.occupancy)
+        let id = self.actors.add(actor, cell_count, &mut self.occupancy)?;
+        // Ensure brains Vec covers the new slot index.
+        if id.index >= self.brains.len() {
+            self.brains.resize_with(id.index + 1, brain_empty);
+        } else {
+            self.brains[id.index] = brain_empty();
+        }
+        Ok(id)
     }
 
     /// Remove an Actor from the grid by its identifier.
+    /// Clears the corresponding Brain slot.
     pub fn remove_actor(&mut self, id: ActorId) -> Result<(), ActorError> {
-        self.actors.remove(id, &mut self.occupancy)
+        self.actors.remove(id, &mut self.occupancy)?;
+        // Clear the brain slot for the removed actor.
+        if id.index < self.brains.len() {
+            self.brains[id.index] = brain_empty();
+        }
+        Ok(())
     }
 
-    /// Temporarily extract the actor registry and occupancy map for
-    /// split-borrow patterns in actor system phases.
+    /// Temporarily extract the actor registry, brain storage, and occupancy map
+    /// for split-borrow patterns in actor system phases.
     ///
-    /// Returns `(ActorRegistry, Vec<Option<usize>>, Vec<ActorId>, Vec<(usize, f32, HeritableTraits)>, Vec<Option<usize>>)`
-    /// — the registry, occupancy map, removal buffer, spawn buffer, and movement targets.
+    /// Returns `(ActorRegistry, Vec<Brain>, Vec<Option<usize>>, Vec<ActorId>,
+    /// Vec<(usize, f32, HeritableTraits)>, Vec<Option<usize>>)`.
     #[allow(clippy::type_complexity)]
     pub(crate) fn take_actors(
         &mut self,
-    ) -> (ActorRegistry, Vec<Option<usize>>, Vec<ActorId>, Vec<(usize, f32, HeritableTraits)>, Vec<Option<usize>>) {
+    ) -> (ActorRegistry, Vec<Brain>, Vec<Option<usize>>, Vec<ActorId>, Vec<(usize, f32, HeritableTraits)>, Vec<Option<usize>>) {
         let actors = std::mem::take(&mut self.actors);
+        let brains = std::mem::take(&mut self.brains);
         let occupancy = std::mem::take(&mut self.occupancy);
         let removal_buffer = std::mem::take(&mut self.removal_buffer);
         let spawn_buffer = std::mem::take(&mut self.spawn_buffer);
         let movement_targets = std::mem::take(&mut self.movement_targets);
-        (actors, occupancy, removal_buffer, spawn_buffer, movement_targets)
+        (actors, brains, occupancy, removal_buffer, spawn_buffer, movement_targets)
     }
 
     /// Return previously taken actor subsystem state.
     pub(crate) fn put_actors(
         &mut self,
         actors: ActorRegistry,
+        brains: Vec<Brain>,
         occupancy: Vec<Option<usize>>,
         removal_buffer: Vec<ActorId>,
         spawn_buffer: Vec<(usize, f32, HeritableTraits)>,
         movement_targets: Vec<Option<usize>>,
     ) {
         self.actors = actors;
+        self.brains = brains;
         self.occupancy = occupancy;
         self.removal_buffer = removal_buffer;
         self.spawn_buffer = spawn_buffer;
