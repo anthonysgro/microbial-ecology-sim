@@ -57,20 +57,20 @@ decay_rate = 0.005                   # Slow decay — sources must outpace it to
 diffusion_rate = 0.03                # Moderate spread — gradients persist 10–20 ticks
 
 [world_init.chemical_species_configs.source_config]
-min_sources = 8
-max_sources = 10
-min_emission_rate = 0.3
-max_emission_rate = 0.6              # Below consumption_rate (1.5) — actors drain sources
+min_sources = 15
+max_sources = 20
+min_emission_rate = 0.6
+max_emission_rate = 0.7              # Below consumption_rate (1.5) — actors drain sources
 renewable_fraction = 0               # Mostly finite — forces migration as sources deplete
-min_reservoir_capacity = 200.0
-max_reservoir_capacity = 500.0
-min_deceleration_threshold = 0.01
-max_deceleration_threshold = 0.03
+min_reservoir_capacity = 400.0
+max_reservoir_capacity = 1000.0
+min_deceleration_threshold = 0.001
+max_deceleration_threshold = 0.01
 respawn_enabled = true               # Depleted non-renewable chemical sources respawn after cooldown.
 min_respawn_cooldown_ticks = 25      # Minimum ticks before a depleted source respawns.
 max_respawn_cooldown_ticks = 100     # Maximum ticks before a depleted source respawns.
-source_clustering = 0.98              # Spatial clustering of sources. 0.0 = uniform random, 1.0 = tight clusters. [0.0, 1.0].
-source_dispersion = 0.5              # Inter-cluster dispersion. Controls how many distinct cluster centers sources
+source_clustering = 0.95              # Spatial clustering of sources. 0.0 = uniform random, 1.0 = tight clusters. [0.0, 1.0].
+source_dispersion = 0.6              # Inter-cluster dispersion. Controls how many distinct cluster centers sources
                                      # are distributed across. 0.0 = one shared center, 1.0 = one center per source.
                                      # Formula: num_clusters = max(1, round(source_dispersion * num_sources)). [0.0, 1.0].
 
@@ -187,7 +187,7 @@ reference_cooldown = 5.0                 # Neutral cooldown for readiness cost n
 # This creates selective pressure for thermal specialization — populations
 # near heat sources evolve higher optimal_temp, cooler regions evolve lower.
 
-thermal_sensitivity = 0.01              # Quadratic penalty coefficient for thermal mismatch.
+thermal_sensitivity = 0.1              # Quadratic penalty coefficient for thermal mismatch.
                                          # Higher values impose harsher penalties. Must be >= 0.0 and finite.
                                          # 0.0 disables the thermal penalty entirely.
 optimal_temp = 0.5                       # Seed genome default for heritable optimal_temp trait.
