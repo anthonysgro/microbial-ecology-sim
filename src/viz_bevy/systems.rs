@@ -43,7 +43,7 @@ pub fn tick_simulation(
         &sim.config,
         sim.tick,
         &viz_config.init_config.heat_source_config,
-        &viz_config.init_config.chemical_source_config,
+        &viz_config.init_config.chemical_species_configs,
     ) {
         Ok(predation_count) => {
             sim.tick += 1;

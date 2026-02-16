@@ -70,19 +70,6 @@ impl Grid {
             });
         }
 
-        // Validate decay rates: length must match num_chemicals, each in [0.0, 1.0].
-        if config.chemical_decay_rates.len() != config.num_chemicals {
-            return Err(GridError::DecayRateCountMismatch {
-                got: config.chemical_decay_rates.len(),
-                expected: config.num_chemicals,
-            });
-        }
-        for (species, &rate) in config.chemical_decay_rates.iter().enumerate() {
-            if !(0.0..=1.0).contains(&rate) {
-                return Err(GridError::InvalidDecayRate { species, rate });
-            }
-        }
-
         // Validate actor config fields when present.
         if let Some(ref ac) = actor_config {
             if ac.base_movement_cost < 0.0 {

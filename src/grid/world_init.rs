@@ -46,6 +46,36 @@ pub struct SourceFieldConfig {
     pub source_clustering: f32,
 }
 
+/// Per-species chemical configuration bundle.
+/// Groups source generation parameters, decay rate, and diffusion rate
+/// for a single chemical species.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct ChemicalSpeciesConfig {
+    /// Source generation parameters for this species.
+    pub source_config: SourceFieldConfig,
+    /// Exponential decay rate per tick. [0.0, 1.0].
+    /// Applied as concentration *= (1.0 - decay_rate).
+    pub decay_rate: f32,
+    /// Diffusion coefficient (discrete Laplacian scaling).
+    /// Must be non-negative and finite.
+    /// Stability: diffusion_rate * tick_duration * 8 < 1.0.
+    pub diffusion_rate: f32,
+}
+
+impl Default for ChemicalSpeciesConfig {
+    fn default() -> Self {
+        Self {
+            source_config: SourceFieldConfig {
+                max_sources: 3,
+                ..SourceFieldConfig::default()
+            },
+            decay_rate: 0.05,
+            diffusion_rate: 0.05,
+        }
+    }
+}
+
 /// Ranges and constraints for procedural world generation.
 /// All ranges are inclusive: [min, max].
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -53,8 +83,8 @@ pub struct SourceFieldConfig {
 pub struct WorldInitConfig {
     /// All heat source generation parameters.
     pub heat_source_config: SourceFieldConfig,
-    /// All chemical source generation parameters.
-    pub chemical_source_config: SourceFieldConfig,
+    /// Per-species chemical configuration bundles.
+    pub chemical_species_configs: Vec<ChemicalSpeciesConfig>,
 
     /// Range for initial per-cell heat values.
     pub min_initial_heat: f32,
@@ -94,10 +124,10 @@ impl Default for WorldInitConfig {
     fn default() -> Self {
         Self {
             heat_source_config: SourceFieldConfig::default(),
-            chemical_source_config: SourceFieldConfig {
-                max_sources: 3,
-                ..SourceFieldConfig::default()
-            },
+            chemical_species_configs: vec![
+                ChemicalSpeciesConfig::default(),
+                ChemicalSpeciesConfig::default(),
+            ],
             min_initial_heat: 0.0,
             max_initial_heat: 1.0,
             min_initial_concentration: 0.0,
@@ -120,6 +150,18 @@ pub enum WorldInitError {
 
     #[error("invalid config: {reason}")]
     InvalidConfig { reason: &'static str },
+
+    #[error("chemical species {species}: {source}")]
+    ChemicalSpeciesConfigError {
+        species: usize,
+        source: Box<WorldInitError>,
+    },
+
+    #[error("chemical species {species}: decay_rate ({value}) must be in [0.0, 1.0]")]
+    InvalidDecayRate { species: usize, value: f32 },
+
+    #[error("chemical species {species}: diffusion_rate ({value}) must be non-negative and finite")]
+    InvalidDiffusionRate { species: usize, value: f32 },
 
     #[error("grid construction failed: {0}")]
     GridError(#[from] GridError),
@@ -306,7 +348,29 @@ pub(crate) fn sample_clustered_position(
 /// Validate all `WorldInitConfig` ranges. Returns first error found.
 pub(crate) fn validate_config(config: &WorldInitConfig) -> Result<(), WorldInitError> {
     validate_source_field_config(&config.heat_source_config, &HEAT_LABELS)?;
-    validate_source_field_config(&config.chemical_source_config, &CHEMICAL_LABELS)?;
+
+    // Per-species chemical validation: source_config, decay_rate, diffusion_rate.
+    for (i, species_config) in config.chemical_species_configs.iter().enumerate() {
+        validate_source_field_config(&species_config.source_config, &CHEMICAL_LABELS)
+            .map_err(|e| WorldInitError::ChemicalSpeciesConfigError {
+                species: i,
+                source: Box::new(e),
+            })?;
+
+        if !(0.0..=1.0).contains(&species_config.decay_rate) {
+            return Err(WorldInitError::InvalidDecayRate {
+                species: i,
+                value: species_config.decay_rate,
+            });
+        }
+
+        if species_config.diffusion_rate < 0.0 || !species_config.diffusion_rate.is_finite() {
+            return Err(WorldInitError::InvalidDiffusionRate {
+                species: i,
+                value: species_config.diffusion_rate,
+            });
+        }
+    }
 
     if config.min_initial_heat > config.max_initial_heat {
         return Err(WorldInitError::InvalidRange {
@@ -390,9 +454,9 @@ pub(crate) fn generate_sources(
     }
 
     // Chemical sources: one batch per species, each with its own cluster center.
-    let chem_cfg = &config.chemical_source_config;
-    let chem_renewable_prob = f64::from(chem_cfg.renewable_fraction);
     for species in 0..num_chemicals {
+        let chem_cfg = &config.chemical_species_configs[species].source_config;
+        let chem_renewable_prob = f64::from(chem_cfg.renewable_fraction);
         let chem_count = rng.random_range(chem_cfg.min_sources..=chem_cfg.max_sources);
         let chem_center_col = rng.random_range(0..width);
         let chem_center_row = rng.random_range(0..height);

@@ -27,9 +27,11 @@ pub struct FullReport {
 
 #[derive(Debug, Clone)]
 pub struct StabilityReport {
-    pub diffusion_number: f32,
+    /// Per-species diffusion stability numbers (rate * tick_duration * 8).
+    pub diffusion_numbers: Vec<f32>,
+    /// Per-species stability flags.
+    pub diffusion_stable: Vec<bool>,
     pub thermal_stability_number: f32,
-    pub diffusion_stable: bool,
     pub thermal_stable: bool,
 }
 
@@ -74,23 +76,28 @@ pub struct SourceDensityReport {
 
 #[derive(Debug, Clone)]
 pub struct DiffusionReport {
-    pub chemical_length_scale: f32,
+    /// Per-species diffusion length scales (sqrt(rate * tick_duration)).
+    pub chemical_length_scales: Vec<f32>,
     pub thermal_length_scale: f32,
-    pub ticks_to_reach_5_cells: f32,
-    pub ticks_to_reach_10_cells: f32,
+    /// Per-species chemical half-lives (ln(2) / decay_rate).
     pub chemical_half_lives: Vec<f32>,
 }
 
 // ── Stub analysis functions ────────────────────────────────────────
 
-pub fn analyze_stability(grid: &GridConfig) -> StabilityReport {
-    let diffusion_number = grid.diffusion_rate * grid.tick_duration * 8.0;
+pub fn analyze_stability(grid: &GridConfig, world_init: &WorldInitConfig) -> StabilityReport {
+    let diffusion_numbers: Vec<f32> = world_init
+        .chemical_species_configs
+        .iter()
+        .map(|c| c.diffusion_rate * grid.tick_duration * 8.0)
+        .collect();
+    let diffusion_stable: Vec<bool> = diffusion_numbers.iter().map(|&n| n < 1.0).collect();
     let thermal_stability_number = grid.thermal_conductivity * grid.tick_duration * 8.0;
 
     StabilityReport {
-        diffusion_number,
+        diffusion_numbers,
+        diffusion_stable,
         thermal_stability_number,
-        diffusion_stable: diffusion_number < 1.0,
         thermal_stable: thermal_stability_number < 1.0,
     }
 }
@@ -101,7 +108,9 @@ pub fn analyze_chemical_budget(
     actor: Option<&ActorConfig>,
 ) -> ChemicalBudgetReport {
     let cell_count = (grid.width as f32) * (grid.height as f32);
-    let chem = &world_init.chemical_source_config;
+    let chem = &world_init.chemical_species_configs.first()
+        .map(|c| &c.source_config)
+        .expect("at least one chemical species config required");
 
     // Midpoint source count and midpoint emission rate (Req 3.1)
     let expected_source_count =
@@ -114,7 +123,9 @@ pub fn analyze_chemical_budget(
     // Use the first chemical species decay rate (species 0 is the metabolic currency).
     let avg_concentration =
         (world_init.min_initial_concentration + world_init.max_initial_concentration) / 2.0;
-    let decay_rate = grid.chemical_decay_rates.first().copied().unwrap_or(0.0);
+    let decay_rate = world_init.chemical_species_configs.first()
+        .map(|c| c.decay_rate)
+        .unwrap_or(0.0);
     let expected_decay_per_tick = cell_count * avg_concentration * decay_rate;
 
     // Actor consumption: midpoint actor count * consumption_rate (Req 3.3, 3.6)
@@ -197,7 +208,9 @@ pub fn analyze_carrying_capacity(
     actor: &ActorConfig,
 ) -> CarryingCapacityReport {
     let cell_count = (grid.width as usize) * (grid.height as usize);
-    let chem = &world_init.chemical_source_config;
+    let chem = &world_init.chemical_species_configs.first()
+        .map(|c| &c.source_config)
+        .expect("at least one chemical species config required");
 
     // Total chemical input per tick: midpoint source count * midpoint emission rate (Req 5.1).
     let expected_source_count =
@@ -228,7 +241,9 @@ pub fn analyze_source_density(
     world_init: &WorldInitConfig,
 ) -> SourceDensityReport {
     let cell_count = (grid.width as f32) * (grid.height as f32);
-    let chem = &world_init.chemical_source_config;
+    let chem = &world_init.chemical_species_configs.first()
+        .map(|c| &c.source_config)
+        .expect("at least one chemical species config required");
     let heat = &world_init.heat_source_config;
 
     // Midpoint source counts (Req 6.1, 6.2)
@@ -266,28 +281,20 @@ pub fn analyze_source_density(
     }
 }
 
-pub fn analyze_diffusion(grid: &GridConfig) -> DiffusionReport {
-    let chemical_length_scale = (grid.diffusion_rate * grid.tick_duration).sqrt();
+pub fn analyze_diffusion(grid: &GridConfig, world_init: &WorldInitConfig) -> DiffusionReport {
+    let chemical_length_scales: Vec<f32> = world_init
+        .chemical_species_configs
+        .iter()
+        .map(|c| (c.diffusion_rate * grid.tick_duration).sqrt())
+        .collect();
     let thermal_length_scale = (grid.thermal_conductivity * grid.tick_duration).sqrt();
 
-    let ticks_to_reach_5_cells = if chemical_length_scale > 0.0 {
-        (5.0 / chemical_length_scale).powi(2)
-    } else {
-        f32::INFINITY
-    };
-
-    let ticks_to_reach_10_cells = if chemical_length_scale > 0.0 {
-        (10.0 / chemical_length_scale).powi(2)
-    } else {
-        f32::INFINITY
-    };
-
-    let chemical_half_lives = grid
-        .chemical_decay_rates
+    let chemical_half_lives: Vec<f32> = world_init
+        .chemical_species_configs
         .iter()
-        .map(|&rate| {
-            if rate > 0.0 {
-                f32::ln(2.0) / rate
+        .map(|c| {
+            if c.decay_rate > 0.0 {
+                f32::ln(2.0) / c.decay_rate
             } else {
                 f32::INFINITY
             }
@@ -295,10 +302,8 @@ pub fn analyze_diffusion(grid: &GridConfig) -> DiffusionReport {
         .collect();
 
     DiffusionReport {
-        chemical_length_scale,
+        chemical_length_scales,
         thermal_length_scale,
-        ticks_to_reach_5_cells,
-        ticks_to_reach_10_cells,
         chemical_half_lives,
     }
 }
@@ -310,12 +315,12 @@ pub fn analyze(config: &WorldConfig) -> FullReport {
     let actor = config.actor.as_ref();
     let cell_count = (grid.width as usize) * (grid.height as usize);
 
-    let stability = analyze_stability(grid);
+    let stability = analyze_stability(grid, world_init);
     let chemical_budget = analyze_chemical_budget(grid, world_init, actor);
     let energy_budget = actor.map(|a| analyze_energy_budget(grid, world_init, a));
     let carrying_capacity = actor.map(|a| analyze_carrying_capacity(grid, world_init, a));
     let source_density = analyze_source_density(grid, world_init);
-    let diffusion = analyze_diffusion(grid);
+    let diffusion = analyze_diffusion(grid, world_init);
 
     FullReport {
         grid_width: grid.width,
@@ -377,13 +382,26 @@ pub fn format_report(report: &FullReport) -> String {
 
 fn format_stability(out: &mut String, s: &StabilityReport) {
     out.push_str("--- Numerical Stability ---\n");
-    out.push_str(&format!("  Diffusion number:          {:.4}\n", s.diffusion_number));
-    if s.diffusion_stable {
-        out.push_str("  [OK]   Chemical diffusion is stable\n");
-    } else {
-        out.push_str("  [WARN] Chemical diffusion is numerically UNSTABLE (>= 1.0)\n");
+    for (i, (&number, &stable)) in s
+        .diffusion_numbers
+        .iter()
+        .zip(s.diffusion_stable.iter())
+        .enumerate()
+    {
+        out.push_str(&format!("  Species {} diffusion number: {:.4}\n", i, number));
+        if stable {
+            out.push_str(&format!("  [OK]   Species {} chemical diffusion is stable\n", i));
+        } else {
+            out.push_str(&format!(
+                "  [WARN] Species {} chemical diffusion is numerically UNSTABLE (>= 1.0)\n",
+                i
+            ));
+        }
     }
-    out.push_str(&format!("  Thermal stability number:  {:.4}\n", s.thermal_stability_number));
+    out.push_str(&format!(
+        "  Thermal stability number:  {:.4}\n",
+        s.thermal_stability_number
+    ));
     if s.thermal_stable {
         out.push_str("  [OK]   Thermal diffusion is stable\n");
     } else {
@@ -465,10 +483,16 @@ fn format_source_density(out: &mut String, sd: &SourceDensityReport) {
 
 fn format_diffusion(out: &mut String, d: &DiffusionReport) {
     out.push_str("--- Diffusion Characterization ---\n");
-    out.push_str(&format!("  Chemical length scale:     {:.4} cells/tick\n", d.chemical_length_scale));
-    out.push_str(&format!("  Thermal length scale:      {:.4} cells/tick\n", d.thermal_length_scale));
-    out.push_str(&format!("  Ticks to reach 5 cells:    {:.1}\n", d.ticks_to_reach_5_cells));
-    out.push_str(&format!("  Ticks to reach 10 cells:   {:.1}\n", d.ticks_to_reach_10_cells));
+    for (i, &ls) in d.chemical_length_scales.iter().enumerate() {
+        out.push_str(&format!(
+            "  Species {} length scale:    {:.4} cells/tick\n",
+            i, ls
+        ));
+    }
+    out.push_str(&format!(
+        "  Thermal length scale:      {:.4} cells/tick\n",
+        d.thermal_length_scale
+    ));
     for (i, hl) in d.chemical_half_lives.iter().enumerate() {
         if hl.is_infinite() {
             out.push_str(&format!("  Species {} half-life:       ∞ (no decay)\n", i));

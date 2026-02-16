@@ -21,9 +21,13 @@ use crate::grid::Grid;
 /// 2.4 — deterministic species-index iteration order
 /// 2.5 — skip species with rate == 0.0
 /// 2.6 — clamp to >= 0.0
-pub fn run_decay(grid: &mut Grid, config: &GridConfig) -> Result<(), TickError> {
+pub fn run_decay(
+    grid: &mut Grid,
+    config: &GridConfig,
+    decay_rates: &[f32],
+) -> Result<(), TickError> {
     for species in 0..config.num_chemicals {
-        let rate = config.chemical_decay_rates[species];
+        let rate = decay_rates[species];
 
         // Skip species with zero decay — no copy, no write, no cost.
         if rate == 0.0 {

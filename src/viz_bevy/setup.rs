@@ -152,19 +152,10 @@ pub(super) fn format_config_info(
     writeln!(out, "width: {}", grid_config.width).ok();
     writeln!(out, "height: {}", grid_config.height).ok();
     writeln!(out, "num_chemicals: {}", grid_config.num_chemicals).ok();
-    writeln!(out, "diffusion_rate: {:.4}", grid_config.diffusion_rate).ok();
     writeln!(out, "thermal_conductivity: {:.4}", grid_config.thermal_conductivity).ok();
     writeln!(out, "ambient_heat: {:.4}", grid_config.ambient_heat).ok();
     writeln!(out, "tick_duration: {:.4}", grid_config.tick_duration).ok();
     writeln!(out, "num_threads: {}", grid_config.num_threads).ok();
-    write!(out, "chemical_decay_rates: [").ok();
-    for (i, rate) in grid_config.chemical_decay_rates.iter().enumerate() {
-        if i > 0 {
-            write!(out, ", ").ok();
-        }
-        write!(out, "{rate:.4}").ok();
-    }
-    writeln!(out, "]").ok();
 
     // ── World Init ─────────────────────────────────────────────────
     writeln!(out, "\n--- World Init ---").ok();
@@ -180,16 +171,21 @@ pub(super) fn format_config_info(
     writeln!(out, "heat respawn_cooldown_ticks: {}..{}", hs.min_respawn_cooldown_ticks, hs.max_respawn_cooldown_ticks).ok();
     writeln!(out, "heat source_clustering: {:.4}", hs.source_clustering).ok();
 
-    // Chemical sources
-    let cs = &init_config.chemical_source_config;
-    writeln!(out, "chemical sources: {}..{}", cs.min_sources, cs.max_sources).ok();
-    writeln!(out, "chemical emission_rate: {:.4}..{:.4}", cs.min_emission_rate, cs.max_emission_rate).ok();
-    writeln!(out, "chemical renewable_fraction: {:.4}", cs.renewable_fraction).ok();
-    writeln!(out, "chemical reservoir_capacity: {:.4}..{:.4}", cs.min_reservoir_capacity, cs.max_reservoir_capacity).ok();
-    writeln!(out, "chemical deceleration_threshold: {:.4}..{:.4}", cs.min_deceleration_threshold, cs.max_deceleration_threshold).ok();
-    writeln!(out, "chemical respawn_enabled: {}", cs.respawn_enabled).ok();
-    writeln!(out, "chemical respawn_cooldown_ticks: {}..{}", cs.min_respawn_cooldown_ticks, cs.max_respawn_cooldown_ticks).ok();
-    writeln!(out, "chemical source_clustering: {:.4}", cs.source_clustering).ok();
+    // Chemical species configs (per-species)
+    for (i, cs) in init_config.chemical_species_configs.iter().enumerate() {
+        writeln!(out, "\n  chemical species {i}:").ok();
+        writeln!(out, "    decay_rate: {:.4}", cs.decay_rate).ok();
+        writeln!(out, "    diffusion_rate: {:.4}", cs.diffusion_rate).ok();
+        let sc = &cs.source_config;
+        writeln!(out, "    sources: {}..{}", sc.min_sources, sc.max_sources).ok();
+        writeln!(out, "    emission_rate: {:.4}..{:.4}", sc.min_emission_rate, sc.max_emission_rate).ok();
+        writeln!(out, "    renewable_fraction: {:.4}", sc.renewable_fraction).ok();
+        writeln!(out, "    reservoir_capacity: {:.4}..{:.4}", sc.min_reservoir_capacity, sc.max_reservoir_capacity).ok();
+        writeln!(out, "    deceleration_threshold: {:.4}..{:.4}", sc.min_deceleration_threshold, sc.max_deceleration_threshold).ok();
+        writeln!(out, "    respawn_enabled: {}", sc.respawn_enabled).ok();
+        writeln!(out, "    respawn_cooldown_ticks: {}..{}", sc.min_respawn_cooldown_ticks, sc.max_respawn_cooldown_ticks).ok();
+        writeln!(out, "    source_clustering: {:.4}", sc.source_clustering).ok();
+    }
 
     // Initial ranges
     writeln!(out, "initial_heat: {:.4}..{:.4}", init_config.min_initial_heat, init_config.max_initial_heat).ok();

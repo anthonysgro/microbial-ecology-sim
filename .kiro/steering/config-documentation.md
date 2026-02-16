@@ -40,13 +40,11 @@ All configuration is loaded from a TOML file. Omitted sections/fields fall back 
 |---|---|---|---|
 | `width` | `u32` | `30` | Grid width in cells. |
 | `height` | `u32` | `30` | Grid height in cells. |
-| `num_chemicals` | `usize` | `1` | Number of chemical species tracked per cell. |
-| `diffusion_rate` | `f32` | `0.05` | Chemical diffusion coefficient (discrete Laplacian scaling). Stability: `diffusion_rate * tick_duration * 8 < 1.0`. |
+| `num_chemicals` | `usize` | `2` | Number of chemical species tracked per cell. |
 | `thermal_conductivity` | `f32` | `0.05` | Heat radiation coefficient. |
 | `ambient_heat` | `f32` | `0.0` | Boundary condition for heat: missing neighbors use this value. |
 | `tick_duration` | `f32` | `1.0` | Simulated time per tick (seconds). |
 | `num_threads` | `usize` | `4` | Number of spatial partitions (maps to rayon thread count). |
-| `chemical_decay_rates` | `Vec<f32>` | `[0.05]` | Per-species decay rate. Length must equal `num_chemicals`. Each value in `[0.0, 1.0]`. Applied as `concentration *= (1.0 - rate)` per tick. |
 
 ### `[world_init]` — `WorldInitConfig`
 
@@ -77,7 +75,18 @@ All configuration is loaded from a TOML file. Omitted sections/fields fall back 
 | `max_respawn_cooldown_ticks` | `u32` | `150` | Maximum ticks before a depleted source respawns. When `respawn_enabled` is true, must be `> 0` and `>= min_respawn_cooldown_ticks`. |
 | `source_clustering` | `f32` | `0.0` | Spatial clustering of sources. `0.0` = uniform random, `1.0` = tight clusters around a single center. Range: `[0.0, 1.0]`. |
 
-### `[world_init.chemical_source_config]` — `SourceFieldConfig` (chemical)
+### `[[world_init.chemical_species_configs]]` — `ChemicalSpeciesConfig`
+
+One entry per chemical species. The i-th entry configures Chemical_Species i. Length must equal `num_chemicals`.
+
+| TOML key | Type | Default | Description |
+|---|---|---|---|
+| `decay_rate` | `f32` | `0.05` | Exponential decay rate per tick. `[0.0, 1.0]`. Applied as `concentration *= (1.0 - decay_rate)`. |
+| `diffusion_rate` | `f32` | `0.05` | Diffusion coefficient (discrete Laplacian scaling). Must be non-negative and finite. Stability: `diffusion_rate * tick_duration * 8 < 1.0`. |
+
+Each entry contains a nested `source_config` table with the same fields as `heat_source_config`:
+
+### `[world_init.chemical_species_configs.source_config]` — `SourceFieldConfig` (per species)
 
 Same fields as `heat_source_config`. Defaults differ only in:
 

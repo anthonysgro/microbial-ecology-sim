@@ -4,7 +4,7 @@
 //! emitters that inject heat or chemical values into field write buffers
 //! each tick during the WARM emission phase.
 
-use crate::grid::world_init::{SourceFieldConfig, sample_clustered_position};
+use crate::grid::world_init::{ChemicalSpeciesConfig, SourceFieldConfig, sample_clustered_position};
 
 /// Persistent cluster center for a source field type.
 /// Stored on Grid during world init when `source_clustering > 0.0`.
@@ -532,7 +532,7 @@ pub fn run_respawn_phase(
     rng: &mut impl Rng,
     current_tick: u64,
     heat_config: &SourceFieldConfig,
-    chemical_config: &SourceFieldConfig,
+    chemical_species_configs: &[ChemicalSpeciesConfig],
     _num_chemicals: usize,
 ) {
     // Drain mature entries from the queue. This detaches them so we can
@@ -548,7 +548,7 @@ pub fn run_respawn_phase(
     for entry in mature {
         let config = match entry.field {
             SourceField::Heat => heat_config,
-            SourceField::Chemical(_) => chemical_config,
+            SourceField::Chemical(i) => &chemical_species_configs[i].source_config,
         };
 
         // Collect occupied cell indices for this field type.

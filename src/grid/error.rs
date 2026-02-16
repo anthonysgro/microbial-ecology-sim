@@ -6,8 +6,6 @@ pub enum GridError {
     InvalidDimensions { width: u32, height: u32 },
     OutOfBounds { x: u32, y: u32, width: u32, height: u32 },
     InvalidChemicalSpecies { species: usize, num_chemicals: usize },
-    DecayRateCountMismatch { got: usize, expected: usize },
-    InvalidDecayRate { species: usize, rate: f32 },
     InvalidActorConfig { field: &'static str, value: f32, reason: &'static str },
 }
 
@@ -30,18 +28,6 @@ impl fmt::Display for GridError {
                 write!(
                     f,
                     "chemical species {species} out of range (max {num_chemicals})"
-                )
-            }
-            Self::DecayRateCountMismatch { got, expected } => {
-                write!(
-                    f,
-                    "chemical_decay_rates length {got} does not match num_chemicals {expected}"
-                )
-            }
-            Self::InvalidDecayRate { species, rate } => {
-                write!(
-                    f,
-                    "chemical decay rate for species {species} is {rate}, must be in [0.0, 1.0]"
                 )
             }
             Self::InvalidActorConfig { field, value, reason } => {

@@ -93,19 +93,31 @@ fn diffuse_cell(read: &[f32], idx: usize, x: u32, y: u32, p: &DiffuseParams) -> 
 /// 3.4 — mass conservation (discrete Laplacian preserves total mass
 ///        for interior cells; boundary cells leak to zero)
 /// 3.5 — data parallelism via spatial partitions
-pub fn run_diffusion(grid: &mut Grid, config: &GridConfig) -> Result<(), TickError> {
-    let params = DiffuseParams {
-        width: config.width,
-        height: config.height,
-        rate: config.diffusion_rate,
-        dt: config.tick_duration,
-    };
-
+pub fn run_diffusion(
+    grid: &mut Grid,
+    config: &GridConfig,
+    diffusion_rates: &[f32],
+) -> Result<(), TickError> {
     // Clone partitions to release the borrow on grid before we take
     // mutable references to the chemical buffers.
     let partitions = grid.partitions().to_vec();
 
     for species in 0..config.num_chemicals {
+        let rate = diffusion_rates[species];
+
+        // Skip species with zero diffusion — no read, no write, no cost.
+        // Requirement 6.3.
+        if rate == 0.0 {
+            continue;
+        }
+
+        let params = DiffuseParams {
+            width: config.width,
+            height: config.height,
+            rate,
+            dt: config.tick_duration,
+        };
+
         let (read, write) = grid.read_write_chemical(species)
             .expect("species index validated by config.num_chemicals");
 

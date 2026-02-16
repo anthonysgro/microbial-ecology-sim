@@ -11,8 +11,6 @@ pub struct GridConfig {
     pub height: u32,
     /// Fixed number of chemical species tracked per cell.
     pub num_chemicals: usize,
-    /// Chemical diffusion coefficient (discrete Laplacian scaling factor).
-    pub diffusion_rate: f32,
     /// Heat radiation coefficient (thermal conductivity).
     pub thermal_conductivity: f32,
     /// Boundary condition for heat: missing neighbors use this value.
@@ -21,9 +19,6 @@ pub struct GridConfig {
     pub tick_duration: f32,
     /// Number of spatial partitions (maps to thread count for rayon).
     pub num_threads: usize,
-    /// Per-species chemical decay rate. Length must equal `num_chemicals`.
-    /// Each value in [0.0, 1.0]. Applied as `concentration *= (1.0 - rate)` per tick.
-    pub chemical_decay_rates: Vec<f32>,
 }
 
 impl Default for GridConfig {
@@ -31,13 +26,11 @@ impl Default for GridConfig {
         Self {
             width: 30,
             height: 30,
-            num_chemicals: 1,
-            diffusion_rate: 0.05,
+            num_chemicals: 2,
             thermal_conductivity: 0.05,
             ambient_heat: 0.0,
             tick_duration: 1.0,
             num_threads: 4,
-            chemical_decay_rates: vec![0.05; 1],
         }
     }
 }

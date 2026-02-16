@@ -16,12 +16,10 @@ seed = 773
 width  = 50
 height = 50
 num_chemicals = 1                    # Actors sense and consume species 0 only
-diffusion_rate = 0.02                 # Moderate spread — gradients persist 10–20 ticks
 thermal_conductivity = 0.04          # Heat spreads slower than chemicals
 ambient_heat = 0.2                   # Mild ambient — edges don't become dead zones
 tick_duration = 1.0
 num_threads = 1
-chemical_decay_rates = [0.005]        # Slow decay — sources must outpace it to build gradients
 
 # ─── World Initialization ───────────────────────────────────────────
 
@@ -50,8 +48,12 @@ min_respawn_cooldown_ticks = 50      # Minimum ticks before a depleted source re
 max_respawn_cooldown_ticks = 150     # Maximum ticks before a depleted source respawns.
 source_clustering = 1                # Spatial clustering of sources. 0.0 = uniform random, 1.0 = tight clusters. [0.0, 1.0].
 
-# Chemical sources: moderate count, low emission — actors out-consume any single source
-[world_init.chemical_source_config]
+# Chemical species 0: moderate count, low emission — actors out-consume any single source
+[[world_init.chemical_species_configs]]
+decay_rate = 0.005                   # Slow decay — sources must outpace it to build gradients
+diffusion_rate = 0.02                # Moderate spread — gradients persist 10–20 ticks
+
+[world_init.chemical_species_configs.source_config]
 min_sources = 2
 max_sources = 2
 min_emission_rate = 0.2

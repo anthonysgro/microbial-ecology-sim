@@ -12,7 +12,7 @@ use crate::grid::diffusion::run_diffusion;
 use crate::grid::error::TickError;
 use crate::grid::heat::run_heat;
 use crate::grid::source::{run_emission, run_respawn_phase, RespawnEntry, SourceField};
-use crate::grid::world_init::SourceFieldConfig;
+use crate::grid::world_init::{ChemicalSpeciesConfig, SourceFieldConfig};
 use crate::grid::Grid;
 use rand::{Rng, SeedableRng};
 use rand_chacha::ChaCha8Rng;
@@ -86,7 +86,7 @@ fn run_emission_phase(
     _config: &GridConfig,
     current_tick: u64,
     heat_config: &SourceFieldConfig,
-    chemical_config: &SourceFieldConfig,
+    chemical_species_configs: &[ChemicalSpeciesConfig],
     rng: &mut ChaCha8Rng,
 ) -> Result<(), TickError> {
     if grid.sources().is_empty() && grid.respawn_queue().is_empty() {
@@ -134,7 +134,7 @@ fn run_emission_phase(
     for event in &depletions {
         let field_config = match event.field {
             SourceField::Heat => heat_config,
-            SourceField::Chemical(_) => chemical_config,
+            SourceField::Chemical(i) => &chemical_species_configs[i].source_config,
         };
         if field_config.respawn_enabled {
             let cooldown = rng.random_range(
@@ -205,7 +205,7 @@ fn run_emission_phase(
         rng,
         current_tick,
         heat_config,
-        chemical_config,
+        chemical_species_configs,
         num_chemicals,
     );
 
@@ -392,15 +392,15 @@ fn run_actor_phases(grid: &mut Grid, _config: &GridConfig, tick: u64) -> Result<
 impl TickOrchestrator {
     /// Advance the simulation by one tick.
     ///
-    /// Requires `SourceFieldConfig` references for the emission/respawn phases.
-    /// These control depletion event processing (cooldown sampling) and
-    /// replacement source parameter sampling.
+    /// Requires `SourceFieldConfig` reference for heat emission/respawn and
+    /// `&[ChemicalSpeciesConfig]` for per-species chemical emission, respawn,
+    /// diffusion, and decay.
     pub fn step(
         grid: &mut Grid,
         config: &GridConfig,
         tick: u64,
         heat_source_config: &SourceFieldConfig,
-        chemical_source_config: &SourceFieldConfig,
+        chemical_species_configs: &[ChemicalSpeciesConfig],
     ) -> Result<usize, TickError> {
         // Per-tick RNG for emission-phase cooldown sampling and respawn-phase
         // source parameter sampling. Seeded deterministically from grid seed +
@@ -416,7 +416,7 @@ impl TickOrchestrator {
             config,
             tick,
             heat_source_config,
-            chemical_source_config,
+            chemical_species_configs,
             &mut emission_rng,
         )?;
 
@@ -432,7 +432,13 @@ impl TickOrchestrator {
         };
 
         // Phase 5: Chemical diffusion
-        run_diffusion(grid, config)?;
+        // Extract per-species diffusion rates into a contiguous stack-allocated
+        // slice. SmallVec<[f32; 8]> covers up to 8 species without heap alloc.
+        let diffusion_rates: smallvec::SmallVec<[f32; 8]> = chemical_species_configs
+            .iter()
+            .map(|c| c.diffusion_rate)
+            .collect();
+        run_diffusion(grid, config, &diffusion_rates)?;
         for species in 0..config.num_chemicals {
             let write_buf = grid
                 .write_chemical(species)
@@ -449,7 +455,12 @@ impl TickOrchestrator {
         grid.swap_chemicals();
 
         // Phase 6: Chemical decay (HOT) — apply per-species decay after diffusion
-        run_decay(grid, config)?;
+        // Extract per-species decay rates into a contiguous stack-allocated slice.
+        let decay_rates: smallvec::SmallVec<[f32; 8]> = chemical_species_configs
+            .iter()
+            .map(|c| c.decay_rate)
+            .collect();
+        run_decay(grid, config, &decay_rates)?;
         for species in 0..config.num_chemicals {
             let write_buf = grid
                 .write_chemical(species)

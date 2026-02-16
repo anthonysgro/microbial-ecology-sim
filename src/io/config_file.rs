@@ -161,7 +161,7 @@ pub fn to_toml_string(config: &WorldConfig) -> Result<String, ConfigError> {
 ///
 /// Checks performed (in order):
 /// 1. `world_init` range validation via `world_init::validate_config`.
-/// 2. `chemical_decay_rates.len() == num_chemicals`.
+/// 2. `chemical_species_configs.len() == num_chemicals` (TODO: task 2.2).
 /// 3. `actor.removal_threshold <= 0.0` (if actor config present).
 pub fn validate_world_config(config: &WorldConfig) -> Result<(), ConfigError> {
     // 1. Existing range checks on WorldInitConfig.
@@ -169,12 +169,12 @@ pub fn validate_world_config(config: &WorldConfig) -> Result<(), ConfigError> {
         reason: e.to_string(),
     })?;
 
-    // 2. Decay rates length must match num_chemicals.
-    if config.grid.chemical_decay_rates.len() != config.grid.num_chemicals {
+    // 2. Chemical species configs length must match num_chemicals.
+    if config.world_init.chemical_species_configs.len() != config.grid.num_chemicals {
         return Err(ConfigError::Validation {
             reason: format!(
-                "chemical_decay_rates length ({}) does not match num_chemicals ({})",
-                config.grid.chemical_decay_rates.len(),
+                "chemical_species_configs length ({}) must equal num_chemicals ({})",
+                config.world_init.chemical_species_configs.len(),
                 config.grid.num_chemicals,
             ),
         });
