@@ -6,8 +6,8 @@ Persist cluster centers computed during `generate_sources` on the `Grid`, then u
 
 ## Tasks
 
-- [-] 1. Add ClusterCenter struct and ClusterCenterMap type
-  - [-] 1.1 Define `ClusterCenter` struct and `ClusterCenterMap` type alias in `src/grid/source.rs`
+- [x] 1. Add ClusterCenter struct and ClusterCenterMap type
+  - [x] 1.1 Define `ClusterCenter` struct and `ClusterCenterMap` type alias in `src/grid/source.rs`
     - Add `ClusterCenter { col: u32, row: u32 }` with `#[derive(Debug, Clone, Copy, PartialEq, Eq)]`
     - Add `pub type ClusterCenterMap = SmallVec<[(SourceField, ClusterCenter); 4]>;`
     - Add `pub fn lookup_cluster_center(map: &ClusterCenterMap, field: SourceField) -> Option<ClusterCenter>` free function
@@ -19,8 +19,8 @@ Persist cluster centers computed during `generate_sources` on the `Grid`, then u
     - Test returns `None` for missing field
     - _Requirements: 1.3_
 
-- [ ] 2. Add `cluster_centers` field to `Grid`
-  - [ ] 2.1 Add `cluster_centers: ClusterCenterMap` field to `Grid` struct in `src/grid/mod.rs`
+- [x] 2. Add `cluster_centers` field to `Grid`
+  - [x] 2.1 Add `cluster_centers: ClusterCenterMap` field to `Grid` struct in `src/grid/mod.rs`
     - Initialize as `SmallVec::new()` in `Grid::new`
     - Add `pub fn cluster_centers(&self) -> &ClusterCenterMap` accessor
     - Add `pub fn cluster_centers_mut(&mut self) -> &mut ClusterCenterMap` accessor
@@ -29,11 +29,11 @@ Persist cluster centers computed during `generate_sources` on the `Grid`, then u
   - [ ]* 2.2 Write unit test that `Grid::new` initializes `cluster_centers` as empty
     - _Requirements: 1.4_
 
-- [ ] 3. Promote `sample_clustered_position` visibility and store centers during init
-  - [ ] 3.1 Change `sample_clustered_position` in `src/grid/world_init.rs` from `fn` to `pub(crate) fn`
+- [x] 3. Promote `sample_clustered_position` visibility and store centers during init
+  - [x] 3.1 Change `sample_clustered_position` in `src/grid/world_init.rs` from `fn` to `pub(crate) fn`
     - _Requirements: 6.2_
 
-  - [ ] 3.2 Modify `generate_sources` to store cluster centers in the Grid's ClusterCenterMap
+  - [x] 3.2 Modify `generate_sources` to store cluster centers in the Grid's ClusterCenterMap
     - After sampling `heat_center_col`/`heat_center_row`, push `(SourceField::Heat, ClusterCenter { col, row })` if `heat_cfg.source_clustering > 0.0`
     - After sampling each chemical species center, push `(SourceField::Chemical(species), ClusterCenter { col, row })` if `chem_cfg.source_clustering > 0.0`
     - _Requirements: 1.1, 1.2_
@@ -42,11 +42,11 @@ Persist cluster centers computed during `generate_sources` on the `Grid`, then u
     - **Property 1: Cluster center storage biconditional**
     - **Validates: Requirements 1.1, 1.2, 1.3**
 
-- [ ] 4. Checkpoint
+- [x] 4. Checkpoint
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 5. Modify `run_respawn_phase` to use stored cluster centers
-  - [ ] 5.1 Update `run_respawn_phase` in `src/grid/source.rs` to look up cluster center and branch on result
+- [x] 5. Modify `run_respawn_phase` to use stored cluster centers
+  - [x] 5.1 Update `run_respawn_phase` in `src/grid/source.rs` to look up cluster center and branch on result
     - Import `sample_clustered_position` from `crate::grid::world_init`
     - Before cell selection, call `lookup_cluster_center(grid.cluster_centers(), entry.field)`
     - If `Some(center)`: use `sample_clustered_position` with stored center, grid dimensions, and `config.source_clustering` in a rejection-sampling loop over occupied cells

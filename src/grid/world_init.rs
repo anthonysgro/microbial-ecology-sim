@@ -12,7 +12,7 @@ use crate::grid::actor::{Actor, ActorError, HeritableTraits};
 use crate::grid::actor_config::ActorConfig;
 use crate::grid::config::{CellDefaults, GridConfig};
 use crate::grid::error::GridError;
-use crate::grid::source::{RespawnQueue, Source, SourceError, SourceField};
+use crate::grid::source::{ClusterCenter, RespawnQueue, Source, SourceError, SourceField};
 
 /// Per-field-type configuration for source generation.
 /// Reusable for any fundamental (heat, chemical, future types).
@@ -269,7 +269,7 @@ fn validate_source_field_config(
 ///
 /// At `source_clustering == 1.0`, sigma drops below 0.5 and all sources land
 /// directly on the cluster center.
-fn sample_clustered_position(
+pub(crate) fn sample_clustered_position(
     rng: &mut impl Rng,
     center_col: u32,
     center_row: u32,
@@ -361,6 +361,12 @@ pub(crate) fn generate_sources(
     // Pick a cluster center for the entire heat batch.
     let heat_center_col = rng.random_range(0..width);
     let heat_center_row = rng.random_range(0..height);
+    if heat_cfg.source_clustering > 0.0 {
+        grid.cluster_centers_mut().push((
+            SourceField::Heat,
+            ClusterCenter { col: heat_center_col, row: heat_center_row },
+        ));
+    }
     for _ in 0..heat_count {
         let cell_index = sample_clustered_position(
             rng,
@@ -390,6 +396,12 @@ pub(crate) fn generate_sources(
         let chem_count = rng.random_range(chem_cfg.min_sources..=chem_cfg.max_sources);
         let chem_center_col = rng.random_range(0..width);
         let chem_center_row = rng.random_range(0..height);
+        if chem_cfg.source_clustering > 0.0 {
+            grid.cluster_centers_mut().push((
+                SourceField::Chemical(species),
+                ClusterCenter { col: chem_center_col, row: chem_center_row },
+            ));
+        }
         for _ in 0..chem_count {
             let cell_index = sample_clustered_position(
                 rng,

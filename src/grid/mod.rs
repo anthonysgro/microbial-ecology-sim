@@ -18,7 +18,8 @@ use config::{CellDefaults, GridConfig};
 use error::GridError;
 use field_buffer::FieldBuffer;
 use partition::{compute_partitions, Partition};
-use source::{RespawnQueue, SourceRegistry};
+use smallvec::SmallVec;
+use source::{ClusterCenterMap, RespawnQueue, SourceRegistry};
 
 /// Top-level environment grid.
 ///
@@ -44,6 +45,9 @@ pub struct Grid {
     spawn_buffer: Vec<(usize, f32, HeritableTraits)>,
     /// Pre-allocated buffer: slot index → target cell index for movement.
     movement_targets: Vec<Option<usize>>,
+    /// Per-field-type cluster centers, populated during `generate_sources`
+    /// when `source_clustering > 0.0`. Used by `run_respawn_phase`.
+    cluster_centers: ClusterCenterMap,
     /// Master simulation seed, stored for per-tick RNG derivation.
     seed: u64,
 }
@@ -307,6 +311,7 @@ impl Grid {
             removal_buffer,
             spawn_buffer,
             movement_targets,
+            cluster_centers: SmallVec::new(),
             seed,
         })
     }
@@ -441,6 +446,18 @@ impl Grid {
     /// Mutable access to the respawn queue.
     pub fn respawn_queue_mut(&mut self) -> &mut RespawnQueue {
         &mut self.respawn_queue
+    }
+
+    // ── Cluster center access ──────────────────────────────────────
+
+    /// Immutable access to the cluster center map.
+    pub fn cluster_centers(&self) -> &ClusterCenterMap {
+        &self.cluster_centers
+    }
+
+    /// Mutable access to the cluster center map.
+    pub fn cluster_centers_mut(&mut self) -> &mut ClusterCenterMap {
+        &mut self.cluster_centers
     }
 
     /// Temporarily take the source registry out of the grid.

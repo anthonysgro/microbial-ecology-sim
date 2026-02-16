@@ -31,8 +31,8 @@ max_initial_heat = 0.6               # Warm baseline — not uniform, creates ea
 min_initial_concentration = 0.0
 max_initial_concentration = 0.3      # Light chemical dusting — sources dominate quickly
 
-min_actors = 2
-max_actors = 3                      # Enough actors for competition without grid saturation
+min_actors = 0
+max_actors = 0                      # Enough actors for competition without grid saturation
 
 # Heat sources: a few strong emitters create thermal "hotspots"
 [world_init.heat_source_config]
@@ -52,8 +52,8 @@ source_clustering = 1                # Spatial clustering of sources. 0.0 = unif
 
 # Chemical sources: moderate count, low emission — actors out-consume any single source
 [world_init.chemical_source_config]
-min_sources = 3
-max_sources = 3
+min_sources = 2
+max_sources = 2
 min_emission_rate = 0.2
 max_emission_rate = 0.5              # Below consumption_rate (1.5) — actors drain sources
 renewable_fraction = 0               # Mostly finite — forces migration as sources deplete

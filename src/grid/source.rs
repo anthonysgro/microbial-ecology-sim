@@ -4,7 +4,31 @@
 //! emitters that inject heat or chemical values into field write buffers
 //! each tick during the WARM emission phase.
 
-use crate::grid::world_init::SourceFieldConfig;
+use crate::grid::world_init::{SourceFieldConfig, sample_clustered_position};
+
+/// Persistent cluster center for a source field type.
+/// Stored on Grid during world init when `source_clustering > 0.0`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ClusterCenter {
+    pub col: u32,
+    pub row: u32,
+}
+
+/// Maps each `SourceField` variant to its cluster center.
+/// `SmallVec<[(SourceField, ClusterCenter); 4]>` — stack-allocated for
+/// typical cardinality (1 heat + 1–3 chemical species).
+pub type ClusterCenterMap = SmallVec<[(SourceField, ClusterCenter); 4]>;
+
+/// Look up the cluster center for a given field, if one was stored.
+pub fn lookup_cluster_center(
+    map: &ClusterCenterMap,
+    field: SourceField,
+) -> Option<ClusterCenter> {
+    map.iter()
+        .find(|(f, _)| *f == field)
+        .map(|(_, c)| *c)
+}
+
 use crate::grid::Grid;
 use rand::Rng;
 use smallvec::SmallVec;
@@ -545,23 +569,60 @@ pub fn run_respawn_phase(
             continue;
         }
 
-        // Select a random unoccupied cell. For sparse grids (typical case),
-        // random sampling terminates in 1–2 attempts. For dense grids
-        // (occupancy > 50%), build a vec of unoccupied indices and sample
-        // uniformly from it.
-        let cell_index = if occupied.len() * 2 > cell_count {
-            // Dense: build unoccupied list and sample.
-            let unoccupied: Vec<usize> = (0..cell_count)
-                .filter(|i| !occupied.contains(i))
-                .collect();
-            // unoccupied is non-empty because we checked occupied.len() < cell_count above.
-            unoccupied[rng.random_range(0..unoccupied.len())]
-        } else {
-            // Sparse: rejection-sample random indices.
-            loop {
-                let candidate = rng.random_range(0..cell_count);
-                if !occupied.contains(&candidate) {
-                    break candidate;
+        // Select an unoccupied cell. If a cluster center was stored for this
+        // field type (source_clustering > 0.0 at init), sample near that center
+        // using the same Gaussian offset used during world init. Otherwise fall
+        // back to uniform-random placement (pre-feature behavior).
+        let center = lookup_cluster_center(grid.cluster_centers(), entry.field);
+
+        let cell_index = match center {
+            Some(c) => {
+                // Clustered respawn: rejection-sample near the stored center.
+                // Cap retries to avoid infinite loops when the cluster region
+                // is densely occupied (high source_clustering concentrates
+                // candidates into a small area). After the cap, fall back to
+                // uniform selection from unoccupied cells.
+                const MAX_CLUSTER_RETRIES: u32 = 64;
+                let mut found = None;
+                for _ in 0..MAX_CLUSTER_RETRIES {
+                    let candidate = sample_clustered_position(
+                        rng,
+                        c.col,
+                        c.row,
+                        grid.width(),
+                        grid.height(),
+                        config.source_clustering,
+                    );
+                    if !occupied.contains(&candidate) {
+                        found = Some(candidate);
+                        break;
+                    }
+                }
+                found.unwrap_or_else(|| {
+                    // Fallback: uniform sample from unoccupied cells.
+                    let unoccupied: Vec<usize> = (0..cell_count)
+                        .filter(|i| !occupied.contains(i))
+                        .collect();
+                    unoccupied[rng.random_range(0..unoccupied.len())]
+                })
+            }
+            None => {
+                // No cluster center → uniform random (existing logic).
+                if occupied.len() * 2 > cell_count {
+                    // Dense: build unoccupied list and sample.
+                    let unoccupied: Vec<usize> = (0..cell_count)
+                        .filter(|i| !occupied.contains(i))
+                        .collect();
+                    // Non-empty: saturation check above guarantees occupied < cell_count.
+                    unoccupied[rng.random_range(0..unoccupied.len())]
+                } else {
+                    // Sparse: rejection-sample random indices.
+                    loop {
+                        let candidate = rng.random_range(0..cell_count);
+                        if !occupied.contains(&candidate) {
+                            break candidate;
+                        }
+                    }
                 }
             }
         };
