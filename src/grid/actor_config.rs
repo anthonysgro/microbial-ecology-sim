@@ -25,6 +25,10 @@ fn default_kin_tolerance() -> f32 { 0.5 }
 fn default_trait_kin_tolerance_min() -> f32 { 0.0 }
 fn default_trait_kin_tolerance_max() -> f32 { 1.0 }
 fn default_reference_metabolic_rate() -> f32 { 0.05 }
+fn default_thermal_sensitivity() -> f32 { 0.01 }
+fn default_optimal_temp() -> f32 { 0.5 }
+fn default_trait_optimal_temp_min() -> f32 { 0.0 }
+fn default_trait_optimal_temp_max() -> f32 { 2.0 }
 
 /// Configuration parameters for Actor metabolism, sensing, and spawning.
 ///
