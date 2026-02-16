@@ -57,8 +57,8 @@ decay_rate = 0.005                   # Slow decay — sources must outpace it to
 diffusion_rate = 0.03                # Moderate spread — gradients persist 10–20 ticks
 
 [world_init.chemical_species_configs.source_config]
-min_sources = 5
-max_sources = 5
+min_sources = 8
+max_sources = 10
 min_emission_rate = 0.3
 max_emission_rate = 0.6              # Below consumption_rate (1.5) — actors drain sources
 renewable_fraction = 0               # Mostly finite — forces migration as sources deplete
