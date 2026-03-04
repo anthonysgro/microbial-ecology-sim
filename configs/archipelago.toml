@@ -21,8 +21,8 @@
 seed = 42
 
 [grid]
-width  = 300
-height = 300
+width  = 400
+height = 400
 num_chemicals = 1
 thermal_conductivity = 0.02          # Slow heat spread — thermal zones stay local
 ambient_heat = 0.1                   # Cool baseline — islands of warmth stand out
@@ -49,8 +49,8 @@ max_reservoir_capacity = 1500.0
 min_deceleration_threshold = 0.05
 max_deceleration_threshold = 0.2
 respawn_enabled = false              # Finite heat sources don't come back
-source_clustering = 0.98             # Very tight clusters
-source_dispersion = 0.15             # Few distinct cluster centers — true islands
+source_clustering = 0.96             # Tight clusters — thermal landmarks with internal spread
+source_dispersion = 0.1              # Few distinct thermal islands
 
 [[world_init.chemical_species_configs]]
 decay_rate = 0.01                    # Slow decay — gradients persist, marking island locations
@@ -69,8 +69,8 @@ max_deceleration_threshold = 0.05
 respawn_enabled = true               # Islands eventually regenerate
 min_respawn_cooldown_ticks = 200     # But it takes a long time
 max_respawn_cooldown_ticks = 500
-source_clustering = 0.99             # Extremely tight — sources are on top of each other
-source_dispersion = 0.08             # 4-6 distinct islands on the map
+source_clustering = 0.97             # Tight clusters with internal granularity
+source_dispersion = 0.05             # 3-4 distinct islands on the map
 
 [actor]
 consumption_rate = 1.2

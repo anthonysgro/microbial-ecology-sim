@@ -8,12 +8,12 @@ Pick one, copy it to your working config, and tweak from there.
 
 | Preset | Grid | Key Dynamic | What to Watch |
 |---|---|---|---|
-| `archipelago.toml` | 300×300 | Isolated resource islands with empty ocean between | Memory evolution, long-range foraging, migration patterns |
-| `thermal-crucible.toml` | 200×200 | Extreme heat gradients from massive emitters | Thermal speciation, spatial niche partitioning |
-| `feast-and-famine.toml` | 250×250 | All non-renewable sources, no respawn | Population boom/crash cycles, bottleneck survival strategies |
+| `archipelago.toml` | 400×400 | Isolated resource islands with empty ocean between | Memory evolution, long-range foraging, migration patterns |
+| `thermal-crucible.toml` | 400×400 | Extreme heat gradients from massive emitters | Thermal speciation, spatial niche partitioning |
+| `feast-and-famine.toml` | 400×400 | All non-renewable sources, no respawn | Population boom/crash cycles, bottleneck survival strategies |
 | `dense-petri-dish.toml` | 60×60 | Packed grid, abundant resources, high contact | Predation arms race, kin defense, social dynamics |
-| `sparse-savanna.toml` | 500×500 | Huge grid, few weak sources, wide spacing | K-strategy selection, efficient foraging, low reproduction |
-| `cognitive-pressure.toml` | 200×200 | Respawning clustered sources, active predation | Memory-biased sensing payoff, site fidelity vs avoidance |
+| `sparse-savanna.toml` | 400×400 | Large grid, few weak sources, wide spacing | K-strategy selection, efficient foraging, low reproduction |
+| `cognitive-pressure.toml` | 400×400 | Respawning clustered sources, active predation | Memory-biased sensing payoff, site fidelity vs avoidance |
 
 ## Usage
 

@@ -21,8 +21,8 @@
 seed = 666
 
 [grid]
-width  = 250
-height = 250
+width  = 400
+height = 400
 num_chemicals = 1
 thermal_conductivity = 0.04
 ambient_heat = 0.2
@@ -48,8 +48,8 @@ max_reservoir_capacity = 1500.0
 min_deceleration_threshold = 0.05
 max_deceleration_threshold = 0.2
 respawn_enabled = false
-source_clustering = 0.8
-source_dispersion = 0.5
+source_clustering = 0.95
+source_dispersion = 0.06
 
 [[world_init.chemical_species_configs]]
 decay_rate = 0.003                   # Very slow decay — what's left lingers
@@ -66,8 +66,8 @@ max_reservoir_capacity = 600.0       # Moderate reservoirs — feast lasts ~500-
 min_deceleration_threshold = 0.05
 max_deceleration_threshold = 0.15
 respawn_enabled = false              # NO RESPAWN — once it's gone, it's gone
-source_clustering = 0.6              # Moderate clustering
-source_dispersion = 0.3
+source_clustering = 0.95             # Clustered abundance — rich patches with internal spread
+source_dispersion = 0.04             # Few mega-patches that deplete together
 
 [actor]
 consumption_rate = 1.8               # Aggressive consumption — accelerates depletion

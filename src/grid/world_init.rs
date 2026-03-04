@@ -364,8 +364,10 @@ pub(crate) fn sample_clustered_position(
     let dx = normal.sample(rng).round() as i32;
     let dy = normal.sample(rng).round() as i32;
 
-    let col = (center_col as i32 + dx).clamp(0, width as i32 - 1) as usize;
-    let row = (center_row as i32 + dy).clamp(0, height as i32 - 1) as usize;
+    // Toroidal wrapping: sources that overshoot the grid wrap around
+    // instead of clamping to edges (which causes artificial edge accumulation).
+    let col = (center_col as i32 + dx).rem_euclid(width as i32) as usize;
+    let row = (center_row as i32 + dy).rem_euclid(height as i32) as usize;
 
     row * width as usize + col
 }

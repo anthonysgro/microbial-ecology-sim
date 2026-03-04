@@ -48,8 +48,8 @@ max_reservoir_capacity = 1000.0
 min_deceleration_threshold = 0.1
 max_deceleration_threshold = 0.3
 respawn_enabled = false
-source_clustering = 0.3              # Spread out — even thermal coverage
-source_dispersion = 0.8
+source_clustering = 0.93             # Spread out but still clustered — even thermal coverage
+source_dispersion = 0.1
 
 [[world_init.chemical_species_configs]]
 decay_rate = 0.01
@@ -68,8 +68,8 @@ max_deceleration_threshold = 0.05
 respawn_enabled = true
 min_respawn_cooldown_ticks = 10
 max_respawn_cooldown_ticks = 30      # Fast respawn — keeps food abundant
-source_clustering = 0.4              # Moderate clustering
-source_dispersion = 0.6
+source_clustering = 0.94             # Clustered food patches with internal granularity
+source_dispersion = 0.06             # A few food-rich zones in the dish
 
 [actor]
 consumption_rate = 1.5

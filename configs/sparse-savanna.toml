@@ -19,11 +19,11 @@
 #   • source count and emission — controls scarcity severity
 #   • base_energy_decay clamp min — floor on metabolic efficiency
 
-seed = 2718
+seed = 2718212
 
 [grid]
-width  = 500
-height = 500
+width  = 400
+height = 400
 num_chemicals = 1
 thermal_conductivity = 0.03
 ambient_heat = 0.15
@@ -51,18 +51,18 @@ max_deceleration_threshold = 0.2
 respawn_enabled = true
 min_respawn_cooldown_ticks = 100
 max_respawn_cooldown_ticks = 300
-source_clustering = 0.3              # Spread out — no thermal oases
-source_dispersion = 0.9              # Each source is its own island
+source_clustering = 0.0              # No clustering — sources placed uniformly at random
+source_dispersion = 0.0              # Single-center (irrelevant when clustering is 0)
 
 [[world_init.chemical_species_configs]]
 decay_rate = 0.005                   # Slow decay — what little exists persists
 diffusion_rate = 0.015               # Very slow spread — tight gradients around sources
 
 [world_init.chemical_species_configs.source_config]
-min_sources = 40
-max_sources = 60                     # Few sources for 250,000 cells
-min_emission_rate = 0.2
-max_emission_rate = 0.4              # Weak emission — barely enough for one actor
+min_sources = 80
+max_sources = 120                    # More sources spread across the savanna
+min_emission_rate = 0.4
+max_emission_rate = 0.7              # Moderate emission — detectable gradients
 renewable_fraction = 0.5
 min_reservoir_capacity = 150.0
 max_reservoir_capacity = 400.0
@@ -71,8 +71,8 @@ max_deceleration_threshold = 0.08
 respawn_enabled = true
 min_respawn_cooldown_ticks = 100
 max_respawn_cooldown_ticks = 300     # Slow respawn — scarcity is persistent
-source_clustering = 0.2              # Very dispersed — no clusters
-source_dispersion = 0.95             # Each source is isolated
+source_clustering = 0.5              # Mild clustering — each source is a small patch, not a single cell
+source_dispersion = 0.5              # Many distinct centers — evenly scattered watering holes
 
 [actor]
 consumption_rate = 1.0               # Conservative — can't afford to waste
@@ -141,9 +141,9 @@ thermal_movement_cap = 4.0
 
 [bevy]
 tick_hz = 15.0                       # Fast — sparse world means less to render
-zoom_min = 0.05                      # Allow zooming way out on the huge grid
+zoom_min = 0.1
 zoom_max = 10.0
-zoom_speed = 0.2
-pan_speed = 3.0                      # Fast pan — big grid to navigate
+zoom_speed = 0.15
+pan_speed = 1.5                      # Standard pan speed
 color_scale_max = 2.0
 stats_update_interval = 20           # Slow stats — population changes slowly
