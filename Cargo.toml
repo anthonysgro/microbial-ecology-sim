@@ -2,6 +2,7 @@
 name = "microbial-ecology-sim"
 version = "0.1.0"
 edition = "2024"
+license = "MIT OR Apache-2.0"
 default-run = "microbial-ecology-sim"
 
 [dependencies]

@@ -42,8 +42,10 @@ Default seed is `42` if omitted.
 | `↑` | Increase tick rate |
 | `↓` | Decrease tick rate |
 | `r` | Reset tick rate to default |
+| `W` / `A` / `S` / `D` | Pan camera |
 | Scroll wheel | Zoom in / out |
 | Middle mouse drag | Pan camera |
+| `t` | Show / hide population stats panel |
 | `i` | Show / hide config info panel |
 | `q` / `Esc` | Quit |
 
@@ -130,4 +132,4 @@ src/
 
 ## License
 
-Unlicensed — private project.
+Licensed under either of [Apache License, Version 2.0](LICENSE-APACHE) or [MIT License](LICENSE-MIT) at your option.

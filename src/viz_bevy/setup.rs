@@ -48,7 +48,8 @@ const TRAIT_NAMES: [&str; 15] = [
 /// Format `TraitStats` into a display string for the stats panel.
 ///
 /// Pure function — no Bevy dependencies, testable in isolation.
-/// All stat values formatted to two decimal places.
+/// Uses a header row with column labels and a `spread` column showing
+/// `std_dev / (trait_max - trait_min)` as a percentage of the configured range.
 ///
 /// When `traits` is `None` (zero living actors), returns a short
 /// "No living actors." message with tick number.
@@ -57,6 +58,7 @@ const TRAIT_NAMES: [&str; 15] = [
 pub fn format_trait_stats(
     stats: &super::resources::TraitStats,
     predation: &super::resources::PredationCounter,
+    actor_config: Option<&ActorConfig>,
 ) -> String {
     use std::fmt::Write;
 
@@ -73,21 +75,61 @@ pub fn format_trait_stats(
         return out;
     };
 
+    // Trait ranges from config, matching TRAIT_NAMES order.
+    // Each entry is (min, max) for computing spread = std_dev / (max - min).
+    // Energy row uses (0.0, max_energy) as its range.
+    let trait_ranges: Option<[(f32, f32); 15]> = actor_config.map(|c| [
+        (c.trait_consumption_rate_min, c.trait_consumption_rate_max),
+        (c.trait_base_energy_decay_min, c.trait_base_energy_decay_max),
+        (c.trait_levy_exponent_min, c.trait_levy_exponent_max),
+        (c.trait_reproduction_threshold_min, c.trait_reproduction_threshold_max),
+        (c.trait_max_tumble_steps_min as f32, c.trait_max_tumble_steps_max as f32),
+        (c.trait_reproduction_cost_min, c.trait_reproduction_cost_max),
+        (c.trait_offspring_energy_min, c.trait_offspring_energy_max),
+        (c.trait_mutation_rate_min, c.trait_mutation_rate_max),
+        (c.trait_kin_tolerance_min, c.trait_kin_tolerance_max),
+        (c.trait_optimal_temp_min, c.trait_optimal_temp_max),
+        (c.trait_reproduction_cooldown_min as f32, c.trait_reproduction_cooldown_max as f32),
+        (c.trait_kin_group_defense_min, c.trait_kin_group_defense_max),
+        (c.trait_memory_capacity_min as f32, c.trait_memory_capacity_max as f32),
+        (c.trait_site_fidelity_strength_min, c.trait_site_fidelity_strength_max),
+        (c.trait_avoidance_sensitivity_min, c.trait_avoidance_sensitivity_max),
+    ]);
+
+    // Header row
     writeln!(out).ok();
+    writeln!(
+        out,
+        "{:<20} {:>6}  {:>6}  {:>6}  {:>6}  {:>6}  {:>6}  {:>6}",
+        "", "min", "p25", "p50", "p75", "max", "mean", "spread"
+    ).ok();
+
     for (i, name) in TRAIT_NAMES.iter().enumerate() {
         let s = &traits[i];
+        let spread = trait_ranges
+            .as_ref()
+            .map(|r| {
+                let range = r[i].1 - r[i].0;
+                if range > 0.0 { format!("{:>5.1}%", (s.std_dev / range) * 100.0) } else { "    —".to_string() }
+            })
+            .unwrap_or_else(|| "    —".to_string());
         writeln!(
             out,
-            "{:<20} min: {:>6.2}  p25: {:>6.2}  p50: {:>6.2}  p75: {:>6.2}  max: {:>6.2}  mean: {:>6.2}  std: {:>6.2}",
-            name, s.min, s.p25, s.p50, s.p75, s.max, s.mean, s.std_dev,
+            "{:<20} {:>6.2}  {:>6.2}  {:>6.2}  {:>6.2}  {:>6.2}  {:>6.2}  {}",
+            name, s.min, s.p25, s.p50, s.p75, s.max, s.mean, spread,
         ).ok();
     }
 
     if let Some(ref energy) = stats.energy_stats {
+        let spread = actor_config
+            .map(|c| {
+                if c.max_energy > 0.0 { format!("{:>5.1}%", (energy.std_dev / c.max_energy) * 100.0) } else { "    —".to_string() }
+            })
+            .unwrap_or_else(|| "    —".to_string());
         writeln!(
             out,
-            "{:<20} min: {:>6.2}  p25: {:>6.2}  p50: {:>6.2}  p75: {:>6.2}  max: {:>6.2}  mean: {:>6.2}  std: {:>6.2}",
-            "energy", energy.min, energy.p25, energy.p50, energy.p75, energy.max, energy.mean, energy.std_dev,
+            "{:<20} {:>6.2}  {:>6.2}  {:>6.2}  {:>6.2}  {:>6.2}  {:>6.2}  {}",
+            "energy", energy.min, energy.p25, energy.p50, energy.p75, energy.max, energy.mean, spread,
         ).ok();
     }
 
@@ -558,6 +600,8 @@ pub fn setup(
             position_type: PositionType::Absolute,
             top: Val::Px(40.0),
             right: Val::Px(80.0),
+            max_height: Val::Percent(80.0),
+            overflow: Overflow::scroll_y(),
             ..default()
         },
         BackgroundColor(Color::srgba(0.0, 0.0, 0.0, 0.7)),

@@ -329,6 +329,8 @@ pub fn update_rate_label(
 pub fn camera_controls(
     mouse_wheel: Res<AccumulatedMouseScroll>,
     mouse: Res<ButtonInput<MouseButton>>,
+    keys: Res<ButtonInput<KeyCode>>,
+    time: Res<Time>,
     mut camera_q: Query<(&mut Transform, &mut Projection), With<MainCamera>>,
     config: Res<BevyVizConfig>,
     mut last_cursor_pos: Local<Option<Vec2>>,
@@ -343,11 +345,38 @@ pub fn camera_controls(
     };
 
     // ── Zoom via mouse wheel ───────────────────────────────────────
-    // Multiplicative zoom: scroll up (positive y) → zoom in (decrease scale).
+    // Multiplicative zoom with dampening for trackpad sensitivity.
+    // Clamp raw delta to ±2.0 to prevent huge jumps from fast trackpad swipes.
     if mouse_wheel.delta.y != 0.0 {
-        let zoom_factor = 1.0 + (-mouse_wheel.delta.y * config.zoom_speed);
+        let clamped_delta = mouse_wheel.delta.y.clamp(-2.0, 2.0);
+        let zoom_factor = 1.0 + (-clamped_delta * config.zoom_speed * 0.3);
         ortho.scale = (ortho.scale * zoom_factor)
             .clamp(config.zoom_min, config.zoom_max);
+    }
+
+    // ── Pan via WASD keys ──────────────────────────────────────────
+    // Speed scales with current zoom level so panning feels consistent.
+    let dt = time.delta_secs();
+    let pan_pixels_per_sec = 300.0 * config.pan_speed * ortho.scale;
+    let mut pan_delta = Vec2::ZERO;
+
+    if keys.pressed(KeyCode::KeyW) {
+        pan_delta.y += 1.0;
+    }
+    if keys.pressed(KeyCode::KeyS) {
+        pan_delta.y -= 1.0;
+    }
+    if keys.pressed(KeyCode::KeyA) {
+        pan_delta.x -= 1.0;
+    }
+    if keys.pressed(KeyCode::KeyD) {
+        pan_delta.x += 1.0;
+    }
+
+    if pan_delta != Vec2::ZERO {
+        let movement = pan_delta.normalize() * pan_pixels_per_sec * dt;
+        transform.translation.x += movement.x;
+        transform.translation.y += movement.y;
     }
 
     // ── Pan via middle mouse button drag ───────────────────────────
@@ -657,6 +686,7 @@ pub fn update_stats_panel(
     stats: Res<TraitStats>,
     predation: Res<PredationCounter>,
     visible: Res<StatsPanelVisible>,
+    config: Res<BevyVizConfig>,
     mut query: Query<(&mut Text, &mut Visibility), With<StatsPanel>>,
 ) {
     if !stats.is_changed() && !visible.is_changed() && !predation.is_changed() {
@@ -669,7 +699,7 @@ pub fn update_stats_panel(
         Visibility::Hidden
     };
 
-    let content = format_trait_stats(&stats, &predation);
+    let content = format_trait_stats(&stats, &predation, config.actor_config.as_ref());
 
     for (mut text, mut vis) in &mut query {
         if **text != content {
