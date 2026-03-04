@@ -3,12 +3,12 @@
 
 use bevy::prelude::*;
 
-use emergent_sovereignty::io::cli::parse_cli_args;
-use emergent_sovereignty::io::config_file::{
+use microbial_ecology_sim::io::cli::parse_cli_args;
+use microbial_ecology_sim::io::config_file::{
     load_bevy_config, validate_world_config, BevyWorldConfig,
 };
-use emergent_sovereignty::viz_bevy::resources::{ActiveOverlay, BevyVizConfig};
-use emergent_sovereignty::viz_bevy::BevyVizPlugin;
+use microbial_ecology_sim::viz_bevy::resources::{ActiveOverlay, BevyVizConfig};
+use microbial_ecology_sim::viz_bevy::BevyVizPlugin;
 
 fn main() {
     let config = match load_config() {
@@ -22,7 +22,7 @@ fn main() {
     App::new()
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
-                title: "Emergent Sovereignty — Grid Visualization".into(),
+                title: "microbial-ecology-sim".into(),
                 ..default()
             }),
             ..default()

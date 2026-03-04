@@ -1,8 +1,8 @@
 [package]
-name = "emergent-sovereignty"
+name = "microbial-ecology-sim"
 version = "0.1.0"
 edition = "2024"
-default-run = "emergent-sovereignty"
+default-run = "microbial-ecology-sim"
 
 [dependencies]
 anyhow = "1"

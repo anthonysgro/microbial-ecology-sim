@@ -1,4 +1,4 @@
-# Emergent Sovereignty
+# microbial-ecology-sim
 
 A headless, high-performance biological simulation engine written in Rust. All macro-structures — species, ecosystems, symbiotic networks — emerge purely from micro-interactions between physical actors on a cellular automaton grid. There are no top-down abstractions: no health bars, no species classes, no global economy. Just physics, chemistry, and local perception.
 

@@ -3,8 +3,8 @@
 
 use std::path::PathBuf;
 
-use emergent_sovereignty::io::analysis::{analyze, format_report};
-use emergent_sovereignty::io::config_file::{load_bevy_config, validate_world_config};
+use microbial_ecology_sim::io::analysis::{analyze, format_report};
+use microbial_ecology_sim::io::config_file::{load_bevy_config, validate_world_config};
 
 fn parse_analyzer_args() -> Result<PathBuf, anyhow::Error> {
     let args: Vec<String> = std::env::args().collect();
