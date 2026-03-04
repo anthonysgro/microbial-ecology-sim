@@ -1,0 +1,144 @@
+# ─── Feast and Famine ────────────────────────────────────────────────
+#
+# Design intent:
+#   All chemical sources are non-renewable with NO respawn. The world starts
+#   rich and gets progressively poorer. Population booms on initial abundance,
+#   then crashes as sources deplete. Survivors must be hyper-efficient.
+#
+# Expected dynamics:
+#   • Explosive early growth as actors feast on abundant initial resources
+#   • Gradual resource depletion creates expanding dead zones
+#   • Population crash as carrying capacity collapses
+#   • Bottleneck survivors should be extreme K-strategists or efficient predators
+#   • Late-game becomes predation-dominated as chemical food vanishes
+#   • Possible extinction — that's part of the experiment
+#
+# Key knobs to tweak:
+#   • reservoir capacities — controls how long the feast lasts
+#   • initial actor count — more actors = faster depletion
+#   • absorption_efficiency — higher = predation sustains population longer
+
+seed = 666
+
+[grid]
+width  = 250
+height = 250
+num_chemicals = 1
+thermal_conductivity = 0.04
+ambient_heat = 0.2
+tick_duration = 1.0
+num_threads = 1
+
+[world_init]
+min_initial_heat = 0.1
+max_initial_heat = 0.5
+min_initial_concentration = 0.2
+max_initial_concentration = 0.6      # Rich initial chemical carpet
+min_actors = 60
+max_actors = 80
+
+[world_init.heat_source_config]
+min_sources = 4
+max_sources = 6
+min_emission_rate = 0.5
+max_emission_rate = 2.0
+renewable_fraction = 0.5             # Some permanent heat — thermal landscape persists
+min_reservoir_capacity = 600.0
+max_reservoir_capacity = 1500.0
+min_deceleration_threshold = 0.05
+max_deceleration_threshold = 0.2
+respawn_enabled = false
+source_clustering = 0.8
+source_dispersion = 0.5
+
+[[world_init.chemical_species_configs]]
+decay_rate = 0.003                   # Very slow decay — what's left lingers
+diffusion_rate = 0.02                # Slow spread — depleted zones stay depleted
+
+[world_init.chemical_species_configs.source_config]
+min_sources = 200
+max_sources = 250                    # Lots of sources — initial abundance
+min_emission_rate = 0.3
+max_emission_rate = 0.6
+renewable_fraction = 0.0             # ZERO renewable — everything depletes
+min_reservoir_capacity = 200.0
+max_reservoir_capacity = 600.0       # Moderate reservoirs — feast lasts ~500-2000 ticks
+min_deceleration_threshold = 0.05
+max_deceleration_threshold = 0.15
+respawn_enabled = false              # NO RESPAWN — once it's gone, it's gone
+source_clustering = 0.6              # Moderate clustering
+source_dispersion = 0.3
+
+[actor]
+consumption_rate = 1.8               # Aggressive consumption — accelerates depletion
+energy_conversion_factor = 1.0
+extraction_cost = 0.2
+base_energy_decay = 0.10
+reference_metabolic_rate = 0.05
+initial_energy = 15.0
+initial_actor_capacity = 256
+base_movement_cost = 0.08
+reference_energy = 25.0
+removal_threshold = -5.0             # Inert actors linger longer — visible die-off
+max_energy = 100.0
+levy_exponent = 1.4
+max_tumble_steps = 12
+reproduction_threshold = 25.0
+reproduction_cost = 12.0
+offspring_energy = 8.0
+absorption_efficiency = 0.6          # Generous predation — sustains late-game population
+mutation_stddev = 0.10
+
+# Trait clamps
+trait_consumption_rate_min = 0.1
+trait_consumption_rate_max = 10.0
+trait_base_energy_decay_min = 0.02
+trait_base_energy_decay_max = 0.8
+trait_levy_exponent_min = 1.01
+trait_levy_exponent_max = 3.0
+trait_reproduction_threshold_min = 5.0
+trait_reproduction_threshold_max = 100.0
+trait_max_tumble_steps_min = 1
+trait_max_tumble_steps_max = 50
+trait_reproduction_cost_min = 2.0
+trait_reproduction_cost_max = 80.0
+trait_offspring_energy_min = 1.0
+trait_offspring_energy_max = 60.0
+trait_mutation_rate_min = 0.02
+trait_mutation_rate_max = 0.4
+kin_tolerance = 0.3                  # Start somewhat xenophobic — predation matters here
+trait_kin_tolerance_min = 0.01
+trait_kin_tolerance_max = 1.0
+kin_group_defense = 0.5
+trait_kin_group_defense_min = 0.0
+trait_kin_group_defense_max = 1.0
+reproduction_cooldown = 8
+trait_reproduction_cooldown_min = 1
+trait_reproduction_cooldown_max = 100
+readiness_sensitivity = 0.12
+reference_cooldown = 10.0
+memory_capacity = 4
+trait_memory_capacity_min = 0
+trait_memory_capacity_max = 16
+cognitive_cost_per_slot = 0.004
+site_fidelity_strength = 1.0
+trait_site_fidelity_strength_min = 0.0
+trait_site_fidelity_strength_max = 5.0
+avoidance_sensitivity = 1.2          # Avoidance matters — predators are everywhere late-game
+trait_avoidance_sensitivity_min = 0.0
+trait_avoidance_sensitivity_max = 5.0
+thermal_sensitivity = 0.08
+optimal_temp = 0.4
+trait_optimal_temp_min = 0.0
+trait_optimal_temp_max = 20.0
+thermal_fitness_width = 0.6
+thermal_movement_cap = 4.0
+
+[bevy]
+tick_hz = 12.0                       # Slightly faster — watch the boom/crash unfold
+zoom_min = 0.1
+zoom_max = 10.0
+zoom_speed = 0.15
+pan_speed = 1.5
+color_scale_max = 3.0
+stats_update_interval = 10

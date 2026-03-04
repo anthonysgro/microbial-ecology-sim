@@ -1,0 +1,146 @@
+# ─── Dense Petri Dish ────────────────────────────────────────────────
+#
+# Design intent:
+#   Small grid packed with actors and abundant renewable resources. High contact
+#   rate means predation, kin defense, and social dynamics dominate. This is
+#   less about foraging and more about who eats whom.
+#
+# Expected dynamics:
+#   • Kin tolerance and kin_group_defense should be under strong selection
+#   • Clusters of related actors defending each other against outsiders
+#   • High predation rate — constant contact means constant conflict
+#   • Memory should matter for avoiding predators (high avoidance payoff)
+#   • Reproduction strategy matters — r vs K in a crowded environment
+#   • Possible oscillating predator-prey dynamics between lineages
+#
+# Key knobs to tweak:
+#   • grid size — smaller = more contact
+#   • actor count — more = more predation pressure
+#   • kin_group_defense clamps — controls defense evolution ceiling
+
+seed = 137
+
+[grid]
+width  = 60
+height = 60
+num_chemicals = 1
+thermal_conductivity = 0.06
+ambient_heat = 0.3                   # Warm petri dish
+tick_duration = 1.0
+num_threads = 1
+
+[world_init]
+min_initial_heat = 0.2
+max_initial_heat = 0.5
+min_initial_concentration = 0.2
+max_initial_concentration = 0.5      # Rich starting medium
+min_actors = 150
+max_actors = 200                     # Dense — ~0.05 actors per cell
+
+[world_init.heat_source_config]
+min_sources = 2
+max_sources = 3
+min_emission_rate = 0.5
+max_emission_rate = 1.5
+renewable_fraction = 1.0             # All permanent — stable thermal background
+min_reservoir_capacity = 500.0
+max_reservoir_capacity = 1000.0
+min_deceleration_threshold = 0.1
+max_deceleration_threshold = 0.3
+respawn_enabled = false
+source_clustering = 0.3              # Spread out — even thermal coverage
+source_dispersion = 0.8
+
+[[world_init.chemical_species_configs]]
+decay_rate = 0.01
+diffusion_rate = 0.05                # Fast diffusion — chemicals spread across the dish
+
+[world_init.chemical_species_configs.source_config]
+min_sources = 30
+max_sources = 40                     # Many sources for a small grid — food everywhere
+min_emission_rate = 0.8
+max_emission_rate = 1.2              # Strong emission — food isn't the bottleneck
+renewable_fraction = 0.8             # Mostly renewable — stable food supply
+min_reservoir_capacity = 300.0
+max_reservoir_capacity = 800.0
+min_deceleration_threshold = 0.01
+max_deceleration_threshold = 0.05
+respawn_enabled = true
+min_respawn_cooldown_ticks = 10
+max_respawn_cooldown_ticks = 30      # Fast respawn — keeps food abundant
+source_clustering = 0.4              # Moderate clustering
+source_dispersion = 0.6
+
+[actor]
+consumption_rate = 1.5
+energy_conversion_factor = 1.2       # Generous conversion — food is easy
+extraction_cost = 0.2
+base_energy_decay = 0.10
+reference_metabolic_rate = 0.05
+initial_energy = 12.0
+initial_actor_capacity = 512         # Expect high population
+base_movement_cost = 0.06
+reference_energy = 20.0
+removal_threshold = -3.0
+max_energy = 60.0
+levy_exponent = 1.8                  # Short runs — no need for long-range foraging
+max_tumble_steps = 8
+reproduction_threshold = 18.0        # Low threshold — fast reproduction in rich environment
+reproduction_cost = 8.0
+offspring_energy = 5.0
+absorption_efficiency = 0.5
+mutation_stddev = 0.10
+
+# Trait clamps
+trait_consumption_rate_min = 0.2
+trait_consumption_rate_max = 6.0
+trait_base_energy_decay_min = 0.03
+trait_base_energy_decay_max = 0.6
+trait_levy_exponent_min = 1.01
+trait_levy_exponent_max = 3.0
+trait_reproduction_threshold_min = 5.0
+trait_reproduction_threshold_max = 50.0
+trait_max_tumble_steps_min = 1
+trait_max_tumble_steps_max = 20      # Small grid — long runs aren't useful
+trait_reproduction_cost_min = 2.0
+trait_reproduction_cost_max = 40.0
+trait_offspring_energy_min = 1.0
+trait_offspring_energy_max = 30.0
+trait_mutation_rate_min = 0.02
+trait_mutation_rate_max = 0.3
+kin_tolerance = 0.5
+trait_kin_tolerance_min = 0.01
+trait_kin_tolerance_max = 1.0
+kin_group_defense = 0.6              # Start with decent defense — let it evolve
+trait_kin_group_defense_min = 0.0
+trait_kin_group_defense_max = 1.0
+reproduction_cooldown = 4
+trait_reproduction_cooldown_min = 1
+trait_reproduction_cooldown_max = 40
+readiness_sensitivity = 0.10
+reference_cooldown = 6.0
+memory_capacity = 5
+trait_memory_capacity_min = 0
+trait_memory_capacity_max = 12
+cognitive_cost_per_slot = 0.003      # Cheap memory — avoidance should be viable
+site_fidelity_strength = 0.5
+trait_site_fidelity_strength_min = 0.0
+trait_site_fidelity_strength_max = 5.0
+avoidance_sensitivity = 1.5          # High seed — predator avoidance matters in a packed grid
+trait_avoidance_sensitivity_min = 0.0
+trait_avoidance_sensitivity_max = 5.0
+thermal_sensitivity = 0.05           # Mild thermal pressure — not the main story
+optimal_temp = 0.4
+trait_optimal_temp_min = 0.0
+trait_optimal_temp_max = 10.0
+thermal_fitness_width = 0.8
+thermal_movement_cap = 3.0
+
+[bevy]
+tick_hz = 8.0
+zoom_min = 0.1
+zoom_max = 10.0
+zoom_speed = 0.15
+pan_speed = 1.0
+color_scale_max = 4.0
+stats_update_interval = 5            # Faster stats — population changes quickly

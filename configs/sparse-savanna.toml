@@ -1,0 +1,149 @@
+# ─── Sparse Savanna ──────────────────────────────────────────────────
+#
+# Design intent:
+#   Huge grid with few, weak, widely dispersed sources. Resources are scarce
+#   and spread thin. Every calorie counts. This should select hard for
+#   K-strategy: invest heavily in offspring, reproduce rarely, be efficient.
+#
+# Expected dynamics:
+#   • Low population density — actors rarely encounter each other
+#   • Predation is rare (low contact) — foraging efficiency dominates
+#   • High offspring_energy should evolve (cheap offspring die in the desert)
+#   • Long reproduction_cooldown with high reproduction_threshold
+#   • Low base_energy_decay selected for — metabolic efficiency is survival
+#   • Long Lévy flights — must cover huge distances between sources
+#   • Memory could help if actors can remember distant source locations
+#
+# Key knobs to tweak:
+#   • grid size — larger = more isolation
+#   • source count and emission — controls scarcity severity
+#   • base_energy_decay clamp min — floor on metabolic efficiency
+
+seed = 2718
+
+[grid]
+width  = 500
+height = 500
+num_chemicals = 1
+thermal_conductivity = 0.03
+ambient_heat = 0.15
+tick_duration = 1.0
+num_threads = 1
+
+[world_init]
+min_initial_heat = 0.05
+max_initial_heat = 0.3
+min_initial_concentration = 0.0
+max_initial_concentration = 0.1      # Almost nothing — sources are the only food
+min_actors = 40
+max_actors = 60                      # Sparse seeding on a huge grid
+
+[world_init.heat_source_config]
+min_sources = 6
+max_sources = 10
+min_emission_rate = 0.2
+max_emission_rate = 1.0
+renewable_fraction = 0.6
+min_reservoir_capacity = 400.0
+max_reservoir_capacity = 1200.0
+min_deceleration_threshold = 0.05
+max_deceleration_threshold = 0.2
+respawn_enabled = true
+min_respawn_cooldown_ticks = 100
+max_respawn_cooldown_ticks = 300
+source_clustering = 0.3              # Spread out — no thermal oases
+source_dispersion = 0.9              # Each source is its own island
+
+[[world_init.chemical_species_configs]]
+decay_rate = 0.005                   # Slow decay — what little exists persists
+diffusion_rate = 0.015               # Very slow spread — tight gradients around sources
+
+[world_init.chemical_species_configs.source_config]
+min_sources = 40
+max_sources = 60                     # Few sources for 250,000 cells
+min_emission_rate = 0.2
+max_emission_rate = 0.4              # Weak emission — barely enough for one actor
+renewable_fraction = 0.5
+min_reservoir_capacity = 150.0
+max_reservoir_capacity = 400.0
+min_deceleration_threshold = 0.02
+max_deceleration_threshold = 0.08
+respawn_enabled = true
+min_respawn_cooldown_ticks = 100
+max_respawn_cooldown_ticks = 300     # Slow respawn — scarcity is persistent
+source_clustering = 0.2              # Very dispersed — no clusters
+source_dispersion = 0.95             # Each source is isolated
+
+[actor]
+consumption_rate = 1.0               # Conservative — can't afford to waste
+energy_conversion_factor = 1.5       # High efficiency — every unit of food matters
+extraction_cost = 0.15
+base_energy_decay = 0.06             # Low burn — survival depends on efficiency
+reference_metabolic_rate = 0.04
+initial_energy = 20.0                # Generous start — need runway to find first source
+initial_actor_capacity = 64
+base_movement_cost = 0.03            # Very cheap movement — must cover huge distances
+reference_energy = 30.0
+removal_threshold = -5.0
+max_energy = 120.0                   # Large tank — store energy for long droughts
+levy_exponent = 1.2                  # Very long-range bias
+max_tumble_steps = 25                # Long ballistic runs
+reproduction_threshold = 40.0        # High bar — only reproduce when truly flush
+reproduction_cost = 20.0             # Expensive reproduction
+offspring_energy = 15.0              # Heavy investment in offspring — they need runway too
+absorption_efficiency = 0.5
+mutation_stddev = 0.06               # Low mutation — stable traits in stable (if harsh) environment
+
+# Trait clamps
+trait_consumption_rate_min = 0.1
+trait_consumption_rate_max = 5.0
+trait_base_energy_decay_min = 0.01   # Very low floor — extreme efficiency is possible
+trait_base_energy_decay_max = 0.5
+trait_levy_exponent_min = 1.01
+trait_levy_exponent_max = 3.0
+trait_reproduction_threshold_min = 10.0
+trait_reproduction_threshold_max = 100.0
+trait_max_tumble_steps_min = 1
+trait_max_tumble_steps_max = 60      # Allow very long runs
+trait_reproduction_cost_min = 5.0    # High floor — no cheap reproduction
+trait_reproduction_cost_max = 80.0
+trait_offspring_energy_min = 3.0     # High floor — cheap offspring can't survive here
+trait_offspring_energy_max = 80.0
+trait_mutation_rate_min = 0.01
+trait_mutation_rate_max = 0.25
+kin_tolerance = 0.6                  # Moderate — encounters are rare anyway
+trait_kin_tolerance_min = 0.02
+trait_kin_tolerance_max = 1.0
+kin_group_defense = 0.3
+trait_kin_group_defense_min = 0.0
+trait_kin_group_defense_max = 1.0
+reproduction_cooldown = 15           # Long cooldown seed — K-strategy starting point
+trait_reproduction_cooldown_min = 3
+trait_reproduction_cooldown_max = 100
+readiness_sensitivity = 0.05         # Low readiness pressure — cooldown is already long
+reference_cooldown = 15.0
+memory_capacity = 5
+trait_memory_capacity_min = 0
+trait_memory_capacity_max = 16
+cognitive_cost_per_slot = 0.002      # Cheap memory — remembering source locations is valuable
+site_fidelity_strength = 2.0         # Strong site fidelity seed — return to known sources
+trait_site_fidelity_strength_min = 0.0
+trait_site_fidelity_strength_max = 5.0
+avoidance_sensitivity = 0.5          # Low — predation isn't the main threat
+trait_avoidance_sensitivity_min = 0.0
+trait_avoidance_sensitivity_max = 5.0
+thermal_sensitivity = 0.06
+optimal_temp = 0.3
+trait_optimal_temp_min = 0.0
+trait_optimal_temp_max = 15.0
+thermal_fitness_width = 0.7
+thermal_movement_cap = 4.0
+
+[bevy]
+tick_hz = 15.0                       # Fast — sparse world means less to render
+zoom_min = 0.05                      # Allow zooming way out on the huge grid
+zoom_max = 10.0
+zoom_speed = 0.2
+pan_speed = 3.0                      # Fast pan — big grid to navigate
+color_scale_max = 2.0
+stats_update_interval = 20           # Slow stats — population changes slowly

@@ -1,0 +1,148 @@
+# ─── Thermal Crucible ────────────────────────────────────────────────
+#
+# Design intent:
+#   Extreme heat gradients dominate the landscape. A few massive heat emitters
+#   create scorching zones surrounded by frigid wasteland. Chemical sources are
+#   abundant but thermal mismatch is the real killer.
+#
+# Expected dynamics:
+#   • Visible thermal speciation — populations near heat sources evolve high optimal_temp
+#   • Spatial niche partitioning along temperature gradients
+#   • Actors in the "wrong" thermal zone burn energy fast and die
+#   • Predation concentrated at thermal boundaries where populations meet
+#   • optimal_temp should show high spread with distinct clusters
+#
+# Key knobs to tweak:
+#   • thermal_sensitivity — higher = harsher thermal penalty
+#   • thermal_fitness_width — narrower = more specialized niches
+#   • heat source emission rates — controls gradient steepness
+
+seed = 314
+
+[grid]
+width  = 200
+height = 200
+num_chemicals = 1
+thermal_conductivity = 0.08          # Fast heat spread — creates wide thermal zones
+ambient_heat = 0.05                  # Very cold baseline — away from sources is harsh
+tick_duration = 1.0
+num_threads = 1
+
+[world_init]
+min_initial_heat = 0.0
+max_initial_heat = 0.1               # Start cold — let sources define the thermal map
+min_initial_concentration = 0.1
+max_initial_concentration = 0.4      # Decent ambient chemical — food isn't the bottleneck
+min_actors = 100
+max_actors = 150
+
+# Heat sources: few but extremely powerful
+[world_init.heat_source_config]
+min_sources = 3
+max_sources = 4
+min_emission_rate = 3.0
+max_emission_rate = 8.0              # Massive emitters — create steep gradients
+renewable_fraction = 1.0             # All permanent — thermal landscape is stable
+min_reservoir_capacity = 1000.0
+max_reservoir_capacity = 5000.0
+min_deceleration_threshold = 0.1
+max_deceleration_threshold = 0.3
+respawn_enabled = false
+source_clustering = 0.5              # Moderate clustering — distinct thermal zones
+source_dispersion = 0.8              # Well-separated — each source gets its own region
+
+[[world_init.chemical_species_configs]]
+decay_rate = 0.008
+diffusion_rate = 0.04                # Moderate spread
+
+[world_init.chemical_species_configs.source_config]
+min_sources = 100
+max_sources = 130
+min_emission_rate = 0.5
+max_emission_rate = 0.9
+renewable_fraction = 0.6             # Mostly renewable — food is stable
+min_reservoir_capacity = 500.0
+max_reservoir_capacity = 1200.0
+min_deceleration_threshold = 0.01
+max_deceleration_threshold = 0.05
+respawn_enabled = true
+min_respawn_cooldown_ticks = 30
+max_respawn_cooldown_ticks = 80
+source_clustering = 0.7              # Moderately clustered — spread across thermal zones
+source_dispersion = 0.4              # Multiple food regions
+
+[actor]
+consumption_rate = 1.5
+energy_conversion_factor = 1.0
+extraction_cost = 0.25
+base_energy_decay = 0.10
+reference_metabolic_rate = 0.05
+initial_energy = 15.0
+initial_actor_capacity = 128
+base_movement_cost = 0.08
+reference_energy = 25.0
+removal_threshold = -3.0
+max_energy = 80.0
+levy_exponent = 1.5
+max_tumble_steps = 12
+reproduction_threshold = 22.0
+reproduction_cost = 10.0
+offspring_energy = 7.0
+absorption_efficiency = 0.5
+mutation_stddev = 0.12               # Higher mutation — faster thermal adaptation
+
+# Trait clamps
+trait_consumption_rate_min = 0.1
+trait_consumption_rate_max = 8.0
+trait_base_energy_decay_min = 0.03
+trait_base_energy_decay_max = 0.8
+trait_levy_exponent_min = 1.01
+trait_levy_exponent_max = 3.0
+trait_reproduction_threshold_min = 5.0
+trait_reproduction_threshold_max = 80.0
+trait_max_tumble_steps_min = 1
+trait_max_tumble_steps_max = 40
+trait_reproduction_cost_min = 2.0
+trait_reproduction_cost_max = 60.0
+trait_offspring_energy_min = 1.0
+trait_offspring_energy_max = 50.0
+trait_mutation_rate_min = 0.02
+trait_mutation_rate_max = 0.4
+kin_tolerance = 0.5
+trait_kin_tolerance_min = 0.02
+trait_kin_tolerance_max = 1.0
+kin_group_defense = 0.4
+trait_kin_group_defense_min = 0.0
+trait_kin_group_defense_max = 1.0
+reproduction_cooldown = 6
+trait_reproduction_cooldown_min = 1
+trait_reproduction_cooldown_max = 60
+readiness_sensitivity = 0.10
+reference_cooldown = 8.0
+memory_capacity = 3
+trait_memory_capacity_min = 0
+trait_memory_capacity_max = 12
+cognitive_cost_per_slot = 0.005
+site_fidelity_strength = 0.8
+trait_site_fidelity_strength_min = 0.0
+trait_site_fidelity_strength_max = 5.0
+avoidance_sensitivity = 0.8
+trait_avoidance_sensitivity_min = 0.0
+trait_avoidance_sensitivity_max = 5.0
+
+# THE MAIN EVENT — aggressive thermal mechanics
+thermal_sensitivity = 0.25           # 2.5x the default — thermal mismatch really hurts
+optimal_temp = 0.5                   # Seed in the middle — let evolution diverge
+trait_optimal_temp_min = 0.0
+trait_optimal_temp_max = 50.0        # Wide range — room for extreme thermal specialists
+thermal_fitness_width = 0.3          # Narrow comfort zone — forces specialization
+thermal_movement_cap = 8.0           # Harsh movement penalty in wrong thermal zone
+
+[bevy]
+tick_hz = 10.0
+zoom_min = 0.1
+zoom_max = 10.0
+zoom_speed = 0.15
+pan_speed = 1.5
+color_scale_max = 3.0
+stats_update_interval = 10

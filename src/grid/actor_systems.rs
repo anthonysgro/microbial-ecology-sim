@@ -426,8 +426,14 @@ pub fn run_actor_metabolism(
             // Placed after NaN/Inf check because f32::min swallows NaN.
             actor.energy = actor.energy.min(config.max_energy);
 
-            // Write food memory entry when the actor consumed chemical.
-            if consumed > 0.0 {
+            // Write food memory entry when the actor consumed meaningful chemical.
+            // Only record if consumption meets the break-even threshold — the same
+            // formula used in sensing. Cells below break-even yield less energy than
+            // basal metabolic cost, so they aren't worth remembering.
+            // Precondition: energy_conversion_factor > extraction_cost (config validation).
+            let food_memory_threshold =
+                config.reference_metabolic_rate / (config.energy_conversion_factor - config.extraction_cost);
+            if consumed >= food_memory_threshold {
                 let slot_index = id.index;
                 let entry = MemoryEntry {
                     tick,
