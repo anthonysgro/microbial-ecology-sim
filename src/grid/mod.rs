@@ -422,6 +422,7 @@ impl Grid {
     /// Returns `(heat_read, chemical_read, chemical_write)` for the given species.
     /// Splits borrows between `heat` (immutable) and `chemicals` (mutable) so both
     /// can be accessed simultaneously without conflicting borrows on `&mut self`.
+    #[allow(clippy::type_complexity)]
     pub fn heat_read_and_chemical_rw(
         &mut self,
         species: usize,
@@ -504,6 +505,13 @@ impl Grid {
     /// Read-only access to the parallel brain storage.
     pub fn brains(&self) -> &[Brain] {
         &self.brains
+    }
+
+    /// Mutable access to the parallel brain storage.
+    ///
+    /// COLD: Used by the editor for snapshot restoration.
+    pub(crate) fn brains_mut(&mut self) -> &mut [Brain] {
+        &mut self.brains
     }
 
     pub fn occupancy(&self) -> &[Option<usize>] {

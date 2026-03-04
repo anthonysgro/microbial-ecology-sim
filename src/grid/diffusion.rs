@@ -102,6 +102,7 @@ pub fn run_diffusion(
     // mutable references to the chemical buffers.
     let partitions = grid.partitions().to_vec();
 
+    #[allow(clippy::needless_range_loop)]
     for species in 0..config.num_chemicals {
         let rate = diffusion_rates[species];
 

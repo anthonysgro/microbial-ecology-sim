@@ -7,9 +7,11 @@ use bevy::prelude::*;
 
 use std::time::Duration;
 
+use editor::EditorState;
 use resources::BevyVizConfig;
 
 pub mod color;
+pub mod editor;
 pub mod normalize;
 pub mod resources;
 pub mod setup;
@@ -60,10 +62,19 @@ impl Plugin for BevyVizPlugin {
             ),
         );
 
+        // Insert editor state resource (inactive by default).
+        app.insert_resource(EditorState::default());
+
         // Update: input, texture upload, camera, label — all run every frame.
+        // Editor systems run first and consume keys that would otherwise
+        // trigger overlay switches or zoom in play mode.
         app.add_systems(
             Update,
             (
+                editor::editor_input.before(systems::handle_input),
+                editor::editor_paint.after(editor::editor_input),
+                editor::editor_update_hud.after(editor::editor_paint),
+                editor::editor_stamp_preview.after(editor::editor_paint),
                 systems::handle_input,
                 systems::rate_control_input,
                 systems::select_actor_input.before(systems::update_texture),

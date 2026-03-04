@@ -59,6 +59,15 @@ impl<T: Copy> FieldBuffer<T> {
         }
     }
 
+    /// Write a value to both read and write buffers at the given index.
+    ///
+    /// COLD: Used by the editor to paint values that are immediately visible
+    /// (read buffer) and persist after the next swap (write buffer).
+    pub fn write_both(&mut self, index: usize, value: T) {
+        self.buffers[0][index] = value;
+        self.buffers[1][index] = value;
+    }
+
     /// Swap read and write buffers. No data copy — just flips the index.
     pub fn swap(&mut self) {
         self.current ^= 1;

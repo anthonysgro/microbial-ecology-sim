@@ -26,6 +26,7 @@ pub fn run_decay(
     config: &GridConfig,
     decay_rates: &[f32],
 ) -> Result<(), TickError> {
+    #[allow(clippy::needless_range_loop)]
     for species in 0..config.num_chemicals {
         let rate = decay_rates[species];
 

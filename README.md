@@ -47,7 +47,29 @@ Default seed is `42` if omitted.
 | Middle mouse drag | Pan camera |
 | `t` | Show / hide population stats panel |
 | `i` | Show / hide config info panel |
+| `e` | Toggle edit mode (pauses simulation) |
 | `q` / `Esc` | Quit |
+
+### Edit Mode Controls
+
+Press `E` to enter edit mode. The simulation pauses and the editor HUD appears. Press `E` again to resume.
+
+| Key / Input | Action |
+|-------------|--------|
+| `h` | Select heat brush |
+| `1`–`9` | Select chemical brush (species index) |
+| `p` | Select actor placement brush |
+| `x` | Select eraser |
+| Scroll wheel | Adjust brush intensity (±0.1) |
+| Shift + scroll | Adjust brush intensity (±1.0) |
+| `[` / `]` | Decrease / increase brush radius |
+| Left click / drag | Paint with active brush |
+| Shift + left drag | Define rectangular selection |
+| `Ctrl+S` | Save world snapshot to `snapshots/` |
+| `Ctrl+L` | Load world snapshot |
+| `Ctrl+C` | Copy selection to pattern file |
+| `Ctrl+V` | Enter pattern stamp mode |
+| `Esc` | Cancel stamp mode |
 
 ## Configuration
 

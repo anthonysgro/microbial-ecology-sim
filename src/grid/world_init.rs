@@ -489,6 +489,7 @@ pub(crate) fn generate_sources(
 /// and positions each source via `sample_clustered_position` using its assigned center.
 ///
 /// When `source_dispersion == 0.0`, K=1, collapsing to the legacy single-center behavior.
+#[allow(clippy::too_many_arguments)]
 fn generate_field_sources(
     grid: &mut Grid,
     rng: &mut impl Rng,
@@ -552,7 +553,7 @@ fn generate_field_sources(
 /// When `source_dispersion == 0.0`, returns 1 (single-center, backward compatible).
 fn compute_cluster_count(source_dispersion: f32, num_sources: u32) -> u8 {
     let raw = (source_dispersion * num_sources as f32).round() as u32;
-    raw.max(1).min(255) as u8
+    raw.clamp(1, 255) as u8
 }
 
 /// Sample reservoir parameters for a single source.

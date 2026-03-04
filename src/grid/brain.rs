@@ -6,7 +6,7 @@ use crate::grid::actor::HeritableTraits;
 pub const MAX_MEMORY_CAPACITY: usize = 16;
 
 /// Outcome type for a memory entry.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[repr(u8)]
 pub enum MemoryOutcome {
     /// Food gained during metabolism (positive outcome).
@@ -21,7 +21,7 @@ pub enum MemoryOutcome {
 ///
 /// Fixed-size, Copy, no heap allocation. Stored inline in Brain's
 /// circular buffer.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct MemoryEntry {
     /// Simulation tick when the interaction occurred.
     pub tick: u64,
@@ -75,6 +75,7 @@ const ZEROED_ENTRY: MemoryEntry = MemoryEntry {
 ///
 /// Direction indices: 0=N, 1=S, 2=W, 3=E.
 /// Tie-breaking: N, S, W, E (first wins via strict `>`).
+#[allow(clippy::too_many_arguments)]
 pub fn compute_memory_bias(
     brain: &Brain,
     actor_x: usize,
@@ -136,6 +137,7 @@ pub fn compute_memory_bias(
     // Find best direction with strict > for tie-breaking (N, S, W, E order).
     let mut best_dir: usize = 0;
     let mut best_score: f32 = scores[0];
+    #[allow(clippy::needless_range_loop)]
     for dir in 1..4 {
         if scores[dir] > best_score {
             best_score = scores[dir];

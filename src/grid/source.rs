@@ -35,7 +35,7 @@ use rand::Rng;
 use smallvec::SmallVec;
 
 /// Identifies which grid field a source emits into.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum SourceField {
     Heat,
     Chemical(usize),
@@ -45,7 +45,7 @@ pub enum SourceField {
 ///
 /// Internally a generational index: the `generation` field detects stale
 /// removals after a slot has been reused, preventing the ABA problem.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct SourceId {
     pub(crate) index: usize,
     pub(crate) generation: u64,
@@ -59,7 +59,7 @@ pub struct SourceId {
 /// Renewable sources use `f32::INFINITY` for `reservoir` and `initial_capacity`.
 /// This eliminates branching in the emission loop — the deceleration math works
 /// identically for both renewable and finite sources.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Source {
     pub cell_index: usize,
     pub field: SourceField,

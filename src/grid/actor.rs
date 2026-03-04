@@ -14,7 +14,7 @@ use rand_distr::{Distribution, Normal};
 ///
 /// Plain data struct — no methods beyond construction and mutation.
 /// Stored inline in `Actor`.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct HeritableTraits {
     pub consumption_rate: f32,
     pub base_energy_decay: f32,

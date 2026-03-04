@@ -9,6 +9,7 @@ use crate::grid::actor::Actor;
 use crate::grid::tick::TickOrchestrator;
 
 use super::{color, normalize};
+use super::editor::EditorState;
 use super::resources::{
     ActiveOverlay, ActorInspector, BevyVizConfig, GridSprite, HoverTooltip, InfoPanel,
     InfoPanelVisible, MainCamera, OverlayLabel, PredationCounter, RateLabel, RenderState,
@@ -156,10 +157,15 @@ pub fn handle_input(
     sim: Res<SimulationState>,
     mut exit: EventWriter<AppExit>,
     mut selected: ResMut<SelectedActor>,
+    editor: Res<EditorState>,
 ) {
+    // In edit mode, the editor consumes H, digit 1-9, and Escape.
+    // Allow Q, I, T to pass through.
+    let edit_active = editor.active;
+
     // Escape: deselect actor first, exit only when nothing is selected.
     // Q always exits immediately.
-    if keys.just_pressed(KeyCode::Escape) {
+    if keys.just_pressed(KeyCode::Escape) && !edit_active {
         if selected.0.is_some() {
             selected.0 = None;
         } else {
@@ -170,6 +176,11 @@ pub fn handle_input(
 
     if keys.just_pressed(KeyCode::KeyQ) {
         exit.write(AppExit::Success);
+        return;
+    }
+
+    // Editor consumes overlay-switching keys when active.
+    if edit_active {
         return;
     }
 
@@ -326,6 +337,7 @@ pub fn update_rate_label(
 ///        scaled by current projection scale and `pan_speed`.
 ///
 /// Requirements: 8.2 (zoom in), 8.3 (zoom out), 8.4 (pan), 8.5 (clamp).
+#[allow(clippy::too_many_arguments)]
 pub fn camera_controls(
     mouse_wheel: Res<AccumulatedMouseScroll>,
     mouse: Res<ButtonInput<MouseButton>>,
@@ -335,6 +347,7 @@ pub fn camera_controls(
     config: Res<BevyVizConfig>,
     mut last_cursor_pos: Local<Option<Vec2>>,
     windows: Query<&Window>,
+    editor: Res<EditorState>,
 ) {
     let Ok((mut transform, mut projection)) = camera_q.single_mut() else {
         return;
@@ -347,7 +360,8 @@ pub fn camera_controls(
     // ── Zoom via mouse wheel ───────────────────────────────────────
     // Multiplicative zoom with dampening for trackpad sensitivity.
     // Clamp raw delta to ±2.0 to prevent huge jumps from fast trackpad swipes.
-    if mouse_wheel.delta.y != 0.0 {
+    // In edit mode, scroll is consumed by the editor for intensity control.
+    if mouse_wheel.delta.y != 0.0 && !editor.active {
         let clamped_delta = mouse_wheel.delta.y.clamp(-2.0, 2.0);
         let zoom_factor = 1.0 + (-clamped_delta * config.zoom_speed * 0.3);
         ortho.scale = (ortho.scale * zoom_factor)
@@ -410,7 +424,7 @@ pub fn camera_controls(
 /// Shared by `update_hover_tooltip` and `select_actor_input` to avoid duplication.
 ///
 /// Requirements: 3.5
-fn cursor_to_grid_cell(
+pub(super) fn cursor_to_grid_cell(
     window: &Window,
     camera: &Camera,
     cam_global: &GlobalTransform,
@@ -437,6 +451,38 @@ fn cursor_to_grid_cell(
     }
 
     Some((gy as usize) * (grid_width as usize) + (gx as usize))
+}
+
+/// Convert cursor screen position to grid (x, y) coordinates.
+///
+/// Returns `None` if the cursor is outside the grid bounds.
+pub(super) fn cursor_to_grid_xy(
+    window: &Window,
+    camera: &Camera,
+    cam_global: &GlobalTransform,
+    sprite_transform: &Transform,
+    sprite: &Sprite,
+    grid_width: u32,
+    grid_height: u32,
+) -> Option<(u32, u32)> {
+    let cursor_screen = window.cursor_position()?;
+    let world_pos = camera.viewport_to_world_2d(cam_global, cursor_screen).ok()?;
+
+    let sprite_size = sprite.custom_size.unwrap_or(Vec2::ONE);
+    let sprite_origin = sprite_transform.translation.truncate() - sprite_size * 0.5;
+    let local = world_pos - sprite_origin;
+
+    let gx = local.x.floor() as i32;
+    let gy = (sprite_size.y - local.y).floor() as i32;
+
+    let w = grid_width as i32;
+    let h = grid_height as i32;
+
+    if gx < 0 || gy < 0 || gx >= w || gy >= h {
+        return None;
+    }
+
+    Some((gx as u32, gy as u32))
 }
 
 /// Update the hover tooltip with the raw field value under the cursor.

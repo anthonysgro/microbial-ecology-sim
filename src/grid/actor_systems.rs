@@ -160,6 +160,7 @@ pub(crate) fn thermal_fitness(cell_heat: f32, optimal_temp: f32, width: f32) -> 
 ///   Entries for inactive slots are left untouched.
 /// * `config` — actor configuration (break-even params, Lévy flight params).
 /// * `rng` — per-tick deterministic RNG for tumble sampling.
+#[allow(clippy::too_many_arguments)]
 pub fn run_actor_sensing(
     actors: &mut ActorRegistry,
     brains: &[Brain],
@@ -335,6 +336,7 @@ pub fn run_actor_sensing(
 /// * `chemical_write` — write buffer for chemical species 0, pre-initialized from read buffer.
 /// * `config` — actor configuration (consumption_rate, energy_conversion_factor, base_energy_decay).
 /// * `removal_buffer` — pre-allocated buffer for dead actor ids. Cleared before use.
+#[allow(clippy::too_many_arguments)]
 pub fn run_actor_metabolism(
     actors: &mut ActorRegistry,
     chemical_read: &[f32],
@@ -695,6 +697,7 @@ pub fn run_actor_reproduction(
 /// * `config` — actor configuration (mutation parameters and clamp ranges).
 /// * `seed` — simulation master seed for deterministic mutation RNG derivation.
 /// * `tick` — current tick number for deterministic mutation RNG derivation.
+#[allow(clippy::too_many_arguments)]
 pub fn run_deferred_spawn(
     actors: &mut ActorRegistry,
     occupancy: &mut [Option<usize>],
@@ -770,6 +773,7 @@ pub fn run_deferred_spawn(
 /// Each actor participates in at most one predation event per tick
 /// (either as predator or as prey). Determinism is guaranteed by
 /// ascending slot-index iteration order and first-match-wins semantics.
+#[allow(clippy::too_many_arguments)]
 pub fn run_contact_predation(
     actors: &mut ActorRegistry,
     occupancy: &[Option<usize>],
@@ -943,6 +947,7 @@ pub fn run_contact_predation(
 ///
 /// WARM PATH: Called once per predation attempt. At most 3 occupancy lookups +
 /// 3 genetic distance computations per call.
+#[allow(clippy::too_many_arguments)]
 fn sum_allied_defense(
     prey_cell: usize,
     prey_traits: &HeritableTraits,
