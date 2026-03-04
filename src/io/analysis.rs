@@ -3,7 +3,7 @@
 
 use crate::grid::actor_config::ActorConfig;
 use crate::grid::config::GridConfig;
-use crate::grid::world_init::WorldInitConfig;
+use crate::grid::world_init::{SourceFieldConfig, WorldInitConfig};
 use crate::io::config_file::WorldConfig;
 
 // ── Report structs ─────────────────────────────────────────────────
@@ -38,7 +38,11 @@ pub struct StabilityReport {
 #[derive(Debug, Clone)]
 pub struct ChemicalBudgetReport {
     pub expected_source_count: f32,
-    pub expected_emission_per_tick: f32,
+    /// Raw instantaneous emission if all sources were active at full rate.
+    pub raw_emission_per_tick: f32,
+    /// Effective long-term emission accounting for renewable fraction,
+    /// non-renewable depletion lifetime, and respawn duty cycle.
+    pub effective_emission_per_tick: f32,
     pub expected_decay_per_tick: f32,
     pub expected_actor_consumption: f32,
     pub net_chemical_per_tick: f32,
@@ -50,6 +54,8 @@ pub struct ChemicalBudgetReport {
 pub struct EnergyBudgetReport {
     pub net_energy_per_tick: f32,
     pub break_even_concentration: f32,
+    /// Estimated steady-state concentration per cell from source emission.
+    pub steady_state_concentration: f32,
     pub idle_survival_ticks: f32,
     pub ticks_to_reproduction: Option<f32>,
     pub energy_positive: bool,
@@ -102,33 +108,89 @@ pub fn analyze_stability(grid: &GridConfig, world_init: &WorldInitConfig) -> Sta
     }
 }
 
+/// Compute the long-term effective emission rate for a source field config.
+///
+/// Accounts for:
+/// - Renewable sources: emit at full rate indefinitely.
+/// - Non-renewable sources with respawn: emit for `lifetime` ticks, then wait
+///   `cooldown` ticks. Effective rate = raw_rate * lifetime / (lifetime + cooldown).
+/// - Non-renewable sources without respawn: contribute 0 to long-term budget
+///   (they eventually deplete permanently).
+///
+/// Returns (raw_emission_per_tick, effective_emission_per_tick).
+fn effective_source_emission(cfg: &SourceFieldConfig) -> (f32, f32) {
+    let expected_count = (cfg.min_sources as f32 + cfg.max_sources as f32) / 2.0;
+    let mid_rate = (cfg.min_emission_rate + cfg.max_emission_rate) / 2.0;
+    let raw = expected_count * mid_rate;
+
+    let renewable_count = expected_count * cfg.renewable_fraction;
+    let nonrenewable_count = expected_count * (1.0 - cfg.renewable_fraction);
+
+    // Renewable sources emit indefinitely at full rate.
+    let renewable_emission = renewable_count * mid_rate;
+
+    // Non-renewable sources: estimate average lifetime from reservoir / emission_rate.
+    let nonrenewable_emission = if nonrenewable_count > 0.0 && cfg.respawn_enabled {
+        let mid_reservoir =
+            (cfg.min_reservoir_capacity + cfg.max_reservoir_capacity) / 2.0;
+        let lifetime = if mid_rate > 0.0 {
+            mid_reservoir / mid_rate
+        } else {
+            f32::INFINITY
+        };
+        let mid_cooldown = (cfg.min_respawn_cooldown_ticks as f32
+            + cfg.max_respawn_cooldown_ticks as f32)
+            / 2.0;
+        let cycle = lifetime + mid_cooldown;
+        let duty = if cycle > 0.0 { lifetime / cycle } else { 1.0 };
+        nonrenewable_count * mid_rate * duty
+    } else {
+        // No respawn: non-renewable sources deplete permanently.
+        // Long-term contribution is zero.
+        0.0
+    };
+
+    (raw, renewable_emission + nonrenewable_emission)
+}
+
+/// Estimate steady-state concentration per cell.
+///
+/// At equilibrium, emission balances decay: `effective_emission = cell_count * C_ss * decay_rate`.
+/// Solving: `C_ss = effective_emission / (cell_count * decay_rate)`.
+/// If decay_rate is 0, concentration grows without bound (return INFINITY).
+fn steady_state_concentration(
+    effective_emission: f32,
+    cell_count: f32,
+    decay_rate: f32,
+) -> f32 {
+    if decay_rate > 0.0 && cell_count > 0.0 {
+        effective_emission / (cell_count * decay_rate)
+    } else {
+        f32::INFINITY
+    }
+}
+
 pub fn analyze_chemical_budget(
     grid: &GridConfig,
     world_init: &WorldInitConfig,
     actor: Option<&ActorConfig>,
 ) -> ChemicalBudgetReport {
     let cell_count = (grid.width as f32) * (grid.height as f32);
-    let chem = &world_init.chemical_species_configs.first()
-        .map(|c| &c.source_config)
+    let chem_species = world_init.chemical_species_configs.first()
         .expect("at least one chemical species config required");
+    let chem = &chem_species.source_config;
 
-    // Midpoint source count and midpoint emission rate (Req 3.1)
     let expected_source_count =
         (chem.min_sources as f32 + chem.max_sources as f32) / 2.0;
-    let midpoint_emission_rate =
-        (chem.min_emission_rate + chem.max_emission_rate) / 2.0;
-    let expected_emission_per_tick = expected_source_count * midpoint_emission_rate;
 
-    // Expected decay: cell_count * avg_concentration * decay_rate (Req 3.2)
-    // Use the first chemical species decay rate (species 0 is the metabolic currency).
-    let avg_concentration =
-        (world_init.min_initial_concentration + world_init.max_initial_concentration) / 2.0;
-    let decay_rate = world_init.chemical_species_configs.first()
-        .map(|c| c.decay_rate)
-        .unwrap_or(0.0);
-    let expected_decay_per_tick = cell_count * avg_concentration * decay_rate;
+    let (raw_emission, effective_emission) = effective_source_emission(chem);
 
-    // Actor consumption: midpoint actor count * consumption_rate (Req 3.3, 3.6)
+    // Steady-state decay uses the equilibrium concentration, not initial.
+    let decay_rate = chem_species.decay_rate;
+    let ss_concentration = steady_state_concentration(effective_emission, cell_count, decay_rate);
+    let expected_decay_per_tick = cell_count * ss_concentration * decay_rate;
+
+    // Actor consumption at steady state.
     let expected_actor_consumption = actor
         .map(|a| {
             let mid_actors =
@@ -137,13 +199,13 @@ pub fn analyze_chemical_budget(
         })
         .unwrap_or(0.0);
 
-    // Net balance and deficit flag (Req 3.4, 3.5)
     let net_chemical_per_tick =
-        expected_emission_per_tick - expected_decay_per_tick - expected_actor_consumption;
+        effective_emission - expected_decay_per_tick - expected_actor_consumption;
 
     ChemicalBudgetReport {
         expected_source_count,
-        expected_emission_per_tick,
+        raw_emission_per_tick: raw_emission,
+        effective_emission_per_tick: effective_emission,
         expected_decay_per_tick,
         expected_actor_consumption,
         net_chemical_per_tick,
@@ -153,40 +215,44 @@ pub fn analyze_chemical_budget(
 }
 
 pub fn analyze_energy_budget(
-    _grid: &GridConfig,
+    grid: &GridConfig,
     world_init: &WorldInitConfig,
     actor: &ActorConfig,
 ) -> EnergyBudgetReport {
-    // Average chemical concentration across the grid (species 0).
-    let avg_concentration =
-        (world_init.min_initial_concentration + world_init.max_initial_concentration) / 2.0;
+    let cell_count = (grid.width as f32) * (grid.height as f32);
+    let chem_species = world_init.chemical_species_configs.first()
+        .expect("at least one chemical species config required");
 
-    // Actual consumed amount is min(available, consumption_rate) per Req 4.1.
-    let consumed = avg_concentration.min(actor.consumption_rate);
+    // Compute effective emission to derive steady-state concentration.
+    let (_, effective_emission) = effective_source_emission(&chem_species.source_config);
+    let ss_concentration =
+        steady_state_concentration(effective_emission, cell_count, chem_species.decay_rate);
 
-    // Net energy per tick at average concentration (Req 4.1):
+    // Actual consumed amount is min(available, consumption_rate).
+    let consumed = ss_concentration.min(actor.consumption_rate);
+
+    // Net energy per tick at steady-state concentration:
     // consumed * (energy_conversion_factor - extraction_cost) - base_energy_decay - base_movement_cost
     let net_gain_factor = actor.energy_conversion_factor - actor.extraction_cost;
     let net_energy_per_tick =
         consumed * net_gain_factor - actor.base_energy_decay - actor.base_movement_cost;
 
-    // Break-even concentration: the concentration at which net energy = 0 (Req 4.2).
+    // Break-even concentration: the concentration at which net energy = 0.
     // c * (ecf - ec) - bed - bmc = 0  =>  c = (bed + bmc) / (ecf - ec)
-    // Guard: if net_gain_factor <= 0, break-even is infinite (actor can never break even).
     let break_even_concentration = if net_gain_factor > 0.0 {
         (actor.base_energy_decay + actor.base_movement_cost) / net_gain_factor
     } else {
         f32::INFINITY
     };
 
-    // Idle survival: ticks until energy depletes from basal decay alone (Req 4.3).
+    // Idle survival: ticks until energy depletes from basal decay alone.
     let idle_survival_ticks = if actor.base_energy_decay > 0.0 {
         actor.initial_energy / actor.base_energy_decay
     } else {
         f32::INFINITY
     };
 
-    // Ticks to reach reproduction threshold from initial energy (Req 4.4, 4.5).
+    // Ticks to reach reproduction threshold from initial energy.
     let ticks_to_reproduction = if net_energy_per_tick > 0.0 {
         Some((actor.reproduction_threshold - actor.initial_energy) / net_energy_per_tick)
     } else {
@@ -196,6 +262,7 @@ pub fn analyze_energy_budget(
     EnergyBudgetReport {
         net_energy_per_tick,
         break_even_concentration,
+        steady_state_concentration: ss_concentration,
         idle_survival_ticks,
         ticks_to_reproduction,
         energy_positive: net_energy_per_tick > 0.0,
@@ -208,25 +275,34 @@ pub fn analyze_carrying_capacity(
     actor: &ActorConfig,
 ) -> CarryingCapacityReport {
     let cell_count = (grid.width as usize) * (grid.height as usize);
-    let chem = &world_init.chemical_species_configs.first()
-        .map(|c| &c.source_config)
+    let chem_species = world_init.chemical_species_configs.first()
         .expect("at least one chemical species config required");
 
-    // Total chemical input per tick: midpoint source count * midpoint emission rate (Req 5.1).
-    let expected_source_count =
-        (chem.min_sources as f32 + chem.max_sources as f32) / 2.0;
-    let midpoint_emission_rate =
-        (chem.min_emission_rate + chem.max_emission_rate) / 2.0;
-    let expected_emission_per_tick = expected_source_count * midpoint_emission_rate;
+    // Use effective long-term emission, not raw instantaneous.
+    let (_, effective_emission) = effective_source_emission(&chem_species.source_config);
 
-    // Carrying capacity = total chemical input / per-actor consumption (Req 5.1).
-    let carrying_capacity = if actor.consumption_rate > 0.0 {
-        expected_emission_per_tick / actor.consumption_rate
+    // Energy-balance carrying capacity: how many actors can the system's
+    // energy throughput sustain?
+    //
+    // total_energy_input = effective_emission * (ecf - extraction_cost)
+    // per_actor_drain    = base_energy_decay + base_movement_cost
+    // capacity           = total_energy_input / per_actor_drain
+    //
+    // This is more accurate than emission / consumption_rate because actors
+    // don't all consume at full rate — they consume what they need to offset
+    // metabolic costs. The old model asked "how many actors could eat at max
+    // rate?" which dramatically underestimates sustainable population.
+    let net_gain_factor = actor.energy_conversion_factor - actor.extraction_cost;
+    let total_energy_input = effective_emission * net_gain_factor;
+    let per_actor_drain = actor.base_energy_decay + actor.base_movement_cost;
+
+    let carrying_capacity = if per_actor_drain > 0.0 {
+        total_energy_input / per_actor_drain
     } else {
         f32::INFINITY
     };
 
-    // Space-limited if carrying capacity exceeds available cells (Req 5.2).
+    // Space-limited if carrying capacity exceeds available cells.
     let space_limited = carrying_capacity > cell_count as f32;
 
     CarryingCapacityReport {
@@ -413,8 +489,9 @@ fn format_stability(out: &mut String, s: &StabilityReport) {
 fn format_chemical_budget(out: &mut String, cb: &ChemicalBudgetReport) {
     out.push_str("--- Chemical Budget ---\n");
     out.push_str(&format!("  Expected source count:     {:.1}\n", cb.expected_source_count));
-    out.push_str(&format!("  Emission per tick:         {:.4}\n", cb.expected_emission_per_tick));
-    out.push_str(&format!("  Decay per tick:            {:.4}\n", cb.expected_decay_per_tick));
+    out.push_str(&format!("  Raw emission per tick:     {:.4}\n", cb.raw_emission_per_tick));
+    out.push_str(&format!("  Effective emission/tick:   {:.4}  (accounts for depletion + respawn duty cycle)\n", cb.effective_emission_per_tick));
+    out.push_str(&format!("  Decay per tick (ss):       {:.4}\n", cb.expected_decay_per_tick));
     if cb.actors_enabled {
         out.push_str(&format!("  Actor consumption/tick:    {:.4}\n", cb.expected_actor_consumption));
     } else {
@@ -431,6 +508,11 @@ fn format_chemical_budget(out: &mut String, cb: &ChemicalBudgetReport) {
 
 fn format_energy_budget(out: &mut String, eb: &EnergyBudgetReport) {
     out.push_str("--- Energy Budget ---\n");
+    if eb.steady_state_concentration.is_infinite() {
+        out.push_str("  Steady-state conc.:        ∞ (no decay)\n");
+    } else {
+        out.push_str(&format!("  Steady-state conc.:        {:.4}\n", eb.steady_state_concentration));
+    }
     out.push_str(&format!("  Net energy/tick:           {:.4}\n", eb.net_energy_per_tick));
     out.push_str(&format!("  Break-even concentration:  {:.4}\n", eb.break_even_concentration));
     out.push_str(&format!("  Idle survival:             {:.1} ticks\n", eb.idle_survival_ticks));
@@ -455,6 +537,8 @@ fn format_carrying_capacity(out: &mut String, cc: &CarryingCapacityReport) {
     } else {
         out.push_str("  [OK]   Grid is resource-limited\n");
     }
+    out.push_str("  [NOTE] Capacity assumes uniform distribution. Actors cluster near sources,\n");
+    out.push_str("         so actual population may exceed this estimate.\n");
     out.push('\n');
 }
 
