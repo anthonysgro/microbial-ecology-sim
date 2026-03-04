@@ -10,7 +10,7 @@ use rand::Rng;
 use rand_distr::{Distribution, Normal};
 
 /// Per-actor heritable trait values. Inherited from parent during fission
-/// with proportional gaussian mutation. 40 bytes (includes 2 bytes padding after u16).
+/// with proportional gaussian mutation. 56 bytes.
 ///
 /// Plain data struct — no methods beyond construction and mutation.
 /// Stored inline in `Actor`.
@@ -36,9 +36,13 @@ pub struct HeritableTraits {
     pub reproduction_cooldown: u16,
     /// Maximum number of memory entries this actor can retain. 0 = memoryless.
     pub memory_capacity: u8,
+    /// Attraction bias toward remembered positive-outcome locations.
+    pub site_fidelity_strength: f32,
+    /// Repulsion bias away from remembered negative-outcome locations.
+    pub avoidance_sensitivity: f32,
 }
 
-const _: () = assert!(std::mem::size_of::<HeritableTraits>() == 48);
+const _: () = assert!(std::mem::size_of::<HeritableTraits>() == 56);
 
 impl HeritableTraits {
     /// Create traits from global config defaults (seed genome).
@@ -57,6 +61,8 @@ impl HeritableTraits {
             optimal_temp: config.optimal_temp,
             reproduction_cooldown: config.reproduction_cooldown,
             memory_capacity: config.memory_capacity,
+            site_fidelity_strength: config.site_fidelity_strength,
+            avoidance_sensitivity: config.avoidance_sensitivity,
         }
     }
 
@@ -130,6 +136,12 @@ impl HeritableTraits {
             .round()
             .clamp(config.trait_memory_capacity_min as f32, config.trait_memory_capacity_max as f32)
             as u8;
+
+        self.site_fidelity_strength = (self.site_fidelity_strength * (1.0 + normal.sample(rng) as f32))
+            .clamp(config.trait_site_fidelity_strength_min, config.trait_site_fidelity_strength_max);
+
+        self.avoidance_sensitivity = (self.avoidance_sensitivity * (1.0 + normal.sample(rng) as f32))
+            .clamp(config.trait_avoidance_sensitivity_min, config.trait_avoidance_sensitivity_max);
     }
 }
 

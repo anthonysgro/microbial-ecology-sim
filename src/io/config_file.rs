@@ -259,7 +259,7 @@ pub fn validate_world_config(config: &WorldConfig) -> Result<(), ConfigError> {
         }
 
         // 3h. Trait clamp ranges (f32): min must be strictly less than max.
-        let clamp_ranges: [(&str, f32, f32); 9] = [
+        let clamp_ranges: [(&str, f32, f32); 11] = [
             ("trait_consumption_rate", actor.trait_consumption_rate_min, actor.trait_consumption_rate_max),
             ("trait_base_energy_decay", actor.trait_base_energy_decay_min, actor.trait_base_energy_decay_max),
             ("trait_levy_exponent", actor.trait_levy_exponent_min, actor.trait_levy_exponent_max),
@@ -269,6 +269,8 @@ pub fn validate_world_config(config: &WorldConfig) -> Result<(), ConfigError> {
             ("trait_mutation_rate", actor.trait_mutation_rate_min, actor.trait_mutation_rate_max),
             ("trait_kin_tolerance", actor.trait_kin_tolerance_min, actor.trait_kin_tolerance_max),
             ("trait_kin_group_defense", actor.trait_kin_group_defense_min, actor.trait_kin_group_defense_max),
+            ("trait_site_fidelity_strength", actor.trait_site_fidelity_strength_min, actor.trait_site_fidelity_strength_max),
+            ("trait_avoidance_sensitivity", actor.trait_avoidance_sensitivity_min, actor.trait_avoidance_sensitivity_max),
         ];
         for (name, min, max) in &clamp_ranges {
             if min >= max {
@@ -619,6 +621,34 @@ pub fn validate_world_config(config: &WorldConfig) -> Result<(), ConfigError> {
                 reason: format!(
                     "cognitive_cost_per_slot ({}) must be >= 0.0 and finite",
                     actor.cognitive_cost_per_slot,
+                ),
+            });
+        }
+
+        // 3u. site_fidelity_strength seed value must be within clamp range.
+        if actor.site_fidelity_strength < actor.trait_site_fidelity_strength_min
+            || actor.site_fidelity_strength > actor.trait_site_fidelity_strength_max
+        {
+            return Err(ConfigError::Validation {
+                reason: format!(
+                    "site_fidelity_strength ({}) must be within trait clamp range [{}, {}]",
+                    actor.site_fidelity_strength,
+                    actor.trait_site_fidelity_strength_min,
+                    actor.trait_site_fidelity_strength_max,
+                ),
+            });
+        }
+
+        // 3v. avoidance_sensitivity seed value must be within clamp range.
+        if actor.avoidance_sensitivity < actor.trait_avoidance_sensitivity_min
+            || actor.avoidance_sensitivity > actor.trait_avoidance_sensitivity_max
+        {
+            return Err(ConfigError::Validation {
+                reason: format!(
+                    "avoidance_sensitivity ({}) must be within trait clamp range [{}, {}]",
+                    actor.avoidance_sensitivity,
+                    actor.trait_avoidance_sensitivity_min,
+                    actor.trait_avoidance_sensitivity_max,
                 ),
             });
         }

@@ -65,6 +65,117 @@ const ZEROED_ENTRY: MemoryEntry = MemoryEntry {
     outcome: MemoryOutcome::Food,
 };
 
+/// Compute memory-biased movement target from an actor's Brain.
+///
+/// WARM PATH: bounded scan of at most MAX_MEMORY_CAPACITY entries.
+/// Zero heap allocations. Deterministic for identical inputs.
+///
+/// Returns `Some(cell_index)` of the best-scoring Von Neumann neighbor,
+/// or `None` if no neighbor has a positive score.
+///
+/// Direction indices: 0=N, 1=S, 2=W, 3=E.
+/// Tie-breaking: N, S, W, E (first wins via strict `>`).
+pub fn compute_memory_bias(
+    brain: &Brain,
+    actor_x: usize,
+    actor_y: usize,
+    grid_width: usize,
+    grid_height: usize,
+    current_tick: u64,
+    site_fidelity_strength: f32,
+    avoidance_sensitivity: f32,
+) -> Option<usize> {
+    if brain.len == 0 {
+        return None;
+    }
+
+    // Direction accumulator: [N, S, W, E]
+    let mut scores: [f32; 4] = [0.0; 4];
+
+    let len = brain.len as usize;
+    for i in 0..len {
+        let entry = &brain.entries[i];
+
+        let mem_x = (entry.cell_index as usize) % grid_width;
+        let mem_y = (entry.cell_index as usize) / grid_width;
+
+        // Skip entries at actor's current cell — no directional bias possible.
+        if mem_x == actor_x && mem_y == actor_y {
+            continue;
+        }
+
+        // Temporal decay: recent memories weigh more.
+        let age = current_tick.saturating_sub(entry.tick) as f32;
+        let decay = 1.0 / (1.0 + age);
+
+        // Weight sign depends on outcome type.
+        let weight = match entry.outcome {
+            MemoryOutcome::Food | MemoryOutcome::PredationSuccess => {
+                site_fidelity_strength * decay
+            }
+            MemoryOutcome::PredationThreat => {
+                -avoidance_sensitivity * decay
+            }
+        };
+
+        // Accumulate into direction(s) that reduce Manhattan distance.
+        if mem_y < actor_y {
+            scores[0] += weight; // N
+        }
+        if mem_y > actor_y {
+            scores[1] += weight; // S
+        }
+        if mem_x < actor_x {
+            scores[2] += weight; // W
+        }
+        if mem_x > actor_x {
+            scores[3] += weight; // E
+        }
+    }
+
+    // Find best direction with strict > for tie-breaking (N, S, W, E order).
+    let mut best_dir: usize = 0;
+    let mut best_score: f32 = scores[0];
+    for dir in 1..4 {
+        if scores[dir] > best_score {
+            best_score = scores[dir];
+            best_dir = dir;
+        }
+    }
+
+    if best_score <= 0.0 {
+        return None;
+    }
+
+    // Convert direction to neighbor cell index, checking grid bounds.
+    let (nx, ny) = match best_dir {
+        0 => {
+            // N: y - 1
+            if actor_y == 0 { return None; }
+            (actor_x, actor_y - 1)
+        }
+        1 => {
+            // S: y + 1
+            if actor_y + 1 >= grid_height { return None; }
+            (actor_x, actor_y + 1)
+        }
+        2 => {
+            // W: x - 1
+            if actor_x == 0 { return None; }
+            (actor_x - 1, actor_y)
+        }
+        3 => {
+            // E: x + 1
+            if actor_x + 1 >= grid_width { return None; }
+            (actor_x + 1, actor_y)
+        }
+        // SAFETY: best_dir is always in 0..4 from the loop above.
+        _ => unreachable!(),
+    };
+
+    Some(ny * grid_width + nx)
+}
+
 /// Create an empty Brain with zeroed entries, head=0, len=0.
 pub fn brain_empty() -> Brain {
     Brain {
@@ -120,6 +231,8 @@ pub fn genome_hash(traits: &HeritableTraits) -> u32 {
     mix(&mut h, &traits.optimal_temp.to_le_bytes());
     mix(&mut h, &traits.reproduction_cooldown.to_le_bytes());
     mix(&mut h, &traits.memory_capacity.to_le_bytes());
+    mix(&mut h, &traits.site_fidelity_strength.to_le_bytes());
+    mix(&mut h, &traits.avoidance_sensitivity.to_le_bytes());
 
     h
 }

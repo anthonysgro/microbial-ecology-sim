@@ -208,6 +208,28 @@ cognitive_cost_per_slot = 0.005          # Energy cost per memory slot per tick.
                                          # with the actor's heritable memory_capacity.
                                          # Must be >= 0.0 and finite.
 
+# ── Memory-Biased Sensing ───────────────────────────────────────
+# Two heritable traits control how strongly actors exploit or avoid
+# remembered locations when no chemical gradient is detected.
+# The sensing hierarchy is: gradient → memory bias → Lévy flight.
+
+site_fidelity_strength = 1.0             # Seed genome default for heritable site_fidelity_strength trait.
+                                         # Controls attraction bias toward remembered positive-outcome locations
+                                         # (food, predation success). Must be within
+                                         # [trait_site_fidelity_strength_min, trait_site_fidelity_strength_max].
+trait_site_fidelity_strength_min = 0.0   # Minimum clamp bound for heritable site_fidelity_strength.
+                                         # Must be < trait_site_fidelity_strength_max.
+trait_site_fidelity_strength_max = 5.0   # Maximum clamp bound for heritable site_fidelity_strength.
+                                         # Must be > trait_site_fidelity_strength_min.
+avoidance_sensitivity = 1.0              # Seed genome default for heritable avoidance_sensitivity trait.
+                                         # Controls repulsion bias away from remembered negative-outcome
+                                         # locations (predation threat). Must be within
+                                         # [trait_avoidance_sensitivity_min, trait_avoidance_sensitivity_max].
+trait_avoidance_sensitivity_min = 0.0    # Minimum clamp bound for heritable avoidance_sensitivity.
+                                         # Must be < trait_avoidance_sensitivity_max.
+trait_avoidance_sensitivity_max = 5.0    # Maximum clamp bound for heritable avoidance_sensitivity.
+                                         # Must be > trait_avoidance_sensitivity_min.
+
 # ── Thermal Metabolism ──────────────────────────────────────────
 # Actors pay an extra energy cost based on the squared mismatch between
 # local cell heat and their heritable optimal_temp trait:

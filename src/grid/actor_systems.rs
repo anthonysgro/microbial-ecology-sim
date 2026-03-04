@@ -7,7 +7,7 @@
 
 use crate::grid::actor::{ActorId, ActorRegistry, HeritableTraits};
 use crate::grid::actor_config::ActorConfig;
-use crate::grid::brain::{brain_empty, brain_write, genome_hash, Brain, MemoryEntry, MemoryOutcome};
+use crate::grid::brain::{brain_empty, brain_write, compute_memory_bias, genome_hash, Brain, MemoryEntry, MemoryOutcome};
 use crate::grid::error::TickError;
 use rand::Rng;
 
@@ -42,7 +42,7 @@ pub(crate) fn direction_to_target(cell_index: usize, direction: u8, w: usize, h:
 }
 
 /// Number of heritable traits used in genetic distance computation.
-const TRAIT_COUNT: usize = 13;
+const TRAIT_COUNT: usize = 15;
 
 /// Compute normalized Euclidean distance between two heritable trait vectors.
 ///
@@ -70,6 +70,8 @@ pub(crate) fn genetic_distance(a: &HeritableTraits, b: &HeritableTraits, config:
         (a.optimal_temp,            b.optimal_temp,            config.trait_optimal_temp_min,            config.trait_optimal_temp_max),
         (a.reproduction_cooldown as f32, b.reproduction_cooldown as f32, config.trait_reproduction_cooldown_min as f32, config.trait_reproduction_cooldown_max as f32),
         (a.memory_capacity as f32, b.memory_capacity as f32, config.trait_memory_capacity_min as f32, config.trait_memory_capacity_max as f32),
+        (a.site_fidelity_strength, b.site_fidelity_strength, config.trait_site_fidelity_strength_min, config.trait_site_fidelity_strength_max),
+        (a.avoidance_sensitivity,  b.avoidance_sensitivity,  config.trait_avoidance_sensitivity_min,  config.trait_avoidance_sensitivity_max),
     ];
 
     let mut sum_sq: f32 = 0.0;
@@ -160,11 +162,13 @@ pub(crate) fn thermal_fitness(cell_heat: f32, optimal_temp: f32, width: f32) -> 
 /// * `rng` — per-tick deterministic RNG for tumble sampling.
 pub fn run_actor_sensing(
     actors: &mut ActorRegistry,
+    brains: &[Brain],
     chemical_read: &[f32],
     grid_width: u32,
     grid_height: u32,
     movement_targets: &mut [Option<usize>],
     config: &ActorConfig,
+    current_tick: u64,
     rng: &mut impl Rng,
 ) {
     let w = grid_width as usize;
@@ -247,6 +251,42 @@ pub fn run_actor_sensing(
             // Gradient found — follow it, cancel any active tumble.
             actor.tumble_remaining = 0;
             movement_targets[slot_index] = best_target;
+        } else if actor.traits.memory_capacity > 0 && brains[slot_index].len > 0 {
+            // No gradient — consult memory bias before falling back to Lévy flight.
+            let bias_target = compute_memory_bias(
+                &brains[slot_index],
+                x,
+                y,
+                w,
+                h,
+                current_tick,
+                actor.traits.site_fidelity_strength,
+                actor.traits.avoidance_sensitivity,
+            );
+            if let Some(target) = bias_target {
+                actor.tumble_remaining = 0;
+                movement_targets[slot_index] = Some(target);
+            } else if actor.tumble_remaining > 0 {
+                // Memory returned None, mid-tumble — continue tumble direction.
+                let target = direction_to_target(ci, actor.tumble_direction, w, h);
+                if target.is_none() {
+                    actor.tumble_remaining = 0;
+                } else {
+                    actor.tumble_remaining -= 1;
+                }
+                movement_targets[slot_index] = target;
+            } else {
+                // Memory returned None, not tumbling — initiate new Lévy flight.
+                actor.tumble_direction = rng.random_range(0u8..4u8);
+                actor.tumble_remaining = sample_tumble_steps(rng, actor.traits.levy_exponent, actor.traits.max_tumble_steps);
+                let target = direction_to_target(ci, actor.tumble_direction, w, h);
+                if target.is_none() {
+                    actor.tumble_remaining = 0;
+                } else {
+                    actor.tumble_remaining -= 1;
+                }
+                movement_targets[slot_index] = target;
+            }
         } else if actor.tumble_remaining > 0 {
             // Mid-tumble, no gradient — continue in tumble_direction.
             let target = direction_to_target(ci, actor.tumble_direction, w, h);
@@ -966,8 +1006,9 @@ mod tests {
         chemical[3] = 3.0; // west
         chemical[5] = 4.0; // east
 
+        let brains = vec![brain_empty(); 1];
         let mut targets = vec![None; 1];
-        run_actor_sensing(&mut registry, &chemical, 3, 3, &mut targets, &config, &mut rng);
+        run_actor_sensing(&mut registry, &brains, &chemical, 3, 3, &mut targets, &config, 0, &mut rng);
 
         assert_eq!(targets[0], Some(1), "should select north (index 1) as max gradient");
     }
@@ -991,8 +1032,9 @@ mod tests {
         chemical[3] = 5.0; // south
         chemical[1] = 3.0; // east
 
+        let brains = vec![brain_empty(); 1];
         let mut targets = vec![None; 1];
-        run_actor_sensing(&mut registry, &chemical, 3, 3, &mut targets, &config, &mut rng);
+        run_actor_sensing(&mut registry, &brains, &chemical, 3, 3, &mut targets, &config, 0, &mut rng);
 
         assert_eq!(targets[0], Some(3), "should select south (index 3) as max gradient");
     }
@@ -1016,8 +1058,9 @@ mod tests {
         chemical[4] = 10.0;
         // Neighbors at 0.0 — below break-even, no positive gradient.
 
+        let brains = vec![brain_empty(); 1];
         let mut targets = vec![None; 1];
-        run_actor_sensing(&mut registry, &chemical, 3, 3, &mut targets, &config, &mut rng);
+        run_actor_sensing(&mut registry, &brains, &chemical, 3, 3, &mut targets, &config, 0, &mut rng);
 
         // Actor at center of 3×3 grid — all four directions are in-bounds,
         // so tumble should produce Some(target).
@@ -1044,8 +1087,9 @@ mod tests {
         chemical[1] = 5.0; // north — gradient 4.0
         chemical[5] = 5.0; // east  — gradient 4.0 (tie)
 
+        let brains = vec![brain_empty(); 1];
         let mut targets = vec![None; 1];
-        run_actor_sensing(&mut registry, &chemical, 3, 3, &mut targets, &config, &mut rng);
+        run_actor_sensing(&mut registry, &brains, &chemical, 3, 3, &mut targets, &config, 0, &mut rng);
 
         // North is checked before East, and we use strict `>`, so North wins the tie.
         assert_eq!(targets[0], Some(1), "tie-break: north wins over east");

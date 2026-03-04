@@ -274,11 +274,13 @@ fn run_actor_phases(grid: &mut Grid, _config: &GridConfig, tick: u64) -> Result<
             .expect("at least one chemical species required for actor sensing");
         run_actor_sensing(
             &mut actors,
+            &brains,
             chemical_read,
             grid.width(),
             grid.height(),
             &mut movement_targets,
             &actor_config,
+            tick,
             &mut tick_rng,
         );
     }

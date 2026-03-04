@@ -27,7 +27,7 @@ pub(super) fn overlay_label_text(overlay: &ActiveOverlay) -> String {
 }
 
 /// Trait names in display order, matching `TraitStats::traits` array indices.
-const TRAIT_NAMES: [&str; 13] = [
+const TRAIT_NAMES: [&str; 15] = [
     "consumption_rate",
     "base_energy_decay",
     "levy_exponent",
@@ -41,6 +41,8 @@ const TRAIT_NAMES: [&str; 13] = [
     "repro_cooldown",
     "kin_group_defense",
     "memory_capacity",
+    "site_fidelity",
+    "avoid_sensitivity",
 ];
 
 /// Format `TraitStats` into a display string for the stats panel.
@@ -128,6 +130,8 @@ pub fn format_actor_info(
     writeln!(out, "optimal_temp:            {:.4}", actor.traits.optimal_temp).ok();
     writeln!(out, "reproduction_cooldown:   {}", actor.traits.reproduction_cooldown).ok();
     writeln!(out, "memory_capacity:         {}", actor.traits.memory_capacity).ok();
+    writeln!(out, "site_fidelity_strength:  {:.4}", actor.traits.site_fidelity_strength).ok();
+    writeln!(out, "avoidance_sensitivity:   {:.4}", actor.traits.avoidance_sensitivity).ok();
     writeln!(out).ok();
     writeln!(out, "cooldown_remaining:      {}", actor.cooldown_remaining).ok();
 
@@ -252,6 +256,10 @@ pub(super) fn format_config_info(
             writeln!(out, "memory_capacity: {}", ac.memory_capacity).ok();
             writeln!(out, "trait_memory_capacity: {}..{}", ac.trait_memory_capacity_min, ac.trait_memory_capacity_max).ok();
             writeln!(out, "cognitive_cost_per_slot: {:.4}", ac.cognitive_cost_per_slot).ok();
+            writeln!(out, "site_fidelity_strength: {:.4}", ac.site_fidelity_strength).ok();
+            writeln!(out, "trait_site_fidelity_strength: {:.4}..{:.4}", ac.trait_site_fidelity_strength_min, ac.trait_site_fidelity_strength_max).ok();
+            writeln!(out, "avoidance_sensitivity: {:.4}", ac.avoidance_sensitivity).ok();
+            writeln!(out, "trait_avoidance_sensitivity: {:.4}..{:.4}", ac.trait_avoidance_sensitivity_min, ac.trait_avoidance_sensitivity_max).ok();
         }
         None => {
             writeln!(out, "Actors: disabled").ok();

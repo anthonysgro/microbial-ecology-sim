@@ -43,6 +43,12 @@ fn default_memory_capacity() -> u8 { 4 }
 fn default_trait_memory_capacity_min() -> u8 { 0 }
 fn default_trait_memory_capacity_max() -> u8 { 16 }
 fn default_cognitive_cost_per_slot() -> f32 { 0.005 }
+fn default_site_fidelity_strength() -> f32 { 1.0 }
+fn default_trait_site_fidelity_strength_min() -> f32 { 0.0 }
+fn default_trait_site_fidelity_strength_max() -> f32 { 5.0 }
+fn default_avoidance_sensitivity() -> f32 { 1.0 }
+fn default_trait_avoidance_sensitivity_min() -> f32 { 0.0 }
+fn default_trait_avoidance_sensitivity_max() -> f32 { 5.0 }
 
 /// Configuration parameters for Actor metabolism, sensing, and spawning.
 ///
@@ -282,6 +288,35 @@ pub struct ActorConfig {
     /// Must be >= 0.0 and finite. Default: 0.005.
     #[serde(default = "default_cognitive_cost_per_slot")]
     pub cognitive_cost_per_slot: f32,
+
+    // ── Memory-biased sensing config ───────────────────────────────
+    /// Seed genome default for heritable `site_fidelity_strength` trait.
+    /// Controls attraction bias toward remembered positive-outcome locations.
+    /// Must be within [trait_site_fidelity_strength_min, trait_site_fidelity_strength_max]. Default: 1.0.
+    #[serde(default = "default_site_fidelity_strength")]
+    pub site_fidelity_strength: f32,
+
+    /// Minimum clamp bound for heritable `site_fidelity_strength`. Default: 0.0.
+    #[serde(default = "default_trait_site_fidelity_strength_min")]
+    pub trait_site_fidelity_strength_min: f32,
+
+    /// Maximum clamp bound for heritable `site_fidelity_strength`. Default: 5.0.
+    #[serde(default = "default_trait_site_fidelity_strength_max")]
+    pub trait_site_fidelity_strength_max: f32,
+
+    /// Seed genome default for heritable `avoidance_sensitivity` trait.
+    /// Controls repulsion bias away from remembered negative-outcome locations.
+    /// Must be within [trait_avoidance_sensitivity_min, trait_avoidance_sensitivity_max]. Default: 1.0.
+    #[serde(default = "default_avoidance_sensitivity")]
+    pub avoidance_sensitivity: f32,
+
+    /// Minimum clamp bound for heritable `avoidance_sensitivity`. Default: 0.0.
+    #[serde(default = "default_trait_avoidance_sensitivity_min")]
+    pub trait_avoidance_sensitivity_min: f32,
+
+    /// Maximum clamp bound for heritable `avoidance_sensitivity`. Default: 5.0.
+    #[serde(default = "default_trait_avoidance_sensitivity_max")]
+    pub trait_avoidance_sensitivity_max: f32,
 }
 
 impl Default for ActorConfig {
@@ -342,6 +377,12 @@ impl Default for ActorConfig {
             trait_memory_capacity_min: default_trait_memory_capacity_min(),
             trait_memory_capacity_max: default_trait_memory_capacity_max(),
             cognitive_cost_per_slot: default_cognitive_cost_per_slot(),
+            site_fidelity_strength: default_site_fidelity_strength(),
+            trait_site_fidelity_strength_min: default_trait_site_fidelity_strength_min(),
+            trait_site_fidelity_strength_max: default_trait_site_fidelity_strength_max(),
+            avoidance_sensitivity: default_avoidance_sensitivity(),
+            trait_avoidance_sensitivity_min: default_trait_avoidance_sensitivity_min(),
+            trait_avoidance_sensitivity_max: default_trait_avoidance_sensitivity_max(),
         }
     }
 }
